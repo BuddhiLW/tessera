@@ -17,7 +17,8 @@
             [tessera.palette :as pal]
             [desargues.wallpaper.luxcore :as lx]
             [tessera.neon :as neon]
-            [tessera.curves :as curves]))
+            [tessera.curves :as curves]
+            [tessera.reciprocal :as recip]))
 
 (set! *warn-on-reflection* true)
 
@@ -174,7 +175,8 @@
   "Every loop, by id, in gallery order."
   (into (array-map)
         (map (juxt :id identity))
-        [neon/neon-pulse neon/neon-khatam curves/moore-comets girih-light girih-drift girih-assembly
+        [neon/neon-pulse neon/neon-khatam recip/brillouin-zones recip/graphene-fermi
+         curves/moore-comets girih-light girih-drift girih-assembly
          quasicrystal julia-orbit sierpinski-zoom]))
 
 (def path-traced
