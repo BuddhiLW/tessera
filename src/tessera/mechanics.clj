@@ -196,3 +196,116 @@
      :post (fn [_] [{:type :bloom :radius 14 :strength 1.4}
                     {:type :chroma :shift 2}
                     {:type :vignette :strength 0.6}])}))
+
+;; ── Kepler resonance ───────────────────────────────────────────────────────
+
+(defn eccentric-anomaly
+  "E solving Kepler's equation M = E - e sin E, by Newton iteration from
+   E = M (or pi for e > 0.8)."
+  ^double [^double M ^double e]
+  (loop [E (if (> e 0.8) Math/PI M) i 0]
+    (let [d (/ (- E (* e (Math/sin E)) M) (- 1.0 (* e (Math/cos E))))
+          E' (- E d)]
+      (if (or (< (Math/abs d) 1e-13) (>= i 40)) E' (recur E' (inc i))))))
+
+(defn orbit-point
+  "Position at mean anomaly `M` on the Kepler ellipse of semi-major axis `a`
+   and eccentricity `e`, the focus at the origin, in the orbit's plane."
+  [^double a ^double e ^double M]
+  (let [E (eccentric-anomaly M e)]
+    [(* a (- (Math/cos E) e)) (* a (Math/sqrt (- 1.0 (* e e))) (Math/sin E))]))
+
+(defn orbit->world
+  "Plane point [x y] of an orbit with argument of periapsis `w`,
+   inclination `i` and ascending node `node` (radians) in world space, z up."
+  [[x y] w i node]
+  (let [cw (Math/cos w) sw (Math/sin w)
+        x1 (- (* cw x) (* sw y)) y1 (+ (* sw x) (* cw y))
+        ci (Math/cos i) si (Math/sin i)
+        y2 (* ci y1) z2 (* si y1)
+        cn (Math/cos node) sn (Math/sin node)]
+    [(- (* cn x1) (* sn y2)) (+ (* sn x1) (* cn y2)) z2]))
+
+(def orbits
+  "Six bodies about one sun. :n is whole revolutions per loop, so Kepler's
+   third law a ~ n^(-2/3) fixes each semi-major axis; the period ratios are
+   the resonance chain 12:6:4:3:2:1."
+  (vec (for [[k [n e w i node]] (map-indexed vector
+                                             [[12 0.05 0.3 0.10 0.0]
+                                              [6 0.12 1.9 0.22 0.7]
+                                              [4 0.20 4.0 0.08 2.1]
+                                              [3 0.10 2.6 0.30 4.0]
+                                              [2 0.32 0.9 0.16 5.1]
+                                              [1 0.45 3.4 0.26 1.3]])]
+         {:k k :n n :e e :w w :i i :node node
+          :a (* 4.2 (Math/pow (double n) (/ -2.0 3.0)))
+          :M0 (* lp/tau (/ (double k) 6.0))})))
+
+(defn body-at
+  "World position of orbit `o` at loop phase `u`."
+  [{:keys [n a e w i node M0]} u]
+  (orbit->world (orbit-point a e (+ M0 (* lp/tau (double n) (double u)))) w i node))
+
+(def kepler-camera
+  "Fixed view of the system from a little above its plane."
+  (camera [0.0 -11.0 3.4] [0.0 0.0 0.15] 21.0))
+
+(def stars
+  "A fixed star field: [x y radius twinkle-rate twinkle-phase] in screen
+   units, rates whole numbers per loop."
+  (let [rng (java.util.Random. 7)]
+    (vec (repeatedly 260 (fn [] [(* 14.4 (- (.nextDouble rng) 0.5)) (* 8.2 (- (.nextDouble rng) 0.5))
+                                 (+ 0.006 (* 0.016 (Math/pow (.nextDouble rng) 3.0)))
+                                 (inc (.nextInt rng 3)) (.nextDouble rng)])))))
+
+(defn kepler-frame
+  "The resonant system at phase `u`: a star field, faint orbit lines, a
+   glowing sun, and each body a comet whose tail runs back along its orbit
+   over `tail` of a revolution, fading; drawn back to front."
+  [u {:keys [palette tail segs] :or {tail 0.16 segs 26}}]
+  (let [cam kepler-camera
+        P (fn [p] (project cam p))
+        sky (for [[x y r k ph] stars]
+              {:node :dot :at [x y] :opacity (+ 0.25 (* 0.5 (lp/wave (+ (* k (double u)) ph))))
+               :opts {:radius r} :fill {:color "#c9d6ff" :opacity 1.0}})
+        lines (for [{:keys [k] :as o} orbits
+                    :let [col (hex (pal/at palette (/ (double k) (count orbits))))
+                          pts (mapv #(first (P (body-at (assoc o :n 1) (/ (double %) 180))))
+                                    (range 181))]]
+                {:node :path :points pts :opacity 0.22 :stroke {:color col :width 1.2}})
+        [[sx sy] sz ss] (P [0.0 0.0 0.0])
+        sun {:z sz
+             :shapes (for [[r o c] [[0.55 0.10 "#ff9a3c"] [0.32 0.22 "#ffb35c"] [0.17 0.7 "#ffd9a0"] [0.09 1.0 "#fff8ec"]]]
+                       {:node :dot :at [sx sy] :opacity o :opts {:radius (* r ss)} :fill {:color c :opacity 1.0}})}
+        bodies (for [{:keys [k n] :as o} orbits
+                     :let [col (hex (pal/at palette (/ (double k) (count orbits))))
+                           span (/ (double tail) n)
+                           pts (mapv #(P (body-at o (- (double u) (* span (/ (double %) segs))))) (range (inc segs)))
+                           [[hx hy] hz hs] (first pts)]]
+                 {:z hz
+                  :shapes (concat
+                           (for [j (range segs 0 -1)
+                                 :let [[[x0 y0] _ s0] (nth pts j) [[x1 y1] _ _] (nth pts (dec j))
+                                       f (- 1.0 (/ (double j) segs))]]
+                             {:node :line :from [x0 y0] :to [x1 y1] :opacity (* 0.85 f f)
+                              :stroke {:color col :width (* 30.0 s0 (+ 0.15 (* 0.85 f)) 0.05)}})
+                           [{:node :dot :at [hx hy] :opacity 0.25 :opts {:radius (* 0.16 hs)} :fill {:color col :opacity 1.0}}
+                            {:node :dot :at [hx hy] :opacity 1.0 :opts {:radius (* 0.07 hs)} :fill {:color col :opacity 1.0}}
+                            {:node :dot :at [hx hy] :opacity 0.9 :opts {:radius (* 0.032 hs)} :fill {:color "#fffaf0" :opacity 1.0}}])})]
+    {:background "#000000"
+     :shapes (vec (concat sky lines (mapcat :shapes (sort-by (comp - :z) (cons sun bodies)))))}))
+
+(def kepler-resonance
+  (let [p (pal/around (pal/scheme :orange-blue))]
+    {:id :kepler-resonance
+     :title "Kepler resonance: six inclined orbits, periods 1:2:3:4:6:12, Kepler's equation by Newton"
+     :seconds 40 :fps 30 :size [1920 1080]
+     :frame (fn [u] (kepler-frame u {:palette p}))
+     :post (fn [_] [{:type :bloom :radius 16 :strength 1.3}
+                    {:type :chroma :shift 2}
+                    {:type :vignette :strength 0.55}])}))
+
+(def loops
+  "The mechanics loops, by id."
+  (array-map :pendulum-wave pendulum-wave
+             :kepler-resonance kepler-resonance))
