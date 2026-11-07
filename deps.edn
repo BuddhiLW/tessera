@@ -5,7 +5,7 @@
  ;; (the LuxCore scene engine). See README for a local override.
  :deps {org.clojure/clojure {:mvn/version "1.12.0"}
         io.github.mentat-collective/desargues {:git/url "https://github.com/mentat-collective/desargues.git"
-                                               :git/sha "d7af340d1a8ac20585c3ef0fc13224669d4ce545"}}
+                                               :git/sha "defd4d7e1eba6cd437d31b3b2b027b099aeb4bc3"}}
  :aliases
  {;; clojure -M:render --list | --preview | --only id,id --format mp4|webm|gif|png --size 1920x1080
   :render {:main-opts ["-m" "tessera.main"]}

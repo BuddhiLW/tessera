@@ -11,6 +11,7 @@ this project holds the loops themselves.
 
 | loop | what moves |
 |---|---|
+| `neon-khatam` | eight-pointed stars and octagons as strings of glowing beads on a tilted plane; beads march, inner outlines turn, a ring of light travels outward; bloom, red/blue fringe, depth of field |
 | `girih-light` | khatam eight-pointed stars on the 4.8.8 tiling (Hankin's method), the contact angle breathing, a band of light sweeping the ceiling |
 | `girih-drift` | six-fold two-point stars on 3.6.3.6, drifting one lattice period per loop |
 | `girih-assembly` | the 4.8.8 ceiling comes apart in a radial wave, each tile turning, and settles back |
