@@ -1,10 +1,11 @@
 {:paths ["src"]
  ;; desargues supplies the generic parts: desargues.wallpaper.loop (seamless phase),
- ;; desargues.wallpaper.render (field rasteriser, video encoders) and
- ;; desargues.wallpaper.girih (Hankin star patterns). See README for a local override.
+ ;; desargues.wallpaper.render (field rasteriser, scene engines, video encoders),
+ ;; desargues.wallpaper.girih (Hankin star patterns) and desargues.wallpaper.luxcore
+ ;; (the LuxCore scene engine). See README for a local override.
  :deps {org.clojure/clojure {:mvn/version "1.12.0"}
         io.github.mentat-collective/desargues {:git/url "https://github.com/mentat-collective/desargues.git"
-                                               :git/sha "48e5636d90318c6a43703b2b445acebafd605caa"}}
+                                               :git/sha "3bf7b1003ffb7211dff2f78736366bdcb8112b0a"}}
  :aliases
  {;; clojure -M:render --list | --preview | --only id,id --format mp4|webm|gif|png --size 1920x1080
   :render {:main-opts ["-m" "tessera.main"]}

@@ -17,6 +17,7 @@ this project holds the loops themselves.
 | `quasicrystal` | seven plane waves summed, phases once around |
 | `julia-orbit` | the Julia set of c = 0.7885·e^{2πiu}, c once around its circle |
 | `sierpinski-zoom` | a zoom by 2 into a corner of Sierpinski's triangle, its own similarity ratio |
+| `girih-gold` | path traced by LuxCore: gold strands extruded over glazed lapis stars and terracotta squares, an area lamp orbiting once per loop |
 
 ## Render
 
@@ -56,17 +57,26 @@ cycled must have integer frequencies (`tessera.palette/cosine` with `c` in
 whole numbers), or the colours jump at the wrap. `clojure -M:test` checks
 every loop's wrap against its ordinary frame-to-frame motion.
 
-## Roadmap: a physically based backend
+## Path-traced loops (LuxCore)
 
-Planned: render the girih ceilings with light transport through LuxCoreRender
-(2.11, installed locally with `luxcoreconsole`):
+A loop with `:scene (fn [u] scene-map)` is rendered by the `:luxcore` engine
+of `desargues.wallpaper.luxcore`. The scene map becomes LuxCore `.scn`/`.cfg`
+text and `luxcoreconsole` renders each frame. Set `DESARGUES_LUXCORE` to
+use another binary. Meshes come from `lx/prism` and `lx/ribbons`. Frames
+render one at a time. At 640x360 and 48 spp a frame takes about 6 s on CPU.
 
-- fork and update [thi-ng/luxor](https://github.com/thi-ng/luxor) so it emits
-  LuxCore `.scn`/`.cfg` text from portable `.cljc` (it targets LuxRender 1.x
-  `.lxs` today, on thi.ng/geom 0.0.x and an org-mode build);
-- extrude girih strands to meshes (PLY) and give them materials and an area
-  light whose motion is periodic in `u`;
-- render out of process, `luxcoreconsole` per frame, then the same ffmpeg encoder;
+```sh
+clojure -M:render --only girih-gold --format mp4
+```
+
+The test suite does not render path-traced loops.
+
+## Roadmap
+
+- fork and update [thi-ng/luxor](https://github.com/thi-ng/luxor) as the scene
+  DSL over `desargues.wallpaper.luxcore` (it emits LuxRender 1.x `.lxs` today,
+  on thi.ng/geom 0.0.x and an org-mode build);
+- GPU rendering (`renderengine.type = PATHOCL`) and denoising for 1080p loops;
 - port geometry kernels from [thi-ng/vexed-generation](https://github.com/thi-ng/vexed-generation)
   (Houdini VEX, not linkable) to C compiled to wasm, loaded from cljw with
   `wasm/load`. cljw has no native FFI, so LuxCore itself stays a separate process.

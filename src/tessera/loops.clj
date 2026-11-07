@@ -14,7 +14,8 @@
   (:require [desargues.wallpaper.girih :as g]
             [desargues.wallpaper.loop :as lp]
             [tessera.ornament :as orn]
-            [tessera.palette :as pal]))
+            [tessera.palette :as pal]
+            [desargues.wallpaper.luxcore :as lx]))
 
 (set! *warn-on-reflection* true)
 
@@ -135,8 +136,48 @@
                                       (>= b2 1.0) (recur a2 (- b2 1.0) (inc d))
                                       :else (recur a2 b2 (inc d)))))))))))})
 
+(defn- quad [[x y] half z]
+  {:vertices [[(- x half) (- y half) z] [(+ x half) (- y half) z]
+              [(+ x half) (+ y half) z] [(- x half) (+ y half) z]]
+   :faces [[0 2 1] [0 3 2]]})
+
+(defn girih-gold-scene
+  "The 4.8.8 khatam ceiling in 3D at phase `u`: gold strands over glazed
+   lapis stars and terracotta squares, an area lamp orbiting once per loop."
+  [u]
+  (let [polys (g/pattern :4.8.8 [-5.5 5.5 -3.2 3.2] (g/khatam-angle) 0.0)
+        rosettes (fn [kind] (lx/merge-meshes (for [p polys :when (= kind (:kind p))]
+                                               (lx/prism (:rosette p) 0.0 0.02))))]
+    {:camera {:orig [0 -4.2 7.5] :target [0 0.3 0] :fov 52}
+     :materials {:gold {:type "metal2" :preset "gold" :roughness 0.12}
+                 :lapis {:type "glossy2" :kd [0.03 0.12 0.28] :ks [0.08 0.08 0.08] :uroughness 0.05 :vroughness 0.05}
+                 :terra {:type "glossy2" :kd [0.30 0.08 0.04] :ks [0.06 0.06 0.06] :uroughness 0.08 :vroughness 0.08}
+                 :ground {:type "matte" :kd [0.02 0.03 0.06]}
+                 :lamp {:type "matte" :kd [0 0 0] :emission [45 39 30]}}
+     :lights {:amb {:type "constantinfinite" :color [0.05 0.07 0.12]}}
+     :objects {:ground (merge {:material :ground} (quad [0 0] 9.0 -0.01))
+               :octagons (merge {:material :lapis} (rosettes :octagon))
+               :squares (merge {:material :terra} (rosettes :square))
+               :strands (merge {:material :gold} (lx/ribbons (mapcat :strands polys) 0.07 0.0 0.06))
+               :lamp (merge {:material :lamp} (quad (lp/circle u 3.0) 0.6 3.5))}
+     :spp 48}))
+
+(def girih-gold
+  {:id :girih-gold
+   :title "Gold girih under an orbiting lamp (LuxCore path tracing)"
+   :seconds 8 :fps 15 :size [640 360]
+   :scene girih-gold-scene})
+
 (def all
   "Every loop, by id, in gallery order."
   (into (array-map)
         (map (juxt :id identity))
         [girih-light girih-drift girih-assembly quasicrystal julia-orbit sierpinski-zoom]))
+
+(def path-traced
+  "Loops rendered by LuxCore (luxcoreconsole on PATH), by id."
+  (array-map :girih-gold girih-gold))
+
+(def catalog
+  "Every loop the command line knows: `all`, then `path-traced`."
+  (merge all path-traced))

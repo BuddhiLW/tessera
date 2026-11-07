@@ -38,7 +38,7 @@
 
 (defn- chosen [only]
   (if only
-    (mapv #(or (loops/all %) (throw (ex-info (str "Unknown loop " %) {:id % :known (keys loops/all)}))) only)
+    (mapv #(or (loops/catalog %) (throw (ex-info (str "Unknown loop " %) {:id % :known (keys loops/catalog)}))) only)
     (vec (vals loops/all))))
 
 (defn render!
@@ -59,7 +59,7 @@
 (defn -main [& args]
   (let [{:keys [list only] :as opts} (update (parse-args args) :out #(or % "out"))]
     (if list
-      (doseq [{:keys [id title seconds fps]} (vals loops/all)]
+      (doseq [{:keys [id title seconds fps]} (vals loops/catalog)]
         (println (format "%-16s %3ss @ %dfps  %s" (name id) seconds fps title)))
       (doseq [spec (chosen only)]
         (let [t0 (System/nanoTime)
