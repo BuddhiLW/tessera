@@ -13,13 +13,28 @@
    frequencies repeat exactly when a loop's colour phase advances by one."
   (pal/around (pal/scheme :blue-magenta-orange)))
 
+(def flow-palettes
+  "Tessera cosine palettes with bounded channel ranges: each family keeps
+   its own hue identity instead of every curve cycling through a rainbow."
+  {:teal-ice (pal/cosine [0.20 0.72 0.88] [0.12 0.22 0.11]
+                         [1.0 1.0 1.0] [0.0 0.08 0.17])
+   :gold-ember (pal/cosine [0.89 0.43 0.10] [0.10 0.26 0.08]
+                           [1.0 1.0 1.0] [0.0 0.12 0.24])
+   :violet-rose (pal/cosine [0.68 0.18 0.83] [0.26 0.13 0.16]
+                            [1.0 1.0 1.0] [0.0 0.10 0.18])
+   :azure (pal/cosine [0.12 0.43 0.89] [0.08 0.23 0.10]
+                      [1.0 1.0 1.0] [0.05 0.13 0.22])
+   :mint (pal/cosine [0.24 0.80 0.60] [0.16 0.18 0.22]
+                     [1.0 1.0 1.0] [0.0 0.10 0.20])})
+
 (defn pigment
-  "Matching CSS stroke and linear [0,1] splat channels from tessera.palette."
-  [phase]
-  (let [c (pal/at spectrum (double phase))]
-    {:css (format "#%06x" c)
-     :rgb (mapv #(/ (double (bit-and 255 (bit-shift-right c %))) 255.0)
-                [16 8 0])}))
+  "Matching CSS stroke and [0,1] splat channels from tessera.palette."
+  ([phase] (pigment spectrum phase))
+  ([palette phase]
+   (let [c (pal/at palette (double phase))]
+     {:css (format "#%06x" c)
+      :rgb (mapv #(/ (double (bit-and 255 (bit-shift-right c %))) 255.0)
+                 [16 8 0])})))
 
 (defn curve-strokes
   "Short overlapping arcs retain local depth cues without thousands of lines."
@@ -122,15 +137,17 @@
                                 (+ (* s y) (* c z))]))))
 
 (def knot-garden
-  "Twenty knots of five coprime types. Only light travels; poses are data."
-  (vec (for [row (range 4) col (range 5)
-             :let [i (+ col (* 5 row))]]
-         {:pq (nth [[2 3] [3 5] [2 7] [3 4] [4 5]] (mod (+ col row) 5))
-          :centre [(* 2.9 (- col 2.0)) (* 3.6 (- row 1.5))
-                   (* 0.22 (Math/cos i))]
-          :scale 1.0 :tilt (+ 0.42 (* 0.18 (Math/sin (* 1.7 i))))
+  "Six separated knots: type-specific teal, amber and violet light, in two
+   depth rows. The golden-ratio time offsets never affect the fixed poses."
+  (vec (for [row (range 2) col (range 3)
+             :let [i (+ col (* 3 row))]]
+         {:pq (nth [[2 3] [3 5] [2 7]] col)
+          :palette (nth [:teal-ice :gold-ember :violet-rose] col)
+          :centre [(* 5.0 (- col 1.0)) (* 3.6 (- (* 2 row) 1.0))
+                   (* 0.2 row)]
+          :scale 1.35 :tilt (+ 0.6 (* 0.06 row))
           :offset (lp/frac (* 0.61803398875 i))
-          :color-phase (lp/frac (* 0.137 i))})))
+          :color-phase (* 0.14 row)})))
 
 (defn knot-point
   "Closed (p,q) torus knot at parameter t; independent of animation time."
@@ -142,23 +159,24 @@
                       (* 0.43 (Math/sin (* q a)))])))
 
 (def knot-underlay
-  "Static depth-sorted knot filaments; only the additive light layer moves."
+  "Faint thin full knots; the much thicker travelling light draws the eye."
   (sp/frame
-   (mapcat (fn [{:keys [color-phase] :as knot}]
+   (mapcat (fn [{:keys [palette color-phase] :as knot}]
              (curve-strokes field-camera field-cue
-                            (mapv #(knot-point knot (/ (double %) 256.0)) (range 257))
-                            (:css (pigment color-phase)) 0.68 2.6))
+                            (mapv #(knot-point knot (/ (double %) 320.0)) (range 321))
+                            (:css (pigment (flow-palettes palette) color-phase))
+                            0.38 1.5))
            knot-garden)
-   {:background "#02040d"}))
+   {:background "#02070d"}))
 
 (defn knot-splats [u]
   (into []
-        (mapcat (fn [{:keys [offset color-phase] :as knot}]
+        (mapcat (fn [{:keys [offset palette color-phase] :as knot}]
                   (flow-rows field-camera field-cue #(knot-point knot %) u
-                             {:heads 4 :laps 1 :offset offset :steps 22
-                              :tail 0.065 :radius 0.043 :intensity 2.8
-                              :rgb (:rgb (pigment (+ color-phase
-                                                     (* 0.035 (lp/wave u)))))})))
+                             {:heads 3 :laps 1 :offset offset :steps 42
+                              :tail 0.085 :radius 0.064 :intensity 2.5
+                              :rgb (:rgb (pigment (flow-palettes palette)
+                                                  (+ color-phase (* 0.05 (lp/wave u)))))})))
         knot-garden))
 
 (def torus-knots
@@ -171,53 +189,66 @@
                   {:type :vignette :strength 0.28}])})
 
 (def lissajous-lattice
-  "Two staggered heights of a 5x3 lattice; coprime integer triples close."
-  (vec (for [layer (range 2) row (range 3) col (range 5)
-             :let [i (+ col (* 5 row) (* 15 layer))]]
-         {:freq (nth [[1 2 3] [2 3 5] [3 4 5] [1 3 4] [2 5 7]] (mod i 5))
-          :delta [(* 0.19 i) (* 0.37 i) (* 0.23 i)]
-          :centre [(+ (* 2.8 (- col 2.0)) (* 0.5 layer))
-                   (+ (* 4.4 (- row 1.0)) (* 0.6 layer))
-                   (+ -0.7 (* 1.8 layer))]
-          :scale 1.0 :tilt 0.1
+  "Twelve distinct integer triples, one per separated 4x3 projected cell.
+   Rows recede in real depth. Their fixed centres lie on camera-parallel
+   planes; scaling the row spacing with depth keeps the lattice legible."
+  (vec (for [row (range 3) col (range 4)
+             :let [i (+ col (* 4 row)) depth (+ 15.0 (* 2.5 row))
+                   k (/ depth (:focal field-camera))]]
+         {:freq (nth [[1 2 1] [1 3 2] [2 3 1] [2 1 3]
+                      [3 2 1] [1 4 3] [3 4 2] [2 5 3]
+                      [3 1 4] [2 3 4] [4 3 1] [3 5 4]] i)
+          :delta [0.0 (* 0.35 i) (+ 0.65 (* 0.11 i))]
+          :centre (sp/v+ (:eye field-camera)
+                         (sp/v+ (sp/v* depth (:forward field-camera))
+                                (sp/v+ (sp/v* (* k 3.45 (- col 1.5)) (:right field-camera))
+                                       (sp/v* (* k 2.55 (- row 1.0)) (:up field-camera)))))
+          :scale 1.05 :row row :col col
+          :palette (nth [:azure :teal-ice :mint :teal-ice] col)
           :offset (lp/frac (* 0.61803398875 i))
-          :laps (inc (mod i 2)) :color-phase (lp/frac (* 0.173 i))})))
+          :laps 1 :color-phase (* 0.13 row)})))
 
 (defn lissajous-point
-  "An axis-aligned 3D Lissajous with fixed phases, period one in t."
-  [{:keys [freq delta] :as curve} t]
-  (fixed-pose curve
-              (mapv (fn [n phase amp]
-                      (* amp (Math/sin (+ (* lp/tau n t) phase))))
-                    freq delta [1.18 1.05 0.78])))
+  "A 3D Lissajous of period one in t, with its fixed axes aligned to the
+   camera basis. The third oscillation makes perspective depth, not spin."
+  [{:keys [freq delta centre scale]} t]
+  (let [[x y z] (mapv (fn [n phase amp]
+                        (* scale amp (Math/sin (+ (* lp/tau n t) phase))))
+                      freq delta [1.18 1.0 0.65])]
+    (sp/v+ centre
+           (sp/v+ (sp/v* x (:right field-camera))
+                  (sp/v+ (sp/v* y (:up field-camera))
+                         (sp/v* z (:forward field-camera)))))))
 
 (def lissajous-underlay
   (sp/frame
-   (mapcat (fn [{:keys [color-phase] :as curve}]
+   (mapcat (fn [{:keys [palette color-phase] :as curve}]
              (curve-strokes field-camera field-cue
-                            (mapv #(lissajous-point curve (/ (double %) 256.0))
-                                  (range 257))
-                            (:css (pigment color-phase)) 0.34 1.8))
+                            (mapv #(lissajous-point curve (/ (double %) 320.0))
+                                  (range 321))
+                            (:css (pigment (flow-palettes palette) color-phase))
+                            0.27 1.6))
            lissajous-lattice)
-   {:background "#02040d"}))
+   {:background "#01070e"}))
 
 (defn lissajous-splats [u]
   (into []
-        (mapcat (fn [{:keys [offset color-phase laps] :as curve}]
+        (mapcat (fn [{:keys [offset palette color-phase laps] :as curve}]
                   (flow-rows field-camera field-cue #(lissajous-point curve %) u
-                             {:heads 2 :laps laps :offset offset :steps 30
-                              :tail 0.08 :radius 0.052 :intensity 3.2
-                              :rgb (:rgb (pigment (+ color-phase
-                                                     (* 0.045 (lp/wave u)))))})))
+                             {:heads 1 :laps laps :offset offset :steps 48
+                              :tail 0.11 :radius 0.065 :intensity 2.7
+                              :rgb (:rgb (pigment (flow-palettes palette)
+                                                  (+ color-phase (* 0.05 (lp/wave u)))))})))
         lissajous-lattice))
 
 (def lissajous-3d
-  {:id :lissajous-3d :title "Lissajous lattice: neon comets in three dimensions"
+  {:id :lissajous-3d :title "Lissajous lattice: ice-blue comets in twelve cells"
    :seconds 20 :fps 30 :size [1920 1080] :view view
    :frame (fn [_] lissajous-underlay) :splat lissajous-splats :exposure 1.0
    :blur {:samples 3 :shutter 0.45}
-   :post (fn [_] [{:type :bloom :radius 14 :strength 1.15}
-                  {:type :vignette :strength 0.32}])})
+   :post (fn [_] [{:type :bloom :radius 14 :strength 1.05}
+                  {:type :dof :focus 0.75 :band 0.24 :radius 3 :fade 0.16}
+                  {:type :vignette :strength 0.25}])})
 
 (def loops
   {:hopf-fibration hopf-fibration

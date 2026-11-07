@@ -59,3 +59,17 @@
     (is (= ((:frame spec) 0.0) ((:frame spec) 0.37) ((:frame spec) 0.81)))
     (is (not= ((:splat spec) 0.0) ((:splat spec) 0.37))))
   (is (some #(= :dof (:type %)) ((:post s/torus-knots) 0.0))))
+
+(deftest lissajous-cells-are-separated-and-colour-families-are-periodic
+  (is (= 12 (count s/lissajous-lattice)
+         (count (set (map :freq s/lissajous-lattice)))))
+  (doseq [{:keys [row col] :as c} s/lissajous-lattice]
+    (let [cx (* 3.45 (- col 1.5)) cy (* 2.55 (- row 1.0))]
+      (is (every? (fn [[x y _]] (and (< (Math/abs (- x cx)) 1.4)
+                                     (< (Math/abs (- y cy)) 1.1)))
+                  (for [j (range 128)]
+                    (sp/project s/field-camera (s/lissajous-point c (/ j 128.0))))))))
+  (doseq [p (vals s/flow-palettes) phase [0.0 0.17 0.61]]
+    (is (= (s/pigment p phase) (s/pigment p (+ phase 1.0)))))
+  (is (= 6 (count s/knot-garden)))
+  (is (= #{:teal-ice :gold-ember :violet-rose} (set (map :palette s/knot-garden)))))
