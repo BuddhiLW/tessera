@@ -181,6 +181,56 @@
                     {:type :chroma :shift 2}
                     {:type :vignette :strength 0.55}])}))
 
+;; ── Other symmetries: square band, quasicrystal bands ──────────────────────
+
+(defn square-band
+  "Shifted square-lattice band 2 - cos(a x) - cos(a y): 0 at Gamma, 2 on
+   the half-filling diamond, 4 at the zone corner."
+  ^double [^double a ^double x ^double y]
+  (- 2.0 (Math/cos (* a x)) (Math/cos (* a y))))
+
+(defn quasi-band
+  "An `n`-fold quasiperiodic landscape, n - sum_j cos(a k·e_j) over the unit
+   vectors e_j at angles j·π/n: 0 at the origin, local n-fold stars
+   everywhere, no period."
+  [n]
+  (let [n (long n)
+        dirs (double-array (mapcat (fn [j] [(Math/cos (/ (* Math/PI j) n)) (Math/sin (/ (* Math/PI j) n))])
+                                   (range n)))]
+    (fn ^double [^double a ^double x ^double y]
+      (loop [j 0 acc 0.0]
+        (if (< j n)
+          (recur (inc j) (+ acc (Math/cos (* a (+ (* x (aget dirs (* 2 j))) (* y (aget dirs (inc (* 2 j)))))))))
+          (- (double n) acc))))))
+
+(defn contour-loop
+  "A rising-contour loop over `band` (energy 0 .. `emax`), coloured by the
+   thi.ng scheme `scheme`."
+  [id title band scheme {:keys [a step emax] :or {a 4.2 step 0.25}}]
+  (let [p (pal/scheme scheme)]
+    {:id id :title title
+     :seconds 16 :fps 30 :size [1920 1080] :view [8.0 4.5] :ss 2
+     :field (fn [u] (band-contour-shader u band {:palette p :a a :step step :emin 0.0 :emax emax}))
+     :post (fn [_] [{:type :bloom :radius 12 :strength 1.1}
+                    {:type :chroma :shift 2}
+                    {:type :vignette :strength 0.55}])}))
+
+(def square-fermi
+  (contour-loop :square-fermi "Square lattice: diamond Fermi surfaces, four-fold"
+                square-band :blue-cyan {:a 3.4 :step 0.2 :emax 4.0}))
+
+(def penrose-fermi
+  (contour-loop :penrose-fermi "Five-fold quasicrystal: contours that never repeat"
+                (quasi-band 5) :orange-magenta-blue {:a 4.0 :step 0.45 :emax 10.0}))
+
+(def heptagonal-fermi
+  (contour-loop :heptagonal-fermi "Seven-fold: a symmetry no crystal can have"
+                (quasi-band 7) :yellow-red {:a 7.5 :step 0.7 :emax 14.0}))
+
+(def octagonal-fermi
+  (contour-loop :octagonal-fermi "Eight-fold quasicrystal: Ammann-Beenker stars"
+                (quasi-band 8) :green-cyan {:a 7.5 :step 0.8 :emax 16.0}))
+
 ;; ── Twisted bilayer graphene ──────────────────────────────────────────────
 
 (defn honeycomb-density

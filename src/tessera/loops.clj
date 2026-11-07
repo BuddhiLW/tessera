@@ -178,6 +178,7 @@
         (map (juxt :id identity))
         [neon/neon-pulse neon/neon-khatam
          recip/graphene-fermi recip/kagome-fermi recip/twisted-bilayer
+         recip/square-fermi recip/penrose-fermi recip/heptagonal-fermi recip/octagonal-fermi
          recip/brillouin-zones recip/brillouin-square recip/brillouin-oblique recip/brillouin-rect
          quantum/quantum-carpet quantum/double-slit
          curves/moore-comets girih-light girih-drift girih-assembly
