@@ -18,7 +18,8 @@
             [desargues.wallpaper.luxcore :as lx]
             [tessera.neon :as neon]
             [tessera.curves :as curves]
-            [tessera.reciprocal :as recip]))
+            [tessera.reciprocal :as recip]
+            [tessera.quantum :as quantum]))
 
 (set! *warn-on-reflection* true)
 
@@ -175,7 +176,9 @@
   "Every loop, by id, in gallery order."
   (into (array-map)
         (map (juxt :id identity))
-        [neon/neon-pulse neon/neon-khatam recip/brillouin-zones recip/graphene-fermi
+        [neon/neon-pulse neon/neon-khatam
+         recip/brillouin-zones recip/brillouin-square recip/brillouin-oblique recip/brillouin-rect
+         recip/graphene-fermi quantum/quantum-carpet quantum/double-slit
          curves/moore-comets girih-light girih-drift girih-assembly
          quasicrystal julia-orbit sierpinski-zoom]))
 

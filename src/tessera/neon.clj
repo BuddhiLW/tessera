@@ -31,20 +31,20 @@
     [[(/ x d) (/ y d)] (/ 1.0 d)]))
 
 (defn outlines
-  "[polygon colour bead-spacing] of the cell centred at `c` at phase `u`."
-  [c star? u]
-  (let [t (* u (/ Math/PI 4))
-        o (/ Math/PI 8)
+  "[polygon colour bead-spacing] of the cell centred at `c`. Nothing turns:
+   the loop moves by light and marching beads."
+  [c star? _u]
+  (let [o (/ Math/PI 8)
         {:keys [blue red ice]} colors]
     (if star?
       [[(star c 8 1.32 0.98 o) blue 0.075]
        [(star c 8 1.12 0.84 o) red 0.07]
-       [(star c 8 0.62 0.47 (+ o t)) blue 0.06]
-       [(g/regular-polygon 24 c 0.30 (- t)) red 0.05]
-       [(g/regular-polygon 12 c 0.14 (* 2 t)) ice 0.045]]
+       [(star c 8 0.62 0.47 o) blue 0.06]
+       [(g/regular-polygon 24 c 0.30 0.0) red 0.05]
+       [(g/regular-polygon 12 c 0.14 0.0) ice 0.045]]
       [[(g/regular-polygon 8 c 0.92 o) red 0.075]
        [(g/regular-polygon 8 c 0.72 o) blue 0.07]
-       [(g/regular-polygon 24 c 0.36 t) ice 0.055]])))
+       [(g/regular-polygon 24 c 0.36 0.0) ice 0.055]])))
 
 (defn frame
   "The bead frame at phase `u`."
@@ -92,24 +92,23 @@
 (defn pulse-outlines
   "[polygon colour bead-spacing weight] of the cell centred at `c` at phase
    `u`; `k` staggers the breathing of the inner rosettes between cells.
-   Breathing runs twice per loop, turns by each outline's own symmetry."
+   Breathing runs twice per loop; nothing turns."
   [c star? u k]
-  (let [t (* u (/ Math/PI 4))
-        o (/ Math/PI 8)
+  (let [o (/ Math/PI 8)
         br (+ 1.0 (* 0.12 (Math/sin (* lp/tau (+ (* 2 u) (* 0.07 k))))))
         {:keys [blue red ice]} colors]
     (if star?
       [[(star c 8 1.62 1.18 o) blue 0.085 1.0]
        [(star c 8 1.48 1.08 o) red 0.08 0.9]
-       [(star c 8 (* br 0.98) (* br 0.72) (+ o t)) blue 0.07 0.8]
-       [(star c 8 (* br 0.52) (* br 0.40) (- o t)) red 0.06 1.0]
-       [(g/regular-polygon 24 c (* br 0.30) (- t)) blue 0.05 0.9]
-       [(g/regular-polygon 12 c (* br 0.15) (* 2 t)) ice 0.045 0.8]]
+       [(star c 8 (* br 0.98) (* br 0.72) o) blue 0.07 0.8]
+       [(star c 8 (* br 0.52) (* br 0.40) o) red 0.06 1.0]
+       [(g/regular-polygon 24 c (* br 0.30) 0.0) blue 0.05 0.9]
+       [(g/regular-polygon 12 c (* br 0.15) 0.0) ice 0.045 0.8]]
       [[(g/regular-polygon 8 c 1.05 o) red 0.085 1.0]
        [(g/regular-polygon 8 c 0.92 o) blue 0.08 0.9]
        [(g/regular-polygon 8 c 0.78 o) red 0.075 0.6]
-       [(g/regular-polygon 24 c (* br 0.46) t) blue 0.06 1.0]
-       [(g/regular-polygon 24 c (* br 0.32) (- t)) ice 0.05 0.8]])))
+       [(g/regular-polygon 24 c (* br 0.46) 0.0) blue 0.06 1.0]
+       [(g/regular-polygon 24 c (* br 0.32) 0.0) ice 0.05 0.8]])))
 
 (defn pulse-frame
   "The neon-pulse bead frame at phase `u`: the plane drifts one cell, the
