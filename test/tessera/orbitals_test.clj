@@ -46,15 +46,15 @@
             value (orbital/hydrogen-eigenvalue n l m 1.2 0.0 2.5)]
         (is (near? value (* (orbital/hydrogen-radial n l radius)
                             (orbital/hydrogen-angular l (/ 2.5 radius))))))
-      (is (near? 1.0 (integral (fn [r]
-                                 (let [v (orbital/hydrogen-radial n l r)]
-                                   (* r r v v)))
-                               0.0 80.0 16000)))
+      (is (close? 1.0 (integral (fn [r]
+                                  (let [v (orbital/hydrogen-radial n l r)]
+                                    (* r r v v)))
+                                0.0 180.0 20000) 1.0e-6))
       (is (close? 1.0 (* 2.0 Math/PI
                          (integral (fn [z]
                                      (let [v (orbital/hydrogen-angular l z)]
                                        (* v v)))
-                                   -1.0 1.0 16000))))))
+                                   -1.0 1.0 16000)) 1.0e-6))))
   (is (near? 0.0 (integral (fn [r]
                              (* r r (orbital/hydrogen-radial 2 1 r)
                                 (orbital/hydrogen-radial 3 1 r)))
@@ -99,6 +99,7 @@
                  (orbital/drum-amplitude (inc u) x y))))))
 
 (deftest square-well-normalization
+  (is (= 48 (count (distinct (partition 2 orbital/box-mode-numbers)))))
   (let [step 0.0025
         coordinates (map #(* (+ % 0.5) step) (range 400))]
     (is (near? 1.0
@@ -107,4 +108,14 @@
                           (for [x coordinates y coordinates
                                 :let [[re im] (orbital/box-psi 0.31 x y)]]
                             (+ (* re re) (* im im)))))))))
+
+(deftest drum-tiles-by-odd-reflection
+  (let [fold (fn [q] (let [q (mod q 2.0)] (if (<= q 1.0) q (- 2.0 q))))
+        f (fn [q] (let [x (fold q)]
+                    (reduce + (map (fn [m] (* (Math/sin (* Math/PI m x))
+                                              (Math/cos (* m 0.13))))
+                                   [3 4 6 8 9 12 16]))))]
+    (doseq [q [0.0 0.2 0.7 1.0 1.4 2.3]]
+      (is (near? (f q) (f (- q))))
+      (is (near? (f q) (f (+ q 2.0)))))))
 

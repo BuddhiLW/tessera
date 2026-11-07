@@ -1,29 +1,23 @@
 (ns tessera.orbitals
   "Exactly periodic bound states and resonances.
 
-     :hydrogen-beat  four real hydrogen eigenstates on the xz plane. With
-                     E_n = -1/(2 n^2), 72 E_n is integral for n = 2, 3;
-                     these phases advance by whole turns over one loop.
-     :box-modes     ten eigenstates of a two-dimensional infinite well.
-                     E_mn is proportional to m^2+n^2, an integer.
-     :drum          standing waves of a square membrane. Pythagorean mode
-                     pairs have frequencies 5, 10, 15, 20 in a common unit,
-                     so their nodal lines return without retuning physics.
+     :hydrogen-beat  normalized 3s, 4d, 4f and 5g eigenstates on the xz
+                     plane, at their 1800-time-unit common period. Log
+                     density and luminous iso-density contours reveal the
+                     radial rings and the angular lobes.
+     :box-modes     forty-eight eigenstates of a 16 by 9 infinite well.
+                     (9m)^2+(16n)^2 is integral, so every phase is periodic.
+     :drum          Pythagorean square-membrane modes, tiled by odd
+                     reflection to fill the frame with continuous nodal lines.
 
-  Atomic units are used for hydrogen. The slice is not itself a normalized
-  two-dimensional state: the displayed states are normalized in R^3. The
-  square-well modes are normalized on [0,1]^2. All shaders precompute mode
-  phases and sine tables once per frame, leaving only primitive arithmetic
-  and array reads in the per-pixel path."
+  Hydrogen states are normalized in R^3; the slice itself is not a 2D state.
+  The box modes are normalized on [0,1]^2. Frame-level work precomputes
+  phases and sine tables; the pixel path is primitive arithmetic and arrays."
   (:require [desargues.wallpaper.render :as r]))
 
 (set! *warn-on-reflection* true)
 
 (def ^:private tau (* 2.0 Math/PI))
-(def ^:private sqrt-two (Math/sqrt 2.0))
-(def ^:private sqrt-three (Math/sqrt 3.0))
-(def ^:private sqrt-six (Math/sqrt 6.0))
-(def ^:private sqrt-thirty (Math/sqrt 30.0))
 (def ^:private view [(/ 128.0 9.0) 8.0])
 
 (defn- hue->rgb
@@ -36,46 +30,55 @@
 ;; Hydrogen ---------------------------------------------------------------
 
 (def hydrogen-states
-  "Real m=0 orbitals: 2s, 2p0, 3p0 and 3d0."
-  [[2 0 0] [2 1 0] [3 1 0] [3 2 0]])
+  "Real m=0 orbitals: radial rings from 3s, angular lobes from 4d, 4f and 5g."
+  [[3 0 0] [4 2 0] [4 3 0] [5 4 0]])
+
+(def hydrogen-period
+  "LCM of the squared principal quantum numbers, divided by two."
+  1800)
+
+(defn- laguerre
+  "Associated Laguerre polynomial L_k^alpha(x), by its stable recurrence."
+  ^double [^long k ^long alpha ^double x]
+  (loop [j 0 current 1.0 previous 0.0]
+    (if (= j k)
+      current
+      (recur (inc j)
+             (/ (- (* (+ (* 2.0 j) alpha 1.0 (- x)) current)
+                   (* (+ j alpha) previous))
+                (inc j))
+             current))))
+
+(defn- factorial ^double [^long n]
+  (reduce * 1.0 (map double (range 1 (inc n)))))
+
+(defn- hydrogen-radial-normalization
+  ^double [^long n ^long l]
+  (Math/sqrt (* (Math/pow (/ 2.0 n) 3.0)
+                (/ (factorial (- n l 1))
+                   (* 2.0 n (factorial (+ n l)))))))
 
 (def hydrogen-coefficients
   "Unit-norm amplitudes belonging to hydrogen-states."
   (double-array [0.5 0.5 0.5 0.5]))
 
 (defn hydrogen-radial
-  "Normalized associated-Laguerre radial function R_nl(r), in atomic units."
+  "R_nl(r), normalized by integral r^2 R_nl^2 dr = 1."
   ^double [^long n ^long l ^double radius]
-  (cond
-    (= n 2)
-    (let [e (Math/exp (* -0.5 radius))]
-      (if (zero? l)
-        (* (/ 1.0 sqrt-two) (- 1.0 (* 0.5 radius)) e)
-        (* (/ 1.0 (* 2.0 sqrt-six)) radius e)))
-
-    (= n 3)
-    (let [e (Math/exp (/ (- radius) 3.0))]
-      (cond
-        (zero? l)
-        (* (/ 2.0 (* 3.0 sqrt-three))
-           (+ 1.0 (* (/ -2.0 3.0) radius) (* (/ 2.0 27.0) radius radius)) e)
-        (= l 1)
-        (* (/ 4.0 (* 81.0 sqrt-six)) radius (- 6.0 radius) e)
-        :else
-        (* (/ 4.0 (* 81.0 sqrt-thirty)) radius radius e)))
-
-    :else
-    (throw (ex-info "This gallery implements n=2 and n=3" {:n n :l l}))))
+  (let [q (/ (* 2.0 radius) n)]
+    (* (hydrogen-radial-normalization n l)
+       (Math/pow q l)
+       (Math/exp (* -0.5 q))
+       (laguerre (- n l 1) (inc (* 2 l)) q))))
 
 (defn hydrogen-angular
   "Real spherical harmonic Y_l0 at polar cosine z/r, normalized on S^2."
   ^double [^long l ^double cosine-theta]
-  (cond
-    (zero? l) 0.28209479177387814
-    (= l 1) (* 0.4886025119029199 cosine-theta)
-    (= l 2) (* 0.31539156525252005
-              (- (* 3.0 cosine-theta cosine-theta) 1.0))
-    :else (throw (ex-info "This gallery implements l=0,1,2" {:l l}))))
+  (loop [j 0 p 1.0 q 0.0]
+    (if (= j l)
+      (* (Math/sqrt (/ (+ (* 2.0 l) 1.0) (* 4.0 Math/PI))) p)
+      (let [next-p (/ (- (* (inc (* 2 j)) cosine-theta p) (* j q)) (inc j))]
+        (recur (inc j) next-p p)))))
 
 (defn hydrogen-eigenvalue
   "psi_nlm(x,y,z), with the polar axis along z, in atomic units."
@@ -96,7 +99,7 @@
       (if (= i 4)
         (doto (double-array 2) (aset 0 re) (aset 1 im))
         (let [[n l] (hydrogen-states i)
-              frequency (long (/ -72.0 (* 2.0 n n)))
+              frequency (long (/ (- hydrogen-period) (* 2.0 n n)))
               angle (* tau frequency (double u))
               a (aget ^doubles hydrogen-coefficients i)
               value (* a (hydrogen-radial n l radius)
@@ -107,7 +110,7 @@
 
 (defn hydrogen-psi
   "The normalized four-state superposition in atomic units as [re im].
-  u is measured in periods of 72 atomic time units."
+  u is measured in periods of 1800 atomic time units."
   ^doubles [u ^double x ^double y ^double z]
   (hydrogen-pair u x y z))
 
@@ -115,31 +118,40 @@
   (let [phases (double-array 8)]
     (dotimes [i 4]
       (let [[n] (hydrogen-states i)
-            frequency (long (/ -72.0 (* 2.0 n n)))
+            frequency (long (/ (- hydrogen-period) (* 2.0 n n)))
             angle (* tau frequency (double u))]
         (aset phases (* 2 i) (Math/cos angle))
         (aset phases (inc (* 2 i)) (Math/sin angle))))
-    (fn ^long [^double sx ^double sy]
-      (let [x (* 1.28 sx) z (* 1.28 sy)
-            radius (Math/sqrt (+ (* x x) (* z z)))
-            theta (if (< radius 1.0e-12) 0.0 (/ z radius))]
-        (loop [i 0 re 0.0 im 0.0]
-          (if (= i 4)
-            (let [density (+ (* re re) (* im im))
-                  t (min 1.0 (/ (Math/log1p (* 1500.0 density)) 4.4))
-                  brightness (Math/pow t 1.3)
-                  [cr cg cb] (hue->rgb (+ 0.57 (/ (Math/atan2 im re) tau)))
-                  hot (* 0.28 (Math/pow t 5.0))]
-              (r/rgb (+ 0.0005 (* brightness (double cr)) hot)
-                     (+ 0.001 (* brightness (double cg)) hot)
-                     (+ 0.003 (* brightness (double cb)) hot)))
-            (let [[n l] (hydrogen-states i)
-                  a (aget ^doubles hydrogen-coefficients i)
-                  value (* a (hydrogen-radial n l radius)
-                           (hydrogen-angular l theta))]
-              (recur (inc i)
-                     (+ re (* value (aget phases (* 2 i))))
-                     (+ im (* value (aget phases (inc (* 2 i)))))))))))))
+    (letfn [(pair-at [^double x ^double z]
+              (let [radius (Math/sqrt (+ (* x x) (* z z)))
+                    theta (if (< radius 1.0e-12) 0.0 (/ z radius))]
+                (loop [i 0 re 0.0 im 0.0]
+                  (if (= i 4)
+                    [re im]
+                    (let [[n l] (hydrogen-states i)
+                          v (* (aget ^doubles hydrogen-coefficients i)
+                               (hydrogen-radial n l radius) (hydrogen-angular l theta))]
+                      (recur (inc i) (+ re (* v (aget phases (* 2 i))))
+                             (+ im (* v (aget phases (inc (* 2 i)))))))))))]
+      (let [peak (reduce max 1.0e-12
+                         (for [ix (range 96) iz (range 54)
+                               :let [[re im] (pair-at (* 0.6666666667 (- ix 48))
+                                                      (* 0.6666666667 (- iz 27)))]]
+                           (+ (* re re) (* im im))))]
+        (fn ^long [^double sx ^double sy]
+          (let [[re im] (pair-at (* 4.5 sx) (* 4.5 sy))
+                density (+ (* re re) (* im im))
+                t (min 1.0 (/ (Math/log1p (* 1000.0 (/ density peak)))
+                              (Math/log 1001.0)))
+                body (Math/pow t 0.75)
+                contour (* 0.42 (+ (Math/exp (* -700.0 (Math/pow (- t 0.3) 2.0)))
+                                   (Math/exp (* -700.0 (Math/pow (- t 0.55) 2.0)))
+                                   (Math/exp (* -700.0 (Math/pow (- t 0.8) 2.0)))))
+                [cr cg cb] (hue->rgb (+ 0.54 (* 0.22 (/ (Math/atan2 im re) tau))))
+                b (+ body contour)]
+            (r/rgb (+ 0.0003 (* b (double cr)) (* 0.18 contour))
+                   (+ 0.001 (* b (double cg)) (* 0.48 contour))
+                   (+ 0.003 (* b (double cb)) (* 0.70 contour)))))))))
 
 (def hydrogen-beat
   {:id :hydrogen-beat
@@ -167,20 +179,27 @@
                  (max 0 (min (dec samples) (long (* q (dec samples))))))))
 
 (def box-mode-numbers
-  "Ten spatial modes, (m,n), with energy m^2+n^2."
-  (long-array [1 1  2 1  1 2  3 2  2 3  4 1  1 4  3 4  4 3  5 2]))
+  "Forty-eight distinct modes in a 16 by 9 well. E*(16*9)^2 is integral."
+  (long-array
+   (mapcat (fn [k]
+             (let [j (mod (* 17 k) 48)]
+               [(inc (mod j 12)) (inc (quot j 12))]))
+           (range 48))))
+
+(defn- box-energy ^long [^long m ^long n]
+  (+ (* 81 m m) (* 256 n n)))
 
 (def box-coefficients
   "Alternating unit-norm amplitudes; orthogonality makes psi normalized."
-  (double-array (map #(/ (if (even? %) 1.0 -1.0) (Math/sqrt 10.0)) (range 10))))
+  (double-array (map #(/ (if (even? %) 1.0 -1.0) (Math/sqrt 48.0)) (range 48))))
 
 (defn- box-pair [u ^double x ^double y]
   (loop [i 0 re 0.0 im 0.0]
-    (if (= i 10)
+    (if (= i 48)
       (doto (double-array 2) (aset 0 re) (aset 1 im))
       (let [m (aget ^longs box-mode-numbers (* 2 i))
             n (aget ^longs box-mode-numbers (inc (* 2 i)))
-            angle (* tau (+ (* m m) (* n n)) (double u))
+            angle (* tau (box-energy m n) (double u))
             a (aget ^doubles box-coefficients i)
             spatial (* 2.0 a (Math/sin (* Math/PI m x)) (Math/sin (* Math/PI n y)))]
         (recur (inc i) (+ re (* spatial (Math/cos angle)))
@@ -191,41 +210,28 @@
   ^doubles [u ^double x ^double y]
   (box-pair u x y))
 
-(defn- inside-square?
-  [^double x ^double y ^double half]
-  (and (> x (- half)) (< x half) (> y (- half)) (< y half)))
-
 (defn- box-shader [u]
-  (let [samples 4096
-        sx (sine-table samples 5)
-        sy (sine-table samples 5)
-        phases (double-array 20)]
-    (dotimes [i 10]
-      (let [m (aget ^longs box-mode-numbers (* 2 i))
-            n (aget ^longs box-mode-numbers (inc (* 2 i)))
-            angle (* tau (+ (* m m) (* n n)) (double u))]
-        (aset phases (* 2 i) (Math/cos angle))
-        (aset phases (inc (* 2 i)) (Math/sin angle))))
+  (let [samples 4096 sx (sine-table samples 12) sy (sine-table samples 12)
+        phases (double-array 96)]
+    (dotimes [i 48]
+      (let [m (aget ^longs box-mode-numbers (* 2 i)) n (aget ^longs box-mode-numbers (inc (* 2 i)))
+            angle (* tau (box-energy m n) (double u))]
+        (aset phases (* 2 i) (Math/cos angle)) (aset phases (inc (* 2 i)) (Math/sin angle))))
     (fn ^long [^double x ^double y]
-      (if-not (inside-square? x y 3.92)
-        (r/rgb 0.0005 0.001 0.003)
-        (let [qx (/ (+ x 3.92) 7.84) qy (/ (+ y 3.92) 7.84)]
-          (loop [i 0 re 0.0 im 0.0]
-            (if (= i 10)
-              (let [density (+ (* re re) (* im im))
-                    t (/ density (+ density 0.36))
-                    b (Math/pow t 1.45)
-                    [cr cg cb] (hue->rgb (+ 0.57 (/ (Math/atan2 im re) tau)))
-                    hot (* 0.32 (Math/pow t 7.0))]
-                (r/rgb (+ (* b (double cr)) hot)
-                       (+ (* b (double cg)) hot)
-                       (+ (* b (double cb)) hot)))
-              (let [m (aget ^longs box-mode-numbers (* 2 i))
-                    n (aget ^longs box-mode-numbers (inc (* 2 i)))
-                    a (aget ^doubles box-coefficients i)
-                    spatial (* 2.0 a (sine-at sx samples m qx) (sine-at sy samples n qy))]
-                (recur (inc i) (+ re (* spatial (aget phases (* 2 i))))
-                       (+ im (* spatial (aget phases (inc (* 2 i))))))))))))))
+      (let [qx (+ 0.5 (/ x 14.222222222222221)) qy (+ 0.5 (/ y 8.0))]
+        (loop [i 0 re 0.0 im 0.0]
+          (if (= i 48)
+            (let [density (+ (* re re) (* im im)) t (/ density (+ density 0.8))
+                  body (Math/pow t 1.4) node (* 0.5 (Math/exp (* -90.0 density)))
+                  [cr cg cb] (hue->rgb (+ 0.57 (* 0.18 (/ (Math/atan2 im re) tau)))) b (+ body node)]
+              (r/rgb (+ 0.0004 (* b (double cr)) (* 0.20 node))
+                     (+ 0.001 (* b (double cg)) (* 0.65 node))
+                     (+ 0.003 (* b (double cb)) (* 0.8 node))))
+            (let [m (aget ^longs box-mode-numbers (* 2 i)) n (aget ^longs box-mode-numbers (inc (* 2 i)))
+                  a (aget ^doubles box-coefficients i)
+                  spatial (* 2.0 a (sine-at sx samples m qx) (sine-at sy samples n qy))]
+              (recur (inc i) (+ re (* spatial (aget phases (* 2 i))))
+                     (+ im (* spatial (aget phases (inc (* 2 i)))))))))))))
 
 (def box-modes
   {:id :box-modes
@@ -261,37 +267,29 @@
                          (Math/cos (+ (* tau k (double u)) offset)))))))))
 
 (defn- drum-shader [u]
-  (let [samples 4096
-        sx (sine-table samples 16)
-        sy (sine-table samples 16)
+  (let [samples 4096 sx (sine-table samples 16) sy (sine-table samples 16)
         phases (double-array 8)]
     (dotimes [i 8]
-      (let [m (aget ^longs drum-mode-numbers (* 2 i))
-            n (aget ^longs drum-mode-numbers (inc (* 2 i)))
+      (let [m (aget ^longs drum-mode-numbers (* 2 i)) n (aget ^longs drum-mode-numbers (inc (* 2 i)))
             k (quot (long (Math/sqrt (+ (* m m) (* n n)))) 5)
             offset (if (even? i) 0.0 (* 0.5 Math/PI))]
         (aset phases i (Math/cos (+ (* tau k (double u)) offset)))))
     (fn ^long [^double x ^double y]
-      (if-not (inside-square? x y 3.92)
-        (r/rgb 0.0005 0.001 0.003)
-        (let [qx (/ (+ x 3.92) 7.84) qy (/ (+ y 3.92) 7.84)]
-          (loop [i 0 displacement 0.0]
-            (if (= i 8)
-              (let [distance (Math/abs displacement)
-                    node (Math/exp (* -42.0 distance))
-                    body (* 0.12 (min 1.0 (* 2.2 distance)))
-                    g (+ body node)
-                    halo (* 0.13 (Math/exp (* -8.0 distance)))]
-                (r/rgb (+ (* 0.08 halo) (* 0.20 g) (* 0.42 body))
-                       (+ (* 0.48 halo) (* 0.83 g) (* 0.25 body))
-                       (+ (* 0.75 halo) (* 0.96 g) (* 0.75 body))))
-              (let [m (aget ^longs drum-mode-numbers (* 2 i))
-                    n (aget ^longs drum-mode-numbers (inc (* 2 i)))
-                    a (aget ^doubles drum-coefficients i)]
-                (recur (inc i)
-                       (+ displacement
-                          (* 2.0 a (sine-at sx samples m qx) (sine-at sy samples n qy)
-                             (aget phases i))))))))))))
+      (let [qx (let [q (mod (/ x 4.0) 2.0)] (if (<= q 1.0) q (- 2.0 q)))
+            qy (let [q (mod (/ y 4.0) 2.0)] (if (<= q 1.0) q (- 2.0 q)))]
+        (loop [i 0 displacement 0.0]
+          (if (= i 8)
+            (let [distance (Math/abs displacement) node (Math/exp (* -42.0 distance))
+                  body (* 0.07 (min 1.0 (* 2.2 distance))) g (+ body node)
+                  halo (* 0.10 (Math/exp (* -8.0 distance)))]
+              (r/rgb (+ (* 0.08 halo) (* 0.20 g) (* 0.42 body))
+                     (+ (* 0.48 halo) (* 0.83 g) (* 0.25 body))
+                     (+ (* 0.75 halo) (* 0.96 g) (* 0.75 body))))
+            (let [m (aget ^longs drum-mode-numbers (* 2 i)) n (aget ^longs drum-mode-numbers (inc (* 2 i)))
+                  a (aget ^doubles drum-coefficients i)]
+              (recur (inc i) (+ displacement
+                                (* 2.0 a (sine-at sx samples m qx) (sine-at sy samples n qy)
+                                   (aget phases i)))))))))))
 
 (def drum
   {:id :drum
