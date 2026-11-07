@@ -174,7 +174,7 @@
   "Every loop, by id, in gallery order."
   (into (array-map)
         (map (juxt :id identity))
-        [neon/neon-khatam curves/moore-comets girih-light girih-drift girih-assembly
+        [neon/neon-pulse neon/neon-khatam curves/moore-comets girih-light girih-drift girih-assembly
          quasicrystal julia-orbit sierpinski-zoom]))
 
 (def path-traced

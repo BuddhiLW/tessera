@@ -71,3 +71,84 @@
                   {:type :chroma :shift 4}
                   {:type :dof :focus 0.55 :band 0.14 :radius 9 :fade 0.3}
                   {:type :vignette :strength 0.7}])})
+
+;; ── Neon pulse: closer, denser, beating ───────────────────────────────────
+
+(defn beat
+  "Brightness 0..1 at phase `u`: `n` beats per loop, each a short smooth
+   swell (the first 6% of the beat) and a slow decay back to it, with one
+   deep dip centred at `dip`. Continuous in u, the wrap included."
+  ^double [^double u n dip]
+  (let [ph (lp/frac (* (double n) u))
+        rise 0.06
+        floor 0.45
+        low (+ floor (* (- 1.0 floor) (Math/exp (* -5.0 (- 1.0 rise)))))
+        env (if (< ph rise)
+              (+ low (* (- 1.0 low) (lp/smoothstep (/ ph rise))))
+              (+ floor (* (- 1.0 floor) (Math/exp (* -5.0 (- ph rise))))))
+        d (lp/window u (- dip 0.05) (+ dip 0.05))]
+    (* env (- 1.0 (* 0.92 d)))))
+
+(defn pulse-outlines
+  "[polygon colour bead-spacing weight] of the cell centred at `c` at phase
+   `u`; `k` staggers the breathing of the inner rosettes between cells.
+   Breathing runs twice per loop, turns by each outline's own symmetry."
+  [c star? u k]
+  (let [t (* u (/ Math/PI 4))
+        o (/ Math/PI 8)
+        br (+ 1.0 (* 0.12 (Math/sin (* lp/tau (+ (* 2 u) (* 0.07 k))))))
+        {:keys [blue red ice]} colors]
+    (if star?
+      [[(star c 8 1.62 1.18 o) blue 0.085 1.0]
+       [(star c 8 1.48 1.08 o) red 0.08 0.9]
+       [(star c 8 (* br 0.98) (* br 0.72) (+ o t)) blue 0.07 0.8]
+       [(star c 8 (* br 0.52) (* br 0.40) (- o t)) red 0.06 1.0]
+       [(g/regular-polygon 24 c (* br 0.30) (- t)) blue 0.05 0.9]
+       [(g/regular-polygon 12 c (* br 0.15) (* 2 t)) ice 0.045 0.8]]
+      [[(g/regular-polygon 8 c 1.05 o) red 0.085 1.0]
+       [(g/regular-polygon 8 c 0.92 o) blue 0.08 0.9]
+       [(g/regular-polygon 8 c 0.78 o) red 0.075 0.6]
+       [(g/regular-polygon 24 c (* br 0.46) t) blue 0.06 1.0]
+       [(g/regular-polygon 24 c (* br 0.32) (- t)) ice 0.05 0.8]])))
+
+(defn pulse-frame
+  "The neon-pulse bead frame at phase `u`: the plane drifts one cell, the
+   camera dollies in and out once, light beats four times with one dip."
+  [u]
+  (let [shift (g/v* (* u cell) [1.0 1.0])
+        zoom (+ 1.0 (* 0.06 (Math/sin (* lp/tau u))))
+        k 0.12
+        b (beat u 4 0.62)
+        place (fn [p] (tilt p k))]
+    {:background "#000000"
+     :shapes (vec (concat
+                   (for [i (range -3 5) j (range -3 5)
+                         :let [c (g/v* zoom (g/v- [(* i cell) (* j cell)] shift))
+                               ring (Math/pow (lp/wave (lp/frac (- u (/ (g/vlen c) 6.0)))) 2.0)
+                               glow (* b (+ 0.7 (* 0.3 ring)))]
+                         [pts col spacing w] (pulse-outlines c (even? (+ i j)) u (+ i j))
+                         p (g/beads pts (* zoom spacing) u true)
+                         :let [[[x y] s] (place p)]
+                         :when (and (< -4.3 x 4.3) (< -2.5 y 2.5))]
+                     {:node :dot :at [x y] :opacity (min 1.0 (* w glow 1.15)) :opts {:radius (* zoom 0.03 s)}
+                      :fill {:color col :opacity 1.0}})
+                   (for [i (range -3 5) j (range -3 5)
+                         dy [-0.12 0.0 0.12]
+                         :let [c (g/v* zoom (g/v- [(* (+ i 0.5) cell) (* (+ j 0.5) cell)] shift))
+                               [[x y] s] (place (g/v+ c [0.0 dy]))]
+                         :when (and (< -4.3 x 4.3) (< -2.5 y 2.5))]
+                     {:node :dot :at [x y] :opacity (* 0.9 b) :opts {:radius (* 0.03 s)}
+                      :fill {:color (:blue colors) :opacity 1.0}})))}))
+
+(def neon-pulse
+  {:id :neon-pulse
+   :title "Neon pulse: beating light, breathing rosettes, dolly and rack focus"
+   :seconds 16 :fps 30 :size [1920 1080] :view [(/ 64.0 9.0) 4.0]
+   :frame pulse-frame
+   :post (fn [u]
+           (let [b (beat u 4 0.62)]
+             [{:type :bloom :radius 18 :strength (+ 0.9 (* 1.1 b))}
+              {:type :chroma :shift 5}
+              {:type :dof :focus (+ 0.5 (* 0.14 (Math/sin (* lp/tau u))))
+               :band (+ 0.08 (* 0.06 (lp/wave u))) :radius 12 :fade 0.32}
+              {:type :vignette :strength 0.65}]))})
