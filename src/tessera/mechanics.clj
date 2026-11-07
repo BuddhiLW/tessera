@@ -305,7 +305,78 @@
                     {:type :chroma :shift 2}
                     {:type :vignette :strength 0.55}])}))
 
+;; ── Lissajous oscillator ───────────────────────────────────────────────────
+
+(defn oscillator-lagrangian
+  "L = 1/2 |q'|^2 - 1/2 sum w_j^2 q_j^2: an anisotropic 3D harmonic
+   oscillator with angular frequencies `ws`."
+  [ws]
+  (fn [[_ q qd]]
+    (e/- (e/* 1/2 (e/dot-product qd qd))
+         (e/* 1/2 (reduce e/+ (map (fn [w x] (e/* w w x x)) ws q))))))
+
+(defn oscillator-equations
+  "Emmy's Lagrange equations of `oscillator-lagrangian` applied to the
+   closed-form motion q_j = A_j cos(w_j t + p_j), simplified: the zero
+   residual is what makes the cosine the motion."
+  [ws]
+  (let [q (apply e/up (map (fn [w j] (fn [t] (e/* (e/literal-number (symbol (str "A" j)))
+                                                    (e/cos (e/+ (e/* w t) (e/literal-number (symbol (str "p" j))))))))
+                          ws (range)))]
+    (e/simplify (((lagrange/Lagrange-equations (oscillator-lagrangian ws)) q) 't))))
+
+(def bodies
+  "Three bodies, each a 3D oscillator with whole frequencies per loop, so the
+   figure closes: [ws amplitudes phases]."
+  [[[3 4 5] [1.9 1.6 1.1] [0.0 0.5 1.1]]
+   [[2 3 4] [2.6 1.2 1.3] [0.9 0.0 0.3]]
+   [[5 4 3] [1.3 2.0 0.9] [0.4 1.6 0.0]]])
+
+(defn oscillator-at
+  "Position of body [ws as ps] at loop phase `u`."
+  [[ws as ps] u]
+  (mapv (fn [w a p] (* a (Math/cos (+ (* lp/tau w (double u)) p)))) ws as ps))
+
+(def lissajous-camera (camera [0.0 -8.5 3.0] [0.0 0.0 0.0] 15.0))
+
+(defn lissajous-frame
+  "The three closed figures at phase `u`, faint, with a bead of light per
+   body running along each and a fading ribbon behind it."
+  [u {:keys [palette tail segs] :or {tail 0.05 segs 40}}]
+  (let [P (fn [p] (project lissajous-camera p))
+        nb (count bodies)
+        figs (for [[k b] (map-indexed vector bodies)
+                   :let [col (hex (pal/at palette (/ (double k) nb)))]]
+               {:node :path :points (mapv #(first (P (oscillator-at b (/ (double %) 600)))) (range 601))
+                :opacity 0.3 :stroke {:color col :width 1.4}})
+        heads (for [[k b] (map-indexed vector bodies)
+                    off [0.0 (/ 1.0 3) (/ 2.0 3)]
+                    :let [col (hex (pal/at palette (+ (/ (double k) nb) (* 0.3 off))))
+                          pts (mapv #(P (oscillator-at b (- (+ (double u) off) (* tail (/ (double %) segs))))) (range (inc segs)))
+                          [[hx hy] _ hs] (first pts)]
+                    s (concat
+                       (for [j (range segs 0 -1)
+                             :let [[[x0 y0] _ s0] (nth pts j) [[x1 y1] _ _] (nth pts (dec j))
+                                   f (- 1.0 (/ (double j) segs))]]
+                         {:node :line :from [x0 y0] :to [x1 y1] :opacity (* 0.9 f f)
+                          :stroke {:color col :width (* 2.6 s0 (+ 0.2 (* 0.8 f)))}})
+                       [{:node :dot :at [hx hy] :opacity 0.3 :opts {:radius (* 0.09 hs)} :fill {:color col :opacity 1.0}}
+                        {:node :dot :at [hx hy] :opacity 1.0 :opts {:radius (* 0.035 hs)} :fill {:color "#fffaf0" :opacity 1.0}}])]
+                s)]
+    {:background "#000000" :shapes (vec (concat figs heads))}))
+
+(def lissajous-oscillators
+  (let [p (pal/around (pal/scheme :yellow-magenta-cyan))]
+    {:id :lissajous-oscillators
+     :title "Lissajous oscillators: three 3D harmonic oscillators, whole frequencies, closed figures"
+     :seconds 30 :fps 30 :size [1920 1080]
+     :frame (fn [u] (lissajous-frame u {:palette p}))
+     :post (fn [_] [{:type :bloom :radius 14 :strength 1.4}
+                    {:type :chroma :shift 2}
+                    {:type :vignette :strength 0.55}])}))
+
 (def loops
   "The mechanics loops, by id."
   (array-map :pendulum-wave pendulum-wave
-             :kepler-resonance kepler-resonance))
+             :kepler-resonance kepler-resonance
+             :lissajous-oscillators lissajous-oscillators))

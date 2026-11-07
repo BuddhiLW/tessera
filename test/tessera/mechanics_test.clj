@@ -53,3 +53,9 @@
 (deftest bodies-return-after-one-loop
   (doseq [o m/orbits]
     (is (every? #(< (Math/abs %) 1e-9) (map - (m/body-at o 0.0) (m/body-at o 1.0))))))
+
+(deftest oscillators-solve-their-lagrange-equations
+  (doseq [[ws] m/bodies]
+    (is (every? #(= "0" (str %)) (seq (m/oscillator-equations ws)))))
+  (doseq [b m/bodies]
+    (is (every? #(< (Math/abs %) 1e-9) (map - (m/oscillator-at b 0.0) (m/oscillator-at b 1.0))))))
