@@ -145,7 +145,7 @@
   "The 4.8.8 khatam ceiling in 3D at phase `u`: gold strands over glazed
    lapis stars and terracotta squares, an area lamp orbiting once per loop."
   [u]
-  (let [polys (g/pattern :4.8.8 [-5.5 5.5 -3.2 3.2] (g/khatam-angle) 0.0)
+  (let [polys (g/pattern :4.8.8 [-7.0 7.0 -4.0 7.5] (g/khatam-angle) 0.0)
         rosettes (fn [kind] (lx/merge-meshes (for [p polys :when (= kind (:kind p))]
                                                (lx/prism (:rosette p) 0.0 0.02))))]
     {:camera {:orig [0 -4.2 7.5] :target [0 0.3 0] :fov 52}
@@ -155,11 +155,11 @@
                  :ground {:type "matte" :kd [0.02 0.03 0.06]}
                  :lamp {:type "matte" :kd [0 0 0] :emission [45 39 30]}}
      :lights {:amb {:type "constantinfinite" :color [0.05 0.07 0.12]}}
-     :objects {:ground (merge {:material :ground} (quad [0 0] 9.0 -0.01))
+     :objects {:ground (merge {:material :ground} (quad [0 0] 12.0 -0.01))
                :octagons (merge {:material :lapis} (rosettes :octagon))
                :squares (merge {:material :terra} (rosettes :square))
                :strands (merge {:material :gold} (lx/ribbons (mapcat :strands polys) 0.07 0.0 0.06))
-               :lamp (merge {:material :lamp} (quad (lp/circle u 3.0) 0.6 3.5))}
+               :lamp (merge {:material :lamp :camerainvisible true} (quad (lp/circle u 3.0) 0.6 3.5))}
      :spp 48}))
 
 (def girih-gold
