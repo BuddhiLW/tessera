@@ -205,12 +205,16 @@
 
 (defn contour-loop
   "A rising-contour loop over `band` (energy 0 .. `emax`), coloured by the
-   thi.ng scheme `scheme`."
-  [id title band scheme {:keys [a step emax] :or {a 4.2 step 0.25}}]
-  (let [p (pal/scheme scheme)]
+   thi.ng scheme `scheme`. `offset` [x y] moves the view across the
+   landscape (off the central rosette of a quasiperiodic band)."
+  [id title band scheme {:keys [a step emax offset] :or {a 4.2 step 0.25 offset [0.0 0.0]}}]
+  (let [p (pal/scheme scheme)
+        [ox oy] offset
+        ox (double ox) oy (double oy)
+        moved (fn ^double [^double a ^double x ^double y] (double (band a (+ x ox) (+ y oy))))]
     {:id id :title title
      :seconds 16 :fps 30 :size [1920 1080] :view [8.0 4.5] :ss 2
-     :field (fn [u] (band-contour-shader u band {:palette p :a a :step step :emin 0.0 :emax emax}))
+     :field (fn [u] (band-contour-shader u moved {:palette p :a a :step step :emin 0.0 :emax emax}))
      :post (fn [_] [{:type :bloom :radius 12 :strength 1.1}
                     {:type :chroma :shift 2}
                     {:type :vignette :strength 0.55}])}))
@@ -230,6 +234,18 @@
 (def octagonal-fermi
   (contour-loop :octagonal-fermi "Eight-fold quasicrystal: Ammann-Beenker stars"
                 (quasi-band 8) :green-cyan {:a 7.5 :step 0.8 :emax 16.0}))
+
+(def symmetry-family
+  "Generated n-fold contour loops beyond 5, 7, 8: id :fold-<n>. The view sits
+   off the central rosette, in the quasiperiodic star field, which differs
+   for every n. Odd n shows 2n-fold stars (the landscape is even in k)."
+  (into (array-map)
+        (for [[n scheme offset] [[9 :yellow-magenta-cyan [7.3 2.1]] [10 :blue-magenta-orange [11.6 -4.4]]
+                                 [11 :green-red [-9.2 6.7]] [12 :cyan-magenta [14.1 3.3]]]
+              :let [id (keyword (str "fold-" n))]]
+          [id (contour-loop id (str n "-fold quasiperiodic contours")
+                            (quasi-band n) scheme
+                            {:a 5.0 :step (* 0.1 n) :emax (* 2.0 n) :offset offset})])))
 
 ;; ── Twisted bilayer graphene ──────────────────────────────────────────────
 
