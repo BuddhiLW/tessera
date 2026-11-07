@@ -138,3 +138,86 @@
      :post (fn [_] [{:type :bloom :radius 12 :strength 1.1}
                     {:type :chroma :shift 2}
                     {:type :vignette :strength 0.55}])}))
+
+;; ── Kagome bands ───────────────────────────────────────────────────────────
+
+(defn kagome-band
+  "The upper dispersive band of the nearest-neighbour kagome lattice, as
+   1 + sqrt(4 (cos²q1 + cos²q2 + cos²q3) - 3) with q_i = k·a_i/2: Dirac
+   cones at K, a quadratic touch with the flat band at Gamma."
+  ^double [^double a ^double x ^double y]
+  (let [q1 (* 0.5 a x)
+        q2 (* 0.5 a (+ (* 0.5 x) (* (/ s3 2.0) y)))
+        q3 (- q2 q1)
+        c1 (Math/cos q1) c2 (Math/cos q2) c3 (Math/cos q3)
+        s (- (* 4.0 (+ (* c1 c1) (* c2 c2) (* c3 c3))) 3.0)]
+    (+ 1.0 (Math/sqrt (max 0.0 s)))))
+
+(defn band-contour-shader
+  "Shader of rising contours of `band` ((fn [a x y] energy) on [0, emax]) at
+   phase `u`, one contour every `step`, rising one step per loop, over the
+   band's colour; `cusps` glows where the band reaches `emin`."
+  [u band {:keys [palette step a sharp emin emax] :or {step 0.25 a 4.2 sharp 24.0 emin 0.0 emax 3.0}}]
+  (let [u (double u) step (double step) a (double a) sharp (double sharp)
+        emin (double emin) emax (double emax)]
+    (fn ^long [^double x ^double y]
+      (let [e (double (band a x y))
+            line (Math/pow (lp/wave (lp/frac (- (/ e step) u))) sharp)
+            dz (- e emin)
+            cusp (Math/exp (* -40.0 dz dz))
+            [cr cg cb] (channels (pal/at palette (/ dz (- emax emin))))
+            k (+ 0.10 (* 0.95 line))]
+        (r/rgb (+ (* (double cr) k) (* 0.8 cusp))
+               (+ (* (double cg) k) (* 0.8 cusp))
+               (+ (* (double cb) k) (* 0.8 cusp)))))))
+
+(def kagome-fermi
+  (let [p (pal/scheme :green-magenta)]
+    {:id :kagome-fermi
+     :title "Kagome: Fermi contours of the corner-sharing triangle lattice"
+     :seconds 16 :fps 30 :size [1920 1080] :view [8.0 4.5] :ss 2
+     :field (fn [u] (band-contour-shader u kagome-band {:palette p :emin 1.0 :emax 4.0 :a 3.2}))
+     :post (fn [_] [{:type :bloom :radius 12 :strength 1.1}
+                    {:type :chroma :shift 2}
+                    {:type :vignette :strength 0.55}])}))
+
+;; ── Twisted bilayer graphene ──────────────────────────────────────────────
+
+(defn honeycomb-density
+  "A smooth atom density of a honeycomb lattice (spacing 1/`k`) turned by
+   `theta`: the sum of three plane waves at 120 degrees, peaked on the sites."
+  ^double [^double k ^double theta ^double x ^double y]
+  (loop [i 0 acc 0.0]
+    (if (< i 3)
+      (let [a (+ theta (* i (/ lp/tau 3.0)))]
+        (recur (inc i) (+ acc (Math/cos (* k (+ (* x (Math/cos a)) (* y (Math/sin a))))))))
+      acc)))
+
+(defn moire-shader
+  "Shader of two honeycomb layers twisted by `twist` radians at phase `u`.
+   A layer's honeycomb sites are the minima of its three-wave sum, so each
+   layer's density is (3/2 - sum)/(9/2) in [0, 1]; their product lights the
+   AA regions where the layers align, the moire superlattice of period about
+   (2π/k)/twist. A pulse of light travels outward once per loop."
+  [u {:keys [palette k twist] :or {k 26.0 twist 0.11}}]
+  (let [u (double u) k (double k) twist (double twist)
+        t1 (- (* 0.5 twist)) t2 (* 0.5 twist)]
+    (fn ^long [^double x ^double y]
+      (let [h1 (/ (- 1.5 (honeycomb-density k t1 x y)) 4.5)
+            h2 (/ (- 1.5 (honeycomb-density k t2 x y)) 4.5)
+            both (* h1 h2)
+            atoms (Math/pow both 1.5)
+            r (Math/sqrt (+ (* x x) (* y y)))
+            pulse (+ 0.4 (* 0.6 (Math/pow (lp/wave (lp/frac (- (/ r 5.0) u))) 2.0)))
+            [cr cg cb] (channels (pal/at palette (+ (* 0.5 (+ h1 h2)) (* 0.08 r))))
+            v (* atoms pulse 2.2)]
+        (r/rgb (* v (double cr)) (* v (double cg)) (* v (double cb)))))))
+
+(def twisted-bilayer
+  (let [p (pal/around (pal/scheme :yellow-purple-magenta))]
+    {:id :twisted-bilayer
+     :title "Twisted bilayer graphene: the moire superlattice, light pulsing through"
+     :seconds 16 :fps 30 :size [1920 1080] :view [8.0 4.5] :ss 2
+     :field (fn [u] (moire-shader u {:palette p}))
+     :post (fn [_] [{:type :bloom :radius 10 :strength 1.0}
+                    {:type :vignette :strength 0.5}])}))
