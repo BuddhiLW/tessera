@@ -16,7 +16,8 @@
             [tessera.ornament :as orn]
             [tessera.palette :as pal]
             [desargues.wallpaper.luxcore :as lx]
-            [tessera.neon :as neon]))
+            [tessera.neon :as neon]
+            [tessera.curves :as curves]))
 
 (set! *warn-on-reflection* true)
 
@@ -173,7 +174,8 @@
   "Every loop, by id, in gallery order."
   (into (array-map)
         (map (juxt :id identity))
-        [neon/neon-khatam girih-light girih-drift girih-assembly quasicrystal julia-orbit sierpinski-zoom]))
+        [neon/neon-khatam curves/moore-comets girih-light girih-drift girih-assembly
+         quasicrystal julia-orbit sierpinski-zoom]))
 
 (def path-traced
   "Loops rendered by LuxCore (luxcoreconsole on PATH), by id."

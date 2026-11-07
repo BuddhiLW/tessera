@@ -2,7 +2,8 @@
   "Colour for wallpaper loops: cosine palettes as primitive fns t -> 0xRRGGBB,
    and the tile colours of the girih loops."
   (:require [desargues.wallpaper.loop :as lp]
-            [desargues.wallpaper.render :as r]))
+            [desargues.wallpaper.render :as r]
+            [thi.ng.color.gradients :as grad]))
 
 (set! *warn-on-reflection* true)
 
@@ -23,6 +24,22 @@
   "Palette `p` at `t`."
   ^long [p ^double t]
   (.invokePrim ^clojure.lang.IFn$DL p t))
+
+(defn scheme
+  "A thi.ng/color cosine-gradient scheme (a key of
+   thi.ng.color.gradients/cosine-schemes: :blue-magenta-orange, :rainbow1 ..)
+   as a primitive palette t -> 0xRRGGBB."
+  [k]
+  (let [[a b c d] (or (get grad/cosine-schemes k)
+                      (throw (ex-info (str "Unknown thi.ng scheme " k) {:scheme k :known (keys grad/cosine-schemes)})))]
+    (cosine a b c d)))
+
+(defn around
+  "Palette `p` walked there and back once per unit of t: t -> p(1/2 - cos(2πt)/2).
+   Periodic in t for any palette, so cycling it by the loop phase never seams."
+  [p]
+  (fn ^long [^double t]
+    (at p (- 0.5 (* 0.5 (Math/cos (* lp/tau t)))))))
 
 (def lapis-gold
   "Lapis, turquoise and gold, the tile colours of Isfahan and Bukhara."

@@ -12,6 +12,7 @@ this project holds the loops themselves.
 | loop | what moves |
 |---|---|
 | `neon-khatam` | eight-pointed stars and octagons as strings of glowing beads on a tilted plane; beads march, inner outlines turn, a ring of light travels outward; bloom, red/blue fringe, depth of field |
+| `moore-comets` | two closed Moore curves (Hilbert's closed cousin), a thi.ng/color scheme flowing along them, comets of light running around |
 | `girih-light` | khatam eight-pointed stars on the 4.8.8 tiling (Hankin's method), the contact angle breathing, a band of light sweeping the ceiling |
 | `girih-drift` | six-fold two-point stars on 3.6.3.6, drifting one lattice period per loop |
 | `girih-assembly` | the 4.8.8 ceiling comes apart in a radial wave, each tile turning, and settles back |
@@ -38,6 +39,17 @@ Against a local desargues checkout instead of the pinned git sha:
 
 ```sh
 clojure -Sdeps '{:deps {io.github.mentat-collective/desargues {:local/root "../desargues"}}}' -M:render --preview
+```
+
+## Live preview
+
+From a REPL, `desargues.wallpaper.preview` keeps one mpv window looping the
+current loop; `show!` renders at 640x360 in the background and swaps it in.
+
+```clojure
+(require '[desargues.wallpaper.preview :as pv] '[tessera.curves :as c])
+(pv/show! c/moore-comets)        ; edit, re-eval, show! again
+(pv/status)
 ```
 
 ## Adding a loop
