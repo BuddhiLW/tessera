@@ -7,7 +7,7 @@
  :deps {org.clojure/clojure {:mvn/version "1.12.0"}
         thi.ng/color {:mvn/version "1.5.1"}
         io.github.mentat-collective/desargues {:git/url "https://github.com/mentat-collective/desargues.git"
-                                               :git/sha "15bea23eaab3f84faa214b502b6d5f04c3bc579e"}}
+                                               :git/sha "2807cff6eff66a0af004506199b778ffd8815e7a"}}
  :aliases
  {;; clojure -M:render --list | --preview | --only id,id --format mp4|webm|gif|png --size 1920x1080
   :render {:main-opts ["-m" "tessera.main"]}

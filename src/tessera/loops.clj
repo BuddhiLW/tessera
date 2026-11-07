@@ -19,7 +19,10 @@
             [tessera.neon :as neon]
             [tessera.curves :as curves]
             [tessera.reciprocal :as recip]
-            [tessera.quantum :as quantum]))
+            [tessera.quantum :as quantum]
+            [tessera.choreography :as chor]
+            [tessera.mechanics :as mech]
+            [tessera.orbitals :as orb]))
 
 (set! *warn-on-reflection* true)
 
@@ -180,6 +183,9 @@
          [neon/neon-pulse neon/neon-khatam
           recip/graphene-fermi recip/kagome-fermi recip/twisted-bilayer
           recip/square-fermi recip/penrose-fermi recip/heptagonal-fermi recip/octagonal-fermi])
+   chor/loops
+   mech/loops
+   orb/loops
    recip/symmetry-family
    (into (array-map)
          (map (juxt :id identity))
