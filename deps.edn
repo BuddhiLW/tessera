@@ -1,0 +1,13 @@
+{:paths ["src"]
+ ;; desargues supplies the generic parts: desargues.wallpaper.loop (seamless phase),
+ ;; desargues.wallpaper.render (field rasteriser, video encoders) and
+ ;; desargues.wallpaper.girih (Hankin star patterns). See README for a local override.
+ :deps {org.clojure/clojure {:mvn/version "1.12.0"}
+        io.github.mentat-collective/desargues {:git/url "https://github.com/mentat-collective/desargues.git"
+                                               :git/sha "48e5636d90318c6a43703b2b445acebafd605caa"}}
+ :aliases
+ {;; clojure -M:render --list | --preview | --only id,id --format mp4|webm|gif|png --size 1920x1080
+  :render {:main-opts ["-m" "tessera.main"]}
+  :test {:extra-paths ["test"]
+         :extra-deps {io.github.cognitect-labs/test-runner {:git/tag "v0.5.1" :git/sha "dfb30dd"}}
+         :main-opts ["-m" "cognitect.test-runner"]}}}

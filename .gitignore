@@ -1,0 +1,5 @@
+.cpcache/
+.nrepl-port
+out/
+*.mp4
+*.webm
