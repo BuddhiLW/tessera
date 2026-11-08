@@ -14,6 +14,8 @@ first.
   <img src="docs/hero/hopf-fibration.webp" width="49%" alt="Hopf fibration">
   <img src="docs/hero/caustics.webp" width="49%" alt="caustics">
   <img src="docs/hero/bz-glass.webp" width="49%" alt="Brillouin zones as glass">
+  <img src="docs/hero/kaleido-quasicrystal.webp" width="49%" alt="quasicrystal kaleidoscope">
+  <img src="docs/hero/textile-tunnel.webp" width="49%" alt="textile tunnel">
 </p>
 
 Every loop is a function of a phase `u ∈ [0, 1)`. An N-frame video samples
@@ -48,13 +50,13 @@ repository holds the loops.
 | | |
 |---|---|
 | ![](docs/gallery/curl-flow.webp) **curl-flow**<br>an incompressible flow v = curl ψ from eight asymmetric modes with integer temporal frequencies; particles fade in and out as they take each other's places, so the loop closes exactly | ![](docs/gallery/vortex-street.webp) **vortex-street**<br>a von Kármán street of point vortices under the Kirchhoff Hamiltonian H = −(1/4π) Σ ΓᵢΓⱼ log rᵢⱼ with the periodic Green's function; the street advances one period per loop, tracer dye striped by origin |
-| ![](docs/gallery/caustics.webp) **caustics**<br>sunlight refracted through a periodic water surface (twelve waves with integer wavevectors and frequencies), photons splatted onto the pool floor; the folds glow aqua to white-gold | ![](docs/gallery/breathers.webp) **breathers**<br>sine-Gordon breathers u = 4 atan(√(1−ω²)/ω · sin ωt / cosh √(1−ω²)x), exact periodic solitons with commensurate ω |
+| ![](docs/gallery/caustics.webp) **caustics**<br>sunlight refracted through a periodic water surface (twelve waves with integer wavevectors and frequencies), photons splatted onto the pool floor; the folds glow aqua to white-gold | ![](docs/gallery/breathers.webp) **breathers**<br>sine-Gordon breathers u = 4 atan(√(1−ω²)/ω · sin ωt / cosh √(1−ω²)x), exact periodic solitons with commensurate ω, a lattice of them drawn as glowing signed level sets (warm crests, cool troughs) | ![](docs/gallery/caustics-gold.webp) **caustics-gold**<br>the same pool under a finer surface (eighteen waves, shorter wavelengths), a denser photon network in amber and champagne gold |
 
 ### Quantum
 
 | | | |
 |---|---|---|
-| ![](docs/gallery/hydrogen-beat.webp) **hydrogen-beat**<br>a 3s/4d/4f/5g superposition; Eₙ = −1/2n² is rational, so ψ returns exactly | ![](docs/gallery/drum.webp) **drum**<br>square membrane modes with Pythagorean frequency ratios, mirrored to fill the frame | ![](docs/gallery/box-modes.webp) **box-modes**<br>a 16:9 infinite well, E ∝ m²/16² + n²/9², 48 commensurate modes |
+| ![](docs/gallery/hydrogen-beat.webp) **hydrogen-beat**<br>a 3s/4d/4f/5g superposition; Eₙ = −1/2n² is rational, so ψ returns exactly | ![](docs/gallery/drum.webp) **drum**<br>square membrane modes with Pythagorean frequency ratios, mirrored to fill the frame | ![](docs/gallery/box-modes.webp) **box-modes**<br>a particle in a 2D box: five modes with commensurate energies 2:5:8:10:10, \|ψ\|² as a saturating glow with iso-density contours, phase as a cyclic hue |
 | ![](docs/gallery/quantum-tapestry.webp) **quantum-tapestry**<br>the Talbot carpet in domain colouring: hue is the phase of ψ(x, t) | ![](docs/gallery/quantum-carpet.webp) **quantum-carpet**<br>a wave packet in a box; n² energies make the revival exact | ![](docs/gallery/double-slit.webp) **double-slit**<br>Huygens sources, crests in neon, the screen's cos² intensity as a bar graph |
 
 ### 3D
@@ -71,6 +73,15 @@ repository holds the loops.
 | ![](docs/gallery/brillouin-zones.webp) **brillouin-zones**<br>Brillouin zones of the hexagonal lattice, by counting Bragg planes | ![](docs/gallery/brillouin-square.webp) **brillouin-square** | ![](docs/gallery/brillouin-oblique.webp) **brillouin-oblique** |
 | ![](docs/gallery/penrose-fermi.webp) **penrose-fermi**<br>5-fold quasiperiodic band Σ cos(k·eⱼ) | ![](docs/gallery/heptagonal-fermi.webp) **heptagonal-fermi**<br>7-fold | ![](docs/gallery/octagonal-fermi.webp) **octagonal-fermi**<br>8-fold |
 | ![](docs/gallery/fold-9.webp) **fold-9** | ![](docs/gallery/fold-11.webp) **fold-11** | ![](docs/gallery/fold-12.webp) **fold-12** |
+| ![](docs/gallery/hofstadter.webp) **hofstadter**<br>Hofstadter's butterfly: Harper-model spectra at rational flux p/q on the square lattice, a scanner sweeping the flux and lighting the bands it crosses | ![](docs/gallery/lieb-fermi.webp) **lieb-fermi**<br>Lieb lattice (three-site square cell) Fermi contours; the whole zone flashes as the energy crosses the flat band | ![](docs/gallery/bloch-oscillation.webp) **bloch-oscillation**<br>Gaussian packets in a tight-binding lattice under a constant field, exact complex propagator; Bloch period 2π/Fa closes the loop, sites coloured by phase |
+
+### VJ: UV ornament
+
+Dense blacklight-neon ornament in the spirit of psytrance stage visuals, each one driven by a real field.
+
+| | | |
+|---|---|---|
+| ![](docs/gallery/textile-tunnel.webp) **textile-tunnel**<br>an exact ray-cylinder tunnel lined with stepped crosses, nested diamonds and bead chains; the wall travels one motif cell per loop, a dashed mandala pulsing at the vanishing point | ![](docs/gallery/kaleido-quasicrystal.webp) **kaleido-quasicrystal**<br>a five-wave quasicrystal folded into a D8 mirror wedge under a log-radial lens, contours in tiers of cyan, magenta, lime and gold | ![](docs/gallery/sprite-lattice.webp) **sprite-lattice**<br>a lattice of textile glyphs whose size is graphene's \|1 + e^{ik₁} + e^{ik₂}\| and whose colour is a second slow field; it slides one period per loop |
 
 ### Ornament, curves and fractals
 
