@@ -56,19 +56,21 @@
     [angular axial depth]))
 
 (defn tunnel-shader
-  "A cylindrical perspective tunnel tiled by double-outline stepped crosses.
-   Smaller diamonds, chevrons, interior hatching and bead chains nest within
-   the tiles. Inverse-radius depth supplies the scale gradient; Beer-Lambert
-   attenuation makes the vanishing point black. All geometry stays fixed."
+  "Cylindrical double-outline crosses, with ornament nested in every gap.
+   Analytic signed distances and 3x3 supersampling smooth the near wall.
+   Alternating lime/gold diamonds, red eyes and blue chevrons are periodic
+   around twelve columns. Only the stationary dashed centre rings are pale;
+   their bounded icy cores pulse twice per loop, never clipping to white."
   [u]
-  (let [u (double u)]
+  (let [u (double u)
+        ring-pulse (+ 0.64 (* 0.30 (lp/wave (* 2.0 u))))]
     (fn ^long [^double x ^double y]
       (let [radius (Math/hypot x y)]
         (if (< radius 0.23)
           0
-          (let [z (/ 3.0 radius) t (- z u)
-                s (+ (* 12.0 (/ (Math/atan2 y x) lp/tau))
-                     (* 0.12 (Math/sin (* lp/tau t))))
+          (let [theta (/ (Math/atan2 y x) lp/tau)
+                z (/ 3.0 radius) t (- z u)
+                s (+ (* 12.0 theta) (* 0.12 (Math/sin (* lp/tau t))))
                 a (- (lp/frac s) 0.5) b (- (lp/frac t) 0.5)
                 ax (Math/abs a) by (Math/abs b)
                 d (stepped-cross a b)
@@ -79,22 +81,41 @@
                 hatch (if (< d -0.09)
                         (* 0.48 (glow (- (lp/frac (* 5.0 (+ ax by))) 0.5) 0.045))
                         0.0)
-                bead-x (- ax 0.445) bead-y (- by 0.445)
-                bead (Math/exp (* -1800.0 (+ (* bead-x bead-x) (* bead-y bead-y))))
-                bead-ring (glow (- (Math/hypot bead-x bead-y) 0.039) 0.006)
+                bead-x (- ax 0.457)
+                bead-y (* 0.125 (- (lp/frac (* 8.0 t)) 0.5))
+                chain (Math/exp (* -4100.0 (+ (* bead-x bead-x) (* bead-y bead-y))))
+                ;; Repeated angular V-lines in the interstitial black pockets.
+                zig (- (lp/frac (+ (* 8.0 by) (* 3.0 ax))) 0.5)
+                gap (if (> d 0.045) (glow zig 0.05) 0.0)
+                eye (Math/exp (* -2400.0 (+ (* a a) (* b b))))
+                eye-ring (glow (- (+ (* 1.6 ax) by) 0.045) 0.008)
+                alternating (* 0.5 (- 1.0 (Math/cos (* Math/PI (Math/floor s)))))
                 pulse (+ 0.70 (* 0.30 (lp/wave (+ t (* 0.2 (Math/cos (* lp/tau s)))))))
                 fade (* pulse (Math/exp (* -0.047 z z)))
-                cyan (* fade (+ outer (* 0.30 bead-ring)))
-                magenta (* fade (+ inner (* 0.7 chevron)))
-                gold (* fade (+ diamond hatch (* 0.75 bead)))]
-            (neon (+ (* 0.035 cyan) (* 0.92 magenta) (* 0.65 gold))
-                  (+ (* 0.86 cyan) (* 0.025 magenta) (* 0.98 gold))
-                  (+ cyan (* 0.95 magenta) (* 0.025 gold)))))))))
+                cyan (* fade (+ outer (* 0.44 chain)))
+                magenta (* fade (+ inner (* 0.65 chevron)))
+                lime (* fade (+ (* (- 1.0 alternating) diamond) (* 0.52 hatch)))
+                gold (* fade (+ (* alternating diamond) (* 0.75 chain)))
+                blue (* fade 0.28 gap)
+                ember (* fade (+ (* 0.95 eye) (* 0.48 eye-ring)))
+                c (neon (+ (* 0.035 cyan) (* 0.92 magenta) (* 0.35 lime) gold (* 0.05 blue) ember)
+                        (+ (* 0.86 cyan) (* 0.025 magenta) lime (* 0.57 gold) (* 0.15 blue) (* 0.12 ember))
+                        (+ cyan (* 0.95 magenta) (* 0.025 lime) (* 0.015 gold) blue (* 0.025 ember)))
+                dash (Math/pow (lp/wave (* 24.0 theta)) 3.0)
+                dash2 (Math/pow (lp/wave (+ (* 36.0 theta) 0.5)) 4.0)
+                ring (* ring-pulse (+ (* dash (glow (- radius 0.315) 0.008))
+                                          (* 0.72 dash2 (glow (- radius 0.397) 0.006))))
+                cr (/ (bit-and 255 (bit-shift-right c 16)) 255.0)
+                cg (/ (bit-and 255 (bit-shift-right c 8)) 255.0)
+                cb (/ (bit-and 255 c) 255.0)]
+            (r/rgb (+ (* (- 1.0 ring) cr) (* ring 0.77))
+                   (+ (* (- 1.0 ring) cg) (* ring 0.86))
+                   (+ (* (- 1.0 ring) cb) (* ring 0.94)))))))))
 
 (def textile-tunnel
   {:id :textile-tunnel
    :title "UV textile tunnel: exact cylindrical rays and periodic stepped crosses"
-   :seconds 18 :fps 30 :size [1920 1080] :view [8.0 4.5] :ss 2
+   :seconds 18 :fps 30 :size [1920 1080] :view [8.0 4.5] :ss 3
    :field tunnel-shader})
 
 (def loops
