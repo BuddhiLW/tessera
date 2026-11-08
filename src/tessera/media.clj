@@ -53,6 +53,7 @@
    ;; Knots: topology in 3D
    :torus-knots ["Knots" ["torus-knot" "3d" "neon" "topology"]]
    :hopf-fibration ["Knots" ["hopf" "fibration" "torus" "topology" "3d"]]
+   :knot-tubes ["Knots" ["trefoil" "figure-eight-knot" "tube" "neon" "symmetry" "3d"]]
 
    ;; Fractals: self-similar sets and zooms
    :julia-orbit ["Fractals" ["julia" "complex" "escape-time"]]
@@ -145,6 +146,7 @@
    :spirograph "Spirograph"
    :torus-knots "Torus Knot Garden"
    :hopf-fibration "Hopf Fibration"
+   :knot-tubes "Trefoil and Figure-Eight Knots"
    :julia-orbit "Julia Set Orbit"
    :sierpinski-zoom "Sierpinski Zoom"
    :hofstadter "Hofstadter Butterfly"

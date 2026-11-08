@@ -187,6 +187,94 @@
   (assoc (spirograph-at (/ (first view) 2.0))
          :reframe (fn [[w _]] (spirograph-at (/ (double w) 2.0)))))
 
+;; ── Knot tubes ───────────────────────────────────────────────────────────
+
+(def knot-camera
+  (sp/camera {:eye [0.0 -13.0 5.0] :target [0.0 0.0 -0.2]
+              :up [0.0 0.0 1.0] :fov 34.0 :near 0.1 :view view}))
+
+(defn trefoil
+  "The trefoil in its three-fold symmetric form at t in turns: a turn of
+   2 pi/3 about z is the shift t -> t + 1/3."
+  [t]
+  (let [a (* lp/tau (double t))]
+    [(+ (Math/sin a) (* 2.0 (Math/sin (* 2.0 a))))
+     (- (Math/cos a) (* 2.0 (Math/cos (* 2.0 a))))
+     (- (Math/sin (* 3.0 a)))]))
+
+(defn figure-eight-knot
+  "The figure-eight knot ((2 + cos 2t) cos 3t, (2 + cos 2t) sin 3t, sin 4t)
+   at t in turns: a half turn about z is the shift t -> t + 1/2."
+  [t]
+  (let [a (* lp/tau (double t))
+        r (+ 2.0 (Math/cos (* 2.0 a)))]
+    [(* r (Math/cos (* 3.0 a))) (* r (Math/sin (* 3.0 a))) (Math/sin (* 4.0 a))]))
+
+(defn- place
+  "Local point [x y z] turned by `a` about its z axis, tilted toward the
+   camera by `tilt`, scaled and moved to `centre`."
+  [[x y z] a [cx cy cz] scale tilt]
+  (let [c (Math/cos a) s (Math/sin a)
+        x1 (- (* c x) (* s y)) y1 (+ (* s x) (* c y))
+        ct (Math/cos tilt) st (Math/sin tilt)
+        y2 (- (* ct y1) (* st z)) z2 (+ (* st y1) (* ct z))]
+    [(+ cx (* scale x1)) (+ cy (* scale y2)) (+ cz (* scale z2))]))
+
+(def knots
+  "The two knots: curve, symmetry order (the turn per loop is 2 pi/sym, the
+   matching parameter shift 1/sym), placement, palette and pulse count."
+  [{:curve trefoil :sym 3 :centre [-3.7 0.0 0.0] :scale 0.95 :tilt 0.5 :pulses 3
+    :palette (pal/cosine [0.20 0.72 0.88] [0.12 0.22 0.11] [1.0 1.0 1.0] [0.0 0.08 0.17])}
+   {:curve figure-eight-knot :sym 2 :centre [3.7 0.0 0.0] :scale 0.88 :tilt 0.5 :pulses 2
+    :palette (pal/cosine [0.89 0.43 0.10] [0.10 0.26 0.08] [1.0 1.0 1.0] [0.0 0.12 0.24])}])
+
+(def ^:const knot-samples 600)
+
+(defn knot-frame
+  "The knots at phase u as glowing tubes: each segment drawn as a wide halo,
+   a body and a hot core, nearer segments over farther ones and lighter.
+   Each knot turns by its symmetry angle per loop and its pulses and colour
+   are keyed on s - u/sym, the parameter the turn carries a point to, so
+   frame N is frame 0. Pulses also run a whole lap per loop."
+  [u]
+  (let [u (double u)
+        cue {:range [10.0 17.0] :alpha [1.0 0.55] :size [1.15 0.75]}]
+    (sp/frame
+     (mapcat
+      (fn [{:keys [curve sym centre scale tilt pulses palette]}]
+        (let [n knot-samples
+              a (* (/ lp/tau sym) u)
+              shift (/ u (double sym))
+              pts (mapv #(place (curve (/ (double %) n)) a centre scale tilt) (range (inc n)))]
+          (for [i (range n)
+                :let [s (- (/ (double i) n) shift)
+                      [x0 y0 d0] (sp/project knot-camera (nth pts i))
+                      [x1 y1 d1] (sp/project knot-camera (nth pts (inc i)))
+                      d (* 0.5 (+ d0 d1))
+                      {:keys [alpha size]} (sp/depth-cue cue d)
+                      k (comets u pulses s 0.11)
+                      shade (- 1.0 (* 0.5 (sp/clamp01 (/ (- d 10.5) 5.0))))
+                      col (hex (pal/at palette (+ (* 2.0 s) (* 0.05 (lp/wave u)))))
+                      mag (* 30.0 (sp/magnification knot-camera d))]
+                [w o c dz] [[(* 0.16 mag) (* 0.40 shade) col 0.0]
+                            [(* 0.085 mag) (* 0.85 shade) col 1.0e-4]
+                            [(* 0.03 mag (+ 1.0 k)) (min 0.9 (+ (* 0.3 shade) (* 0.8 k)))
+                             (if (> k 0.5) "#f0e2d0" "#d8eef4") 2.0e-4]]]
+            {:node :line :from [x0 y0] :to [x1 y1] :depth (- d dz)
+             :opacity (* alpha o) :stroke {:color c :width (* size w)}})))
+      knots)
+     {:background "#010306"})))
+
+(def knot-tubes
+  {:id :knot-tubes
+   :title "Trefoil and figure-eight knots as neon tubes, each turning by its symmetry"
+   :seconds 18 :fps 30 :size [1920 1080] :view view
+   :frame knot-frame
+   :post (fn [_] [{:type :bloom :radius 13 :strength 0.9}
+                  {:type :vignette :strength 0.3}])})
+
 (def loops
   "The curve and knot loops, by id."
-  (array-map :harmonograph harmonograph :spirograph spirograph))
+  (array-map :harmonograph harmonograph :spirograph spirograph :knot-tubes knot-tubes))
+
+
