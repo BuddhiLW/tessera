@@ -23,29 +23,25 @@
             seam (mean-diff (f (dec n)) (f 0))]
         (is (<= seam (+ 1.0 (* 1.5 typical))))))))
 
-(deftest fields-are-valid-and-exactly-periodic
-  (doseq [[k spec] waves/loops]
+(deftest fields-are-exactly-periodic
+  (testing "breathers remain a portable field form"
+    (let [bf ((:field waves/breathers) 0.37)]
+      (is (fld/bound? bf))
+      (is (seq (:bindings (fld/lower (:field/form bf)))))))
+  (doseq [[k spec] waves/loops
+          [x y] [[-7.0 -3.0] [-2.3 0.0] [0.0 2.7] [3.1 -0.2]]]
     (testing (name k)
-      (let [bf ((:field spec) 0.37)]
-        (is (fld/bound? bf))
-        (is (seq (:bindings (fld/lower (:field/form bf)))))
-        (doseq [x [-7.0 -2.3 0.0 3.1] y [-3.0 0.0 2.7]]
-          (let [a (fld/jvm-shader ((:field spec) 0.37))
-                b (fld/jvm-shader ((:field spec) 1.37))]
-            (is (= (a x y) (b x y)))))))))
+      (let [a ((:field spec) 0.37) b ((:field spec) 1.37)]
+        (is (= (a x y) (b x y)))))))
 
-(deftest caustic-jacobian-matches-numerical-ray-map
-  (doseq [[x y] [[1.23 -0.87] [-2.4 1.1] [0.31 2.6]]]
-    (let [{:keys [det point]} (waves/water-ray 0.31 x y)
-          [px py] point
-          epsilon 1.0e-5
-          [qx qy] (:point (waves/water-ray 0.31 (+ x epsilon) y))
-          [rx ry] (:point (waves/water-ray 0.31 x (+ y epsilon)))
-          jxx (/ (- qx px) epsilon) jyx (/ (- qy py) epsilon)
-          jxy (/ (- rx px) epsilon) jyy (/ (- ry py) epsilon)
-          numerical (- (* jxx jyy) (* jxy jyx))]
-      (is (< (Math/abs (- det numerical)) 1.0e-5)
-          (str "analytic " det ", finite difference " numerical)))))
+(deftest photon-splatting-conserves-light
+  (let [^doubles density (waves/caustic-buffer 0.31 96 96 10.0)]
+    (is (< (Math/abs (- 1.0 (/ (areduce density i sum 0.0 (+ sum (aget density i)))
+                               (alength density)))) 1.0e-10)))
+  (is (every? #(< % 1.0e-12)
+              (map (fn [a b] (Math/abs (- a b)))
+                   (waves/water-gradient 0.31 1.2 -0.7)
+                   (waves/water-gradient 0.31 9.2 -0.7)))))
 
 (deftest exact-breather-and-water-periodicity
   (doseq [n waves/breather-rows

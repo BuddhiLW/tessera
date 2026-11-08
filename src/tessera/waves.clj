@@ -1,14 +1,15 @@
 (ns tessera.waves
-  "Exactly periodic waves as portable desargues field forms.
+  "Exactly periodic waves.
 
-     :caustics   vertical rays refracted by a toroidal water surface, with
-                 the pool-floor light given by the inverse ray-map Jacobian
-     :breathers  an array of exact sine-Gordon breathers as luminous ribbons
+     :caustics   photons refracted by a toroidal water surface and bilinearly
+                 splatted into a periodic pool-floor density buffer
+     :breathers  exact sine-Gordon breathers as a portable field form
 
   All temporal phases are integral turns. The spatial wave vectors are
-  integral too. Both forms run unchanged on the :jvm, :raster and :gpu field
-  backends; only their per-frame scalar phases are bound on the host."
-  (:require [desargues.wallpaper.field :as fld]))
+  integral too. Caustics build one CPU density buffer per frame; breathers
+  run unchanged on the :jvm, :raster and :gpu field backends."
+  (:require [desargues.wallpaper.field :as fld]
+            [desargues.wallpaper.render :as r]))
 
 (set! *warn-on-reflection* true)
 
@@ -33,117 +34,109 @@
    [2 1 0.031 3 1.7]
    [-1 2 0.028 3 2.9]
    [2 -2 0.023 4 0.8]
-   [3 1 0.014 5 2.0]])
+   [3 1 0.014 5 2.0]
+   [4 -1 0.008 6 0.6]
+   [3 4 0.006 7 2.5]
+   [-4 3 0.005 8 1.4]
+   [5 2 0.004 9 0.2]])
 
 (defn water-phases
-  "Sine/cosine pairs of the eight temporal phases at loop phase u."
+  "Sine/cosine pairs of the twelve temporal phases at loop phase u."
   [u]
   (mapv (fn [[_ _ _ n phase]]
           (let [a (+ (* tau n (double u)) phase)]
             [(Math/sin a) (Math/cos a)]))
         water-waves))
 
-(defn- wave-bindings []
-  (vec
-   (mapcat
-    (fn [j [kx ky _ _ _]]
-      (let [spatial (list '+ (list '* (/ (* tau kx) 8.0) 'x)
-                          (list '* (/ (* tau ky) 8.0) 'y))
-            s (symbol (str "s" j)) c (symbol (str "c" j)) w (symbol (str "w" j))]
-        [s (list 'sin spatial)
-         w (list 'cos spatial)
-         c (list '- (list '* w (symbol (str "q" j)))
-                 (list '* s (symbol (str "p" j))))]))
-    (range) water-waves)))
-
-(defn- surface-derivatives []
-  (let [weighted (fn [f]
-                   (sum (map-indexed
-                         (fn [j [kx ky a _ _]]
-                           (let [k (/ tau 8.0)]
-                             (list '* (f kx ky) (* a k k) (symbol (str "c" j)))))
-                         water-waves)))]
-    ['gx (weighted (fn [kx _] kx))
-     'gy (weighted (fn [_ ky] ky))
-     'hxx (weighted (fn [kx _] (- (* kx kx))))
-     'hyy (weighted (fn [_ ky] (- (* ky ky))))
-     'hxy (weighted (fn [kx ky] (- (* kx ky))))]))
-
-(def refraction-depth 2.9)
-(def air-water-ratio (/ 1.0 1.333))
-
-(defn water-ray
-  "Snell-refracted landing point of the vertical ray through (x,y), plus
-  the exact Jacobian determinant of the floor map. This is the same formula
-  as caustic-field, exposed independently of the compiler's renamed lets."
+(def refraction-depth 10.0)
+(defn water-gradient
+  "Gradient of the toroidal water surface. The tenfold effective slope used
+  by the splat is the small-slope wave-steepness parameter of this render."
   [u x y]
-  (let [ds (mapv (fn [[kx ky _ _ _] [p q]]
-                   (let [a (+ (* tau (/ kx 8.0) x) (* tau (/ ky 8.0) y))]
-                     (- (* q (Math/cos a)) (* p (Math/sin a)))))
-                 water-waves (water-phases u))
-        k (/ tau 8.0)
-        grad (fn [select] (reduce + (map (fn [[kx ky a _ _] d] (* (select kx ky) a k k d)) water-waves ds)))
-        gx (grad (fn [a _] a)) gy (grad (fn [_ b] b))
-        hxx (grad (fn [a _] (- (* a a)))) hyy (grad (fn [_ b] (- (* b b))))
-        hxy (grad (fn [a b] (- (* a b))))
-        g (+ (* gx gx) (* gy gy)) n2 (+ 1.0 g)
-        root (Math/sqrt (- 1.0 (/ (* air-water-ratio air-water-ratio g) n2)))
-        f (- root (/ air-water-ratio n2))
-        fp (/ (- air-water-ratio (/ (* air-water-ratio air-water-ratio) (* 2.0 root)))
-              (* n2 n2))
-        dgx (* 2.0 (+ (* hxx gx) (* hxy gy)))
-        dgy (* 2.0 (+ (* hxy gx) (* hyy gy)))
-        a (+ (* hxx f) (* gx fp dgx)) b (+ (* hyy f) (* gy fp dgy))
-        c (+ (* hxy f) (* gx fp dgy)) d (+ (* hxy f) (* gy fp dgx))
-        det (- (* (+ 1.0 (* refraction-depth a)) (+ 1.0 (* refraction-depth b)))
-               (* refraction-depth refraction-depth c d))]
-    {:det det :point [(+ x (* refraction-depth gx f))
-                      (+ y (* refraction-depth gy f))]}))
+  (reduce (fn [[gx gy] [[kx ky a _ _] [p q]]]
+            (let [angle (+ (* tau (/ kx 8.0) x) (* tau (/ ky 8.0) y))
+                  deriv (* a (/ tau 8.0)
+                           (- (* q (Math/cos angle)) (* p (Math/sin angle))))]
+              [(+ gx (* kx deriv)) (+ gy (* ky deriv))]))
+          [0.0 0.0] (map vector water-waves (water-phases u))))
 
-(def caustic-field
-  "Refract d=(0,0,-1) through n=(-hx,-hy,1)/|n| with air/water ratio
-  eta=1/1.333. The transmitted horizontal direction is gradient(h)*f(g),
-  g=|gradient(h)|^2. f includes Snell's exact nonlinear normal correction.
-  For g=|gradient(h)|^2, dg=2*H*gradient(h). Each landing displacement is
-  depth*gradient(h)_j*f(g), so its derivative includes both the Hessian and
-  depth*gradient(h)_j*f'(g)*dg. I+that full 2x2 matrix gives det(J).
-  Intensity is 1/|det(J)|; the three exponential scales render its sharp
-  gold ridges and aqua penumbra without replacing the physics by stripes."
-  (let [eta (/ 1.0 1.333) depth 2.9
-        derivative-bindings
-        ['g (list '+ (pow2 'gx) (pow2 'gy))
-         'n2 (list '+ 1.0 'g)
-         'n4 (pow2 'n2)
-         'root (list 'sqrt (list '- 1.0 (list '/ (list '* eta eta 'g) 'n2)))
-         'f (list '- 'root (list '/ eta 'n2))
-         'fp (list '/ (list '- eta
-                              (list '/ (* eta eta) (list '* 2.0 'root))) 'n4)
-         'dgx (list '* 2.0 (list '+ (list '* 'hxx 'gx) (list '* 'hxy 'gy)))
-         'dgy (list '* 2.0 (list '+ (list '* 'hxy 'gx) (list '* 'hyy 'gy)))
-         'a (list '+ (list '* 'hxx 'f) (list '* 'gx 'fp 'dgx))
-         'b (list '+ (list '* 'hyy 'f) (list '* 'gy 'fp 'dgy))
-         'c (list '+ (list '* 'hxy 'f) (list '* 'gx 'fp 'dgy))
-         'd (list '+ (list '* 'hxy 'f) (list '* 'gy 'fp 'dgx))
-         'det (list '- (list '* (list '+ 1.0 (list '* depth 'a))
-                               (list '+ 1.0 (list '* depth 'b)))
-                     (list '* depth depth 'c 'd))
-         'ad (list 'abs 'det)
-         'focus (list '/ 1.0 (list '+ 0.025 'ad))
-         'ambient (list '/ (list 'log (list '+ 1.0 'focus)) 4.0)
-         'halo (list '* 0.16 (list 'exp (list '* -7.0 'ad)))
-         'line (list '* 0.38 (list 'exp (list '* -46.0 'ad)))
-         'core (list '* 0.74 (list 'exp (list '* -270.0 'ad)))]]
-    (form (mapcat (fn [j] [(symbol (str "p" j)) (symbol (str "q" j))]) (range 8))
-          (concat (wave-bindings) (surface-derivatives) derivative-bindings)
-          [(list '+ 0.0015 (list '* 0.018 'ambient) (list '* 0.06 'halo)
-                 (list '* 0.09 'line) (list '* 0.95 'core))
-           (list '+ 0.006 (list '* 0.12 'ambient) (list '* 0.60 'halo)
-                 (list '* 0.63 'line) (list '* 0.72 'core))
-           (list '+ 0.032 (list '* 0.29 'ambient) (list '* 0.88 'halo)
-                 (list '* 0.82 'line) (list '* 0.22 'core))])))
+(def ^:private water-data
+  (double-array
+   (mapcat (fn [[kx ky a _ _]] [(* kx a (/ tau 8.0)) (* ky a (/ tau 8.0))
+                               (* kx (/ tau 8.0)) (* ky (/ tau 8.0))])
+           water-waves)))
 
-(defn- caustic-shader [u]
-  (apply fld/bind caustic-field (mapcat identity (water-phases u))))
+(defn caustic-buffer
+  "One photon density period, w*h samples. Two offset source grids are
+  refracted with the small-slope Snell ray map and bilinearly splatted.
+  Landings wrap on the torus. Mean density is exactly one."
+  [u w h depth]
+  (let [w (long w) h (long h) depth (double depth)
+        bend (* 10.0 depth (- 1.0 (/ 1.0 1.333)))
+        out (double-array (* w h))
+        phases (double-array (mapcat identity (water-phases u)))
+        nw (count water-waves)]
+    (dotimes [pass 2]
+      (dotimes [sy h]
+        (dotimes [sx w]
+          (let [jx (if (zero? pass) 0.25 0.75)
+                jy (if (zero? pass) 0.75 0.25)
+                px (* 8.0 (/ (+ sx jx) w)) py (* 8.0 (/ (+ sy jy) h))]
+            (loop [j 0 gx 0.0 gy 0.0]
+              (if (= j nw)
+                (let [qx (+ px (* bend gx)) qy (+ py (* bend gy))
+                      tx (mod (* qx (/ w 8.0)) w) ty (mod (* qy (/ h 8.0)) h)
+                      ix (long (Math/floor tx)) iy (long (Math/floor ty))
+                      fx (- tx ix) fy (- ty iy)
+                      i0 (mod ix w) i1 (mod (inc ix) w)
+                      j0 (mod iy h) j1 (mod (inc iy) h)
+                      a (+ (* j0 w) i0) b (+ (* j0 w) i1)
+                      c (+ (* j1 w) i0) d (+ (* j1 w) i1)]
+                  (aset out a (+ (aget out a) (* 0.5 (- 1.0 fx) (- 1.0 fy))))
+                  (aset out b (+ (aget out b) (* 0.5 fx (- 1.0 fy))))
+                  (aset out c (+ (aget out c) (* 0.5 (- 1.0 fx) fy)))
+                  (aset out d (+ (aget out d) (* 0.5 fx fy))))
+                (let [o (* 4 j)
+                      angle (+ (* (aget ^doubles water-data (+ o 2)) px)
+                               (* (aget ^doubles water-data (+ o 3)) py))
+                      deriv (- (* (aget phases (inc (* 2 j))) (Math/cos angle))
+                               (* (aget phases (* 2 j)) (Math/sin angle)))]
+                  (recur (inc j)
+                         (+ gx (* (aget ^doubles water-data o) deriv))
+                         (+ gy (* (aget ^doubles water-data (inc o)) deriv))))))))))
+    out))
+
+(defn caustic-shader
+  "Build the refracted photon density once per frame; the shader only samples
+  it. The sharp density is retained for folds and a filtered copy supplies glow."
+  [u]
+  (let [w 1024 h 1024
+        ^doubles density (caustic-buffer u w h refraction-depth)
+        at (fn [ix iy] (aget density (+ (* (mod (long iy) h) w) (mod (long ix) w))))
+        sample (fn ^double [^double x ^double y]
+                 (let [tx (mod (* x (/ w 8.0)) w) ty (mod (* y (/ h 8.0)) h)
+                       ix (long (Math/floor tx)) iy (long (Math/floor ty))
+                       fx (- tx ix) fy (- ty iy)
+                       a (at ix iy) b (at (inc ix) iy)
+                       c (at ix (inc iy)) d (at (inc ix) (inc iy))]
+                   (+ (* a (- 1.0 fx) (- 1.0 fy)) (* b fx (- 1.0 fy))
+                      (* c (- 1.0 fx) fy) (* d fx fy))))
+        glow (fn ^double [^double x ^double y]
+               (* 0.0625 (+ (sample x y)
+                            (* 2.0 (+ (sample (+ x 0.025) y) (sample (- x 0.025) y)
+                                      (sample x (+ y 0.025)) (sample x (- y 0.025))))
+                            (sample (+ x 0.025) (+ y 0.025)) (sample (- x 0.025) (+ y 0.025))
+                            (sample (+ x 0.025) (- y 0.025)) (sample (- x 0.025) (- y 0.025)))))]
+    (fn ^long [^double x ^double y]
+      (let [i (sample x y) g (glow x y)
+            line (Math/pow (min 1.0 (* 0.45 i)) 1.2)
+            halo (- 1.0 (Math/exp (* -0.045 g)))
+            hot (Math/pow (min 1.0 (max 0.0 (/ (- i 3.0) 4.0))) 0.45)
+            gold (min 1.0 (max 0.0 (/ (- i 1.8) 1.5)))]
+        (desargues.wallpaper.render/rgb
+         (+ 0.003 (* 0.025 halo) (* 0.11 (- 1.0 gold) line) (* 0.82 hot) (* 0.95 gold))
+         (+ 0.022 (* 0.20 halo) (* 0.47 (- 1.0 gold) line) (* 0.42 hot) (* 0.68 gold))
+         (+ 0.09 (* 0.38 halo) (* 0.69 (- 1.0 gold) line) (* 0.08 hot) (* 0.38 gold)))))))
 
 (def caustics
   {:id :caustics
