@@ -344,6 +344,85 @@
   {:id :hyperspace :title "Hyperspace: D12 folded A2 stars in a dyadic log-radial warp"
    :seconds 18 :fps 30 :size [1920 1080] :view [8.0 4.5] :ss 2 :field hyperspace-shader})
 
+(defn flower-coordinates
+  "An unrotated twelve-wedge log-radial lattice. One octave outward per loop;
+   straight triangular facets are built in the local Cartesian wedge below."
+  [x y u]
+  (let [radius (Math/hypot (double x) (double y)) half (/ Math/PI 12.0)
+        angle (- (mod (+ (Math/atan2 (double y) (double x)) half) (* 2.0 half)) half)]
+    [(- (/ (Math/log (max 1.0e-12 (/ radius 0.48))) (Math/log 2.0)) (travel-phase (double u)))
+     angle]))
+
+(defn flower-shader
+  "Straight dyadic triangular facets with magenta/blue double outlines.
+   Interior ornament is continuous level-set worms plus parallel hatch
+   blocks, never repeated glyphs. Around the central hole is a chain of
+   eighteen overlapping dashed circles, enclosing a small RGB rosette.
+   Geometry advects outward by one self-similar step; nothing rotates."
+  [u]
+  (let [v (travel-phase (double u)) half (/ Math/PI 12.0)
+        pulse (+ 0.80 (* 0.16 (lp/wave (* 2.0 (double u)))))
+        ring-centres (double-array (mapcat (fn [i]
+                                            (let [a (* lp/tau (/ i 18.0))]
+                                              [(* 0.34 (Math/cos a)) (* 0.34 (Math/sin a))])) (range 18)))]
+    (fn ^long [^double x ^double y]
+      (let [radius (Math/hypot x y) theta (Math/atan2 y x)
+            wedge (long (Math/floor (/ (+ theta half) (* 2.0 half))))
+            angle (- (mod (+ theta half) (* 2.0 half)) half)
+            q (- (/ (Math/log (max 1.0e-12 (/ radius 0.48))) (Math/log 2.0)) v)
+            octave (Math/floor q)
+            fade (let [t (max 0.0 (min 1.0 (/ (- radius 0.35) 0.25)))] (* t t (- 3.0 (* 2.0 t))))
+            fade (* fade (- 1.0 (* 0.035 radius)))
+            color (loop [k -1 red 0.0 green 0.0 blue 0.0]
+                    (if (> k 1) (uv (* fade red) (* fade green) (* fade blue))
+                        (let [s (Math/pow 2.0 (- q octave k))
+                              px (* s (Math/cos angle)) py (* s (Math/sin angle))
+                              diagonal (/ (- (Math/abs py) (* 0.52688172043 (- px 1.0))) 1.130314)
+                              d (max (- px 1.93) diagonal)
+                              magenta (+ (filament (- d 0.014) 0.008)
+                                         (* 0.80 (filament (+ d 0.045) 0.007)))
+                              blue-line (+ (filament (- d 0.040) 0.006)
+                                           (* 0.68 (filament (+ d 0.070) 0.006)))
+                              direction (if (even? wedge) 1.0 -1.0)
+                              a (+ (* 9.0 px) (* direction 6.0 py))
+                              b (- (* 4.0 px) (* direction 13.0 py))
+                              c (+ (* 15.0 px) (* direction 3.0 py))
+                              field (+ (Math/sin a) (* 0.55 (Math/sin b)) (* 0.28 (Math/cos c)))
+                              grad-x (+ (* 9.0 (Math/cos a)) (* 2.20 (Math/cos b)) (* -4.20 (Math/sin c)))
+                              grad-y (* direction (+ (* 6.0 (Math/cos a)) (* -7.15 (Math/cos b)) (* -0.84 (Math/sin c))))
+                              contour (/ (- (lp/frac (* 2.4 field)) 0.5)
+                                         (max 6.0 (* 2.4 (Math/hypot grad-x grad-y))))
+                              worms (filament contour 0.0038)
+                              parallel (filament (/ (- (lp/frac (+ (* 14.0 px) (* direction 21.0 py))) 0.5) 25.24) 0.0035)
+                              patch (lp/wave (+ (* 1.8 px) (* 2.1 py)))
+                              hatch (if (< d -0.095)
+                                      (* 0.76 (if (> patch 0.70) parallel worms)) 0.0)
+                              gold (* hatch (+ 0.16 (* 0.70 (lp/wave (+ (* 2.0 px) py)))))
+                              lime (- hatch gold)
+                              nested (filament (+ d 0.14) 0.006)]
+                          (recur (inc k)
+                                 (+ red (* 0.98 magenta) (* 0.02 blue-line) (* 0.40 lime) gold (* 0.10 nested))
+                                 (+ green (* 0.015 magenta) (* 0.12 blue-line) lime (* 0.76 gold) (* 0.38 nested))
+                                 (+ blue (* 0.66 magenta) blue-line (* 0.015 hatch) (* 0.75 nested))))))
+            ring (if (< 0.22 radius 0.47)
+                   (loop [i 0 sum 0.0]
+                     (if (= i 18) (min 1.0 sum)
+                         (let [dx (- x (aget ring-centres (* 2 i))) dy (- y (aget ring-centres (inc (* 2 i))))
+                               dist (Math/hypot dx dy)
+                               dash (Math/pow (lp/wave (* 12.0 (/ (Math/atan2 dy dx) lp/tau))) 2.0)]
+                           (recur (inc i) (+ sum (* pulse dash (filament (- dist 0.077) 0.007))))))) 0.0)
+            rosette-r (+ 0.115 (* 0.022 (Math/cos (* 9.0 theta))))
+            red-stroke (filament (- radius rosette-r) 0.007)
+            green-stroke (filament (- radius (* 0.77 rosette-r)) 0.005)
+            cyan-stroke (filament (- radius (* 0.53 rosette-r)) 0.004)
+            rosette (uv (* 0.80 red-stroke) (+ (* 0.84 green-stroke) (* 0.72 cyan-stroke)) (* 0.92 cyan-stroke))
+            color (if (< radius 0.18) rosette color)]
+        (blend color (r/rgb 0.88 0.92 0.94) ring)))))
+
+(def flower-mandala
+  {:id :flower-mandala :title "Flower mandala: dyadic triangular labyrinth tunnel"
+   :seconds 18 :fps 30 :size [1920 1080] :view [8.0 4.5] :ss 2 :field flower-shader})
+
 (def loops
   "Separate export: the coordinator merges this map into the gallery."
-  (array-map :fabric fabric :hyperspace hyperspace))
+  (array-map :fabric fabric :hyperspace hyperspace :flower-mandala flower-mandala))

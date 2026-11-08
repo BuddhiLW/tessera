@@ -43,6 +43,28 @@
     (is (= (a x y) (b x y)))
     (is (= (a x y) (a x (- y))))))
 
+(deftest flower-advects-by-one-exact-dyadic-step
+  (doseq [[x y] [[0.6 1.1] [-0.8 0.31] [1.7 -0.42]] u [0.0 0.3 0.71]]
+    (let [[q a] (v2/flower-coordinates x y u)
+          [q1 a1] (v2/flower-coordinates (* 2.0 x) (* 2.0 y) (+ u 1.0))]
+      (is (< (Math/abs (- q q1)) 1.0e-12))
+      (is (< (Math/abs (- a a1)) 1.0e-12))))
+  (doseq [u [0.0 0.17 0.3 0.71]
+          :let [a (v2/flower-shader u) b (v2/flower-shader (+ u 1.0))]
+          [x y] [[0.73 0.29] [-2.31 1.01] [3.74 -1.88] [0.2 0.1] [0.34 0.015] [0.09 0.04]]]
+    (is (= (a x y) (b x y))))
+  ;; The eighteen small dashed circles and RGB rosette must be visible,
+  ;; rather than the central rings merely being named in a title.
+  (let [f (v2/flower-shader 0.3)
+        peak (fn [c] (apply max (map #(bit-and 255 (bit-shift-right c %)) [0 8 16])))
+        ring-values (for [i (range 720)
+                          :let [a (* 2.0 Math/PI (/ i 720.0))]]
+                      (peak (f (* 0.34 (Math/cos a)) (* 0.34 (Math/sin a)))))
+        rosette-values (for [j (range 30) i (range 30)]
+                         (peak (f (- (* 0.01 i) 0.15) (- (* 0.01 j) 0.15))))]
+    (is (> (apply max ring-values) 100))
+    (is (> (apply max rosette-values) 100))))
+
 (deftest gallery-specs-and-strict-native-frame-seams
   (doseq [[id spec] v2/loops]
     (testing (name id)
