@@ -45,6 +45,12 @@ repository holds the loops.
 | ![](docs/gallery/pendulum-wave.webp) **pendulum-wave**<br>24 nonlinear pendulums. L = ½ml²θ̇² + mgl cos θ through Emmy; lengths from 4√(l/g)·K(sin θ₀/2), so pendulum k swings exactly 18+k times | ![](docs/gallery/kepler-resonance.webp) **kepler-resonance**<br>six orbits with periods 12:6:4:3:2:1, Kepler's equation by Newton iteration, inclined planes | ![](docs/gallery/lissajous-oscillators.webp) **lissajous-oscillators**<br>3D harmonic oscillators with whole frequencies, checked against the Euler-Lagrange equations |
 | ![](docs/gallery/figure-eight.webp) **figure-eight**<br>the Chenciner-Montgomery three-body choreography, Yoshida 4th-order symplectic, energy drift 2e-7 | ![](docs/gallery/choreographies.webp) **choreographies**<br>figure-eight, Butterfly I, Moth I and Yin-yang 1a (Šuvakov-Dmitrašinović), shot closed to 1e-9 | ![](docs/gallery/phase-flow.webp) **phase-flow**<br>pendulum phase space H = p²/2 − cos q; each particle turns its action-angle variable a whole number of times |
 
+### Chaos and billiards
+
+| | | |
+|---|---|---|
+| ![](docs/gallery/elliptic-billiard.webp) **elliptic-billiard**<br>Poncelet families of closed billiard orbits in an ellipse (rotation numbers 1/9, 1/5, 2/9, 1/3 and a hyperbolic family between the foci), their confocal conic caustics drawn as neon lines | ![](docs/gallery/standard-map.webp) **standard-map**<br>the Chirikov standard map at K = 0.92: rotational tori, island chains and a dim chaotic sea, light crests flowing along each invariant curve in its own angle variable | ![](docs/gallery/cat-map.webp) **cat-map**<br>Arnold's cat map on a 322 × 322 torus has period 24 and C¹² = −I, so a centrally symmetric khatam assembles twice per loop; each step is drawn as two sliding shears |
+
 ### Fluids
 
 | | |
