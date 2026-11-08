@@ -43,12 +43,18 @@
         (is (zero? white-clip))
         (is (< peak-channel 250))))))
 
-(deftest fabric-is-all-over-not-a-vignette
-  (let [shader (v2/fabric-shader 0.3)]
-    ;; Every one of 32 macrotiles carries ornament; retain black at micro scale.
+(deftest fabric-is-all-over-with-black-between-clusters
+  (let [shader (v2/fabric-shader 0.3) blocks (v2/fabric-blocks 0.3)
+        values (for [j (range 90) i (range 160)]
+                 (blocks (+ -4.0 (* 8.0 (/ (+ i 0.5) 160.0)))
+                         (- 2.25 (* 4.5 (/ (+ j 0.5) 90.0)))))
+        coverage (/ (count (filter pos? values)) (double (count values)))]
+    ;; Coordinator's revised contract: discrete platforms occupy 45..55%,
+    ;; not a uniform wallpaper. The remaining space is genuinely black.
+    (is (<= 0.45 coverage 0.55))
     (doseq [row (range 4) col (range 8)]
-      (let [values (for [j (range 12) i (range 12)]
-                     (shader (+ -4.0 col (/ (+ i 0.5) 12.0))
-                             (+ -2.25 (* row 1.125) (* 1.125 (/ (+ j 0.5) 12.0)))))
-            lit (count (filter #(> (apply max (map (fn [s] (bit-and 255 (bit-shift-right % s))) [0 8 16])) 32) values))]
-        (is (> lit 50))))))
+      (let [samples (for [j (range 12) i (range 12)]
+                      (shader (+ -4.0 col (/ (+ i 0.5) 12.0))
+                              (+ -2.25 (* row 1.125) (* 1.125 (/ (+ j 0.5) 12.0)))))
+            lit (count (filter #(> (apply max (map (fn [s] (bit-and 255 (bit-shift-right % s))) [0 8 16])) 32) samples))]
+        (is (> lit 20))))))
