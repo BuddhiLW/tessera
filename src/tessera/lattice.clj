@@ -26,30 +26,45 @@
     (* 2.0 (Math/sqrt (+ (* cx cx) (* cy cy))))))
 
 (defn lieb-shader
-  "Rising energy contours; cyan/magenta encodes the B/C polarization of
-   the flat eigenvector (0,-cos(ky/2),cos(kx/2)). Touching points stay lit.
-   The square lattice and every contour's orientation are stationary."
+  "Two thin, interleaved contour families of the +/- dispersive Lieb bands.
+   A faint A/B/C motif makes the square edge-centred lattice explicit.
+   A narrow smooth energy probe E(u)=3 cos(2pi u) crosses the E=0 flat
+   band twice per loop; its weight lights the entire zone and B/C sites."
   [u]
   (let [u (double u)
+        probe (* 3.0 (Math/cos (* lp/tau u)))
+        flat (Math/exp (* -16.0 probe probe))
         p (pal/scheme :blue-magenta-orange)
-        [ar ag ab] (channels (pal/at p 0.12))
-        [br bg bb] (channels (pal/at p 0.76))
+        [ar ag ab] (channels (pal/at p 0.15))
+        [br bg bb] (channels (pal/at p 0.74))
         ar (double ar) ag (double ag) ab (double ab)
         br (double br) bg (double bg) bb (double bb)]
     (fn ^long [^double x ^double y]
       (let [kx (* 3.8 x) ky (* 3.8 y)
             cx (Math/cos (* 0.5 kx)) cy (Math/cos (* 0.5 ky))
             sx (* cx cx) sy (* cy cy) s (+ sx sy)
-            e (* 2.0 (Math/sqrt s))
-            b (/ sx (+ s 1.0e-12))
-            line (Math/pow (lp/wave (- (/ e 0.29) u)) 38.0)
-            fine (* 0.22 (Math/pow (lp/wave (- (/ e 0.58) u 0.3)) 55.0))
-            cusp (Math/exp (* -32.0 s))
-            v (+ 0.018 (* 0.94 line) fine)
-            hot (* 0.30 (Math/pow line 4.0))]
-        (r/rgb (+ (* v (+ ar (* b (- br ar)))) hot (* 0.58 cusp))
-               (+ (* v (+ ag (* b (- bg ag)))) hot (* 0.77 cusp))
-               (+ (* v (+ ab (* b (- bb ab)))) hot (* 0.95 cusp)))))))
+            e (* 2.0 (Math/sqrt s)) b (/ sx (+ s 1.0e-12))
+            positive (Math/pow (lp/wave (- (/ e 0.65) u)) 110.0)
+            negative (Math/pow (lp/wave (+ (- (/ e 0.65)) (- u) 0.5)) 110.0)
+            cusp (Math/exp (* -46.0 s))
+            ;; Unit-cell sites: A corners, B horizontal and C vertical midpoints.
+            gx (/ kx lp/tau) gy (/ ky lp/tau)
+            dx (- gx (Math/rint gx)) dy (- gy (Math/rint gy))
+            ex (- gx 0.5 (Math/rint (- gx 0.5)))
+            ey (- gy 0.5 (Math/rint (- gy 0.5)))
+            a-dot (Math/exp (* -2500.0 (+ (* dx dx) (* dy dy))))
+            b-dot (Math/exp (* -2500.0 (+ (* ex ex) (* dy dy))))
+            c-dot (Math/exp (* -2500.0 (+ (* dx dx) (* ey ey))))
+            lattice (+ (* 0.22 a-dot) (* (+ 0.14 (* 0.75 flat)) (+ b-dot c-dot)))
+            plus (* 0.91 positive) minus (* 0.86 negative)
+            hot (* 0.16 (+ (Math/pow positive 4.0) (Math/pow negative 4.0)))
+            flat-glow (* flat (+ 0.025 (* 0.15 (+ a-dot b-dot c-dot))))]
+        (r/rgb (+ (* plus (+ 0.10 (* 0.18 b))) (* minus (+ br 0.12)) hot
+                  (* 0.65 lattice) (* 0.25 cusp) (* 0.25 flat-glow))
+               (+ (* plus (+ 0.76 (* 0.12 b))) (* minus (* 0.50 bg)) hot
+                  (* 0.86 lattice) (* 0.60 cusp) flat-glow)
+               (+ (* plus 0.94) (* minus (+ ab (* 0.20 b))) hot
+                  lattice (* 0.78 cusp) (* 0.72 flat-glow)))))))
 
 (def lieb-fermi
   {:id :lieb-fermi
@@ -82,18 +97,18 @@
         (aset phi (inc (* 2 i)) (double im))))
     {:q qs :phi phi}))
 
-(defn bloch-density
-  "Exact 1D probability at sites -radius..radius, H=-J(T+T*)+Fn.
-   `cycles` is an integer force ratio, `excursion`=2J/F. The momentum
-   propagator is exp[i excursion (sin k - sin(k-2pi cycles u))]; the
-   omitted exp[-i n F t] has unit modulus. T_B=2pi/F (a=hbar=1)."
+(defn bloch-field
+  "Complex exact constant-force packet at integer sites, flat [re im ..].
+   Unlike bloch-density this retains the site phase exp(-i n F t), needed
+   for physically meaningful arg(psi) colouring. Integer force ratios make
+   the complex field, not merely its probability, revive after one loop."
   ^doubles [seed u cycles excursion radius]
   (let [^doubles qs (:q seed) ^doubles phi (:phi seed)
         m (alength qs) radius (long radius)
         theta (* lp/tau (long cycles) (lp/frac (double u)))
         excursion (double excursion)
         re (double-array m) im (double-array m)
-        result (double-array (inc (* 2 radius)))]
+        result (double-array (* 2 (inc (* 2 radius))))]
     (dotimes [i m]
       (let [q (aget qs i)
             ph (* excursion (- (Math/sin q) (Math/sin (- q theta))))
@@ -101,61 +116,92 @@
             a (aget phi (* 2 i)) b (aget phi (inc (* 2 i)))]
         (aset re i (- (* a c) (* b s)))
         (aset im i (+ (* a s) (* b c)))))
-    (dotimes [j (alength result)]
+    (dotimes [j (inc (* 2 radius))]
       (let [n (- j radius)]
         (loop [i 0 a 0.0 b 0.0]
           (if (< i m)
-            (let [ph (* n (aget qs i)) c (Math/cos ph) s (Math/sin ph)]
+            (let [ph (* n (- (aget qs i) theta)) c (Math/cos ph) s (Math/sin ph)]
               (recur (inc i)
                      (+ a (- (* (aget re i) c) (* (aget im i) s)))
                      (+ b (+ (* (aget re i) s) (* (aget im i) c)))))
-            (aset result j (/ (+ (* a a) (* b b)) (* m m)))))))
+            (do (aset result (* 2 j) (/ a m))
+                (aset result (inc (* 2 j)) (/ b m)))))))
     result))
 
-(def ^:private packet-x (delay (bloch-seed 1.0 (/ Math/PI 2.0))))
-(def ^:private packet-y (delay (bloch-seed 1.0 (* 0.35 Math/PI))))
+(defn bloch-density
+  "Exact 1D probability at sites -radius..radius, H=-J(T+T*)+Fn.
+   `cycles` is an integer force ratio, `excursion`=2J/F. T_B=2pi/F
+   (a=hbar=1); the complex propagator lives in bloch-field."
+  ^doubles [seed u cycles excursion radius]
+  (let [^doubles psi (bloch-field seed u cycles excursion radius)
+        n (quot (alength psi) 2)
+        result (double-array n)]
+    (dotimes [i n]
+      (let [re (aget psi (* 2 i)) im (aget psi (inc (* 2 i)))]
+        (aset result i (+ (* re re) (* im im)))))
+    result))
+
+(def ^:private packet-x (delay (bloch-seed 3.4 (/ Math/PI 2.0))))
+(def ^:private packet-y (delay (bloch-seed 3.4 (* 0.35 Math/PI))))
 
 (defn bloch-shader
-  "An incoherent square superlattice of exact 2D Bloch packets. Adjacent
-   cavities have different time origins, so light never collapses globally.
-   A site's bead/halo brightness is its probability, without per-frame
-   renormalization. Fx:Fy=1:2 gives a two-lobed, non-rotating Bloch path."
+  "Three finite Gaussian packets, with five discrete periodic ghost copies.
+   The dot at each site is coloured by the local phase; the halo is softer.
+   A bounded density exposure keeps the dots visible even at packet peaks.
+   No tiled selection, square cutoffs, hue offsets or chromatic post."
   [u]
-  (let [radius 24 stride 49
-        phases [0.0 0.25 0.5 0.75]
-        px (mapv #(bloch-density @packet-x (+ (double u) %) 1 4.8 radius) phases)
-        py (mapv #(bloch-density @packet-y (+ (double u) %) 2 2.4 radius) phases)
-        p (pal/around (pal/scheme :blue-magenta-orange))
-        colors (mapv #(channels (pal/at p %)) [0.05 0.26 0.55 0.79])]
+  (let [radius 64 w 73 h 43 spacing 0.12
+        centers [[-22 -7 0.0] [0 7 0.33] [22 -5 0.67]]
+        ;; A closed violet -> cyan -> gold -> violet palette. Phase is in turns.
+        p (pal/cosine [0.58 0.55 0.67] [0.32 0.34 0.27]
+                      [1.0 1.0 1.0] [0.10 0.32 0.62])
+        density (double-array (* w h))
+        red (double-array (* w h)) green (double-array (* w h)) blue (double-array (* w h))
+        neutral (double-array (* w h))]
+    (doseq [[cx cy phase] centers s (range 5)
+            :let [time (- (+ (double u) (double phase)) (* 0.070 s))
+                  weight (Math/pow 0.5 s)
+                  ^doubles fx (bloch-field @packet-x time 1 6.0 radius)
+                  ^doubles fy (bloch-field @packet-y time 2 3.0 radius)]]
+      (dotimes [j h]
+        (dotimes [i w]
+          (let [n (+ radius (- i 36 (long cx))) m (+ radius (- j 21 (long cy)))
+                ax (aget fx (* 2 n)) bx (aget fx (inc (* 2 n)))
+                ay (aget fy (* 2 m)) by (aget fy (inc (* 2 m)))
+                re (- (* ax ay) (* bx by)) im (+ (* ax by) (* bx ay))
+                rho (* weight (+ (* re re) (* im im)))
+                [cr cg cb] (channels (pal/at p (/ (Math/atan2 im re) lp/tau)))
+                o (+ (* j w) i)]
+            (aset density o (+ (aget density o) rho))
+            (aset red o (+ (aget red o) (* rho (double cr))))
+            (aset green o (+ (aget green o) (* rho (double cg))))
+            (aset blue o (+ (aget blue o) (* rho (double cb))))))))
+    (dotimes [o (* w h)]
+      (let [rho (aget density o)
+            exposure (* 0.92 (Math/pow (- 1.0 (Math/exp (* -210.0 rho))) 0.64))
+            scale (/ exposure (+ rho 1.0e-30))]
+        (aset neutral o exposure)
+        (aset red o (* scale (aget red o)))
+        (aset green o (* scale (aget green o)))
+        (aset blue o (* scale (aget blue o)))))
     (fn ^long [^double x ^double y]
-      (let [gx (/ x 0.22) gy (/ y 0.22)
-            ix (long (Math/floor (+ gx 0.5))) iy (long (Math/floor (+ gy 0.5)))
-            tile-x (long (Math/floor (/ (+ ix 9.0) 18.0)))
-            tile-y (long (Math/floor (/ (+ iy 6.0) 12.0)))
-            n (- ix (* tile-x 18)) m (- iy (* tile-y 12))
-            phase (int (mod (+ tile-x (* 2 tile-y)) 4))
-            ^doubles dx (nth px phase) ^doubles dy (nth py phase)
-            ;; Sum neighboring replicas, rather than clipping a packet at a tile edge.
-            vx (loop [s -2 v 0.0]
-                 (if (> s 2) v
-                     (let [j (+ radius n (* s 18))]
-                       (recur (inc s) (+ v (if (< -1 j stride) (aget dx j) 0.0))))))
-            vy (loop [s -3 v 0.0]
-                 (if (> s 3) v
-                     (let [j (+ radius m (* s 12))]
-                       (recur (inc s) (+ v (if (< -1 j stride) (aget dy j) 0.0))))))
-            density (* vx vy)
-            dx (- gx ix) dy (- gy iy) d2 (+ (* dx dx) (* dy dy))
-            bead (Math/exp (* -40.0 d2))
-            halo (Math/exp (* -6.0 d2))
-            energy (- 1.0 (Math/exp (* -32.0 density)))
-            v (* energy (+ (* 0.84 bead) (* 0.25 halo)))
-            hot (* 0.48 bead (Math/pow energy 3.0))
-            grid (* 0.017 bead)
-            [cr cg cb] (nth colors phase)]
-        (r/rgb (+ grid (* v (double cr)) hot)
-               (+ grid (* v (double cg)) hot)
-               (+ (* 1.6 grid) (* v (double cb)) hot))))))
+      (let [gx (+ 36.0 (/ x spacing)) gy (+ 21.0 (/ y spacing))
+            i (max 0 (min (- w 2) (long (Math/floor gx))))
+            j (max 0 (min (- h 2) (long (Math/floor gy))))
+            tx (- gx i) ty (- gy j) o (+ (* j w) i)
+            ni (max 0 (min (dec w) (long (Math/rint gx))))
+            nj (max 0 (min (dec h) (long (Math/rint gy))))
+            site (+ (* nj w) ni)
+            dx (- gx ni) dy (- gy nj)
+            bead (Math/exp (* -65.0 (+ (* dx dx) (* dy dy))))
+            sample (fn ^double [^doubles a]
+                     (+ (* (- 1.0 ty) (+ (* (- 1.0 tx) (aget a o)) (* tx (aget a (inc o)))))
+                        (* ty (+ (* (- 1.0 tx) (aget a (+ o w))) (* tx (aget a (+ o w 1)))))))
+            glow (* 0.14 (sample neutral))
+            grid (* 0.012 bead)
+            paint (fn ^double [^doubles a]
+                    (+ grid glow (* 0.11 (sample a)) (* 0.75 bead (aget a site))))]
+        (r/rgb (paint red) (paint green) (paint blue))))))
 
 (def bloch-oscillation
   {:id :bloch-oscillation
@@ -217,32 +263,40 @@
 (def ^:private spectrum (delay (butterfly-texture 1200 720 72)))
 
 (defn hofstadter-shader
-  "A stationary luminous Hofstadter butterfly; a soft amber flux probe
-   travels there and back, revealing allowed energies. The band gaps are
-   genuine, and never filled by an animated approximation."
+  "Stationary Harper spectrum with a crisp white-core, warm-halo scanner.
+   A gamma exposure reveals nested butterflies; cyan band edges sit above
+   violet depths. Only allowed energies become amber-white at the probe."
   [u]
   (let [{:keys [w h values]} @spectrum
         w (long w) h (long h) ^doubles values values
         alpha (+ 0.08 (* 0.84 (lp/wave (double u))))
         p (pal/scheme :blue-magenta-orange)]
     (fn ^long [^double x ^double y]
-      (let [flux (+ 0.5 (/ x 8.0))
-            fy (+ 0.5 (/ y 4.5))
+      (let [flux (+ 0.5 (/ x 8.0)) fy (+ 0.5 (/ y 4.5))
             fx (* flux (dec w)) yy (* fy (dec h))
             i (max 0 (min (- w 2) (long fx))) j (max 0 (min (- h 2) (long yy)))
-            tx (- fx i) ty (- yy j)
-            o (+ (* j w) i)
+            tx (- fx i) ty (- yy j) o (+ (* j w) i)
             top (+ (* (- 1.0 tx) (aget values o)) (* tx (aget values (inc o))))
             bot (+ (* (- 1.0 tx) (aget values (+ o w))) (* tx (aget values (+ o w 1))))
-            spectral (+ (* (- 1.0 ty) top) (* ty bot))
-            probe (Math/exp (* -950.0 (- flux alpha) (- flux alpha)))
-            pulse (+ 0.60 (* 0.40 (lp/wave (- (* flux 3.0) (double u)))))
-            v (* spectral (+ (* 0.72 pulse) (* 0.45 probe)))
-            [cr cg cb] (channels (pal/at p (+ 0.08 (* 0.78 (Math/abs (* 2.0 (- fy 0.5)))))))
-            hot (* 0.50 spectral probe)]
-        (r/rgb (+ (* v (double cr)) hot (* 0.045 probe))
-               (+ (* v (double cg)) (* 0.85 hot) (* 0.020 probe))
-               (+ (* v (double cb)) (* 0.55 hot)))))))
+            raw (+ (* (- 1.0 ty) top) (* ty bot))
+            spectral (Math/pow (max 0.0 raw) 0.70)
+            distance (- flux alpha)
+            line (Math/exp (* -650000.0 distance distance))
+            halo (Math/exp (* -65000.0 distance distance))
+            probe (Math/exp (* -8500.0 distance distance))
+            pulse (+ 0.74 (* 0.26 (lp/wave (- (* flux 3.0) (double u)))))
+            v (* spectral pulse)
+            edge (min 1.0 (* 2.5 (Math/abs (- bot top))))
+            cyan (+ (* 0.72 edge) (* 0.25 (lp/wave (+ (* 3.0 fy) flux))))
+            [cr cg cb] (channels (pal/at p (+ 0.05 (* 0.65 (Math/abs (* 2.0 (- fy 0.5)))))))
+            hot (* 0.85 spectral probe)
+            marker (+ (* 0.65 line) (* 0.10 halo))]
+        (r/rgb (+ (* v (+ (* (- 1.0 cyan) (double cr)) (* cyan 0.08)))
+                  hot marker (* 0.025 halo))
+               (+ (* v (+ (* (- 1.0 cyan) (* 0.70 (double cg))) (* cyan 0.90)))
+                  (* 0.78 hot) (* 0.90 marker))
+               (+ (* v (+ (* (- 1.0 cyan) (double cb)) (* cyan 1.0)))
+                  (* 0.32 hot) (* 0.76 marker)))))))
 
 (def hofstadter
   {:id :hofstadter
