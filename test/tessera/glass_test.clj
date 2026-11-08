@@ -59,7 +59,10 @@
   (let [sc (gl/girih-glass-scene 0.0 {:spp 8 :half 3.6 :strips 24})
         b (get-in sc [:objects :back0])
         [a c d] (take 3 (:vertices b))
-        n (g/cross (mapv - c a) (mapv - d a))]
+        [ux uy uz] (mapv - c a)
+        [vx vy vz] (mapv - d a)
+        ;; 3D cross product (g/cross is the 2D girih scalar cross)
+        n [(- (* uy vz) (* uz vy)) (- (* uz vx) (* ux vz)) (- (* ux vy) (* uy vx))]]
     (testing "the emissive strip's normal points at the camera (-y), or the
               glass would transmit a dark wall"
       (is (neg? (second n))))

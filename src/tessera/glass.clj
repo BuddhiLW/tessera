@@ -320,6 +320,8 @@
                "opencl.native.threads.count" "path.hybridbackforward.enable")
        (assoc-in [:config "native.threads.count"] 6))))
 
+(declare render-scene!)
+
 (defmethod render/scene-render :glass-cpu
   [_ ^BufferedImage img s _opts]
   (let [frame (render-scene! s (.getWidth img) (.getHeight img))
