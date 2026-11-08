@@ -71,6 +71,7 @@ repository holds the loops.
 | ![](docs/gallery/brillouin-zones.webp) **brillouin-zones**<br>Brillouin zones of the hexagonal lattice, by counting Bragg planes | ![](docs/gallery/brillouin-square.webp) **brillouin-square** | ![](docs/gallery/brillouin-oblique.webp) **brillouin-oblique** |
 | ![](docs/gallery/penrose-fermi.webp) **penrose-fermi**<br>5-fold quasiperiodic band Σ cos(k·eⱼ) | ![](docs/gallery/heptagonal-fermi.webp) **heptagonal-fermi**<br>7-fold | ![](docs/gallery/octagonal-fermi.webp) **octagonal-fermi**<br>8-fold |
 | ![](docs/gallery/fold-9.webp) **fold-9** | ![](docs/gallery/fold-11.webp) **fold-11** | ![](docs/gallery/fold-12.webp) **fold-12** |
+| ![](docs/gallery/hofstadter.webp) **hofstadter**<br>Hofstadter's butterfly: Harper-model spectra at rational flux p/q on the square lattice, a scanner sweeping the flux and lighting the bands it crosses | ![](docs/gallery/lieb-fermi.webp) **lieb-fermi**<br>Lieb lattice (three-site square cell) Fermi contours; the whole zone flashes as the energy crosses the flat band | ![](docs/gallery/bloch-oscillation.webp) **bloch-oscillation**<br>Gaussian packets in a tight-binding lattice under a constant field, exact complex propagator; Bloch period 2π/Fa closes the loop, sites coloured by phase |
 
 ### Ornament, curves and fractals
 
