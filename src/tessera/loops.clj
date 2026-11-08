@@ -31,7 +31,8 @@
             [tessera.vj :as vj]
             [tessera.chaos :as chaos]
             [tessera.vj2 :as vj2]
-            [tessera.delays :as delays]))
+            [tessera.delays :as delays]
+            [tessera.compose.loops :as composed]))
 
 (set! *warn-on-reflection* true)
 
@@ -202,6 +203,7 @@
    lattice/loops
    vj/loops
    vj2/loops
+   composed/loops
    s3d/loops
    recip/symmetry-family
    (into (array-map)

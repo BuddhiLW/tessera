@@ -100,6 +100,15 @@ Dense blacklight-neon ornament in the spirit of psytrance stage visuals, each on
 | ![](docs/gallery/textile-tunnel.webp) **textile-tunnel**<br>an exact ray-cylinder tunnel lined with stepped crosses, nested diamonds and bead chains; the wall travels one motif cell per loop, a dashed mandala pulsing at the vanishing point | ![](docs/gallery/kaleido-quasicrystal.webp) **kaleido-quasicrystal**<br>a five-wave quasicrystal folded into a D8 mirror wedge under a log-radial lens, contours in tiers of cyan, magenta, lime and gold | ![](docs/gallery/sprite-lattice.webp) **sprite-lattice**<br>a lattice of textile glyphs whose size is graphene's \|1 + e^{ik₁} + e^{ik₂}\| and whose colour is a second slow field; it slides one period per loop |
 | ![](docs/gallery/fabric.webp) **fabric**<br>an all-over composition: isometric stepped pyramids, striped, scaled and segmented serpents sliding along themselves, rainbow droplet bouquets bobbing on integer beats, lashed eyes and stars, placed by a seeded Poisson disc | ![](docs/gallery/hyperspace.webp) **hyperspace**<br>a starfield seeded on a hex lattice, folded into a D12 kaleidoscope, streaming outward log-radially; the field is self-similar under ×2, so one doubling closes the loop | ![](docs/gallery/flower-mandala.webp) **flower-mandala**<br>a twelve-fold triangular tunnel in magenta and blue double outlines, labyrinth worms and hatching in lime and gold, a ring of dashed circles at the centre; one self-similar step per loop |
 
+### Composed scenes
+
+These are not hand-written loops. Each is an EDN scene in `tessera.compose`: layers of motifs (stepped crosses, pyramids, serpents, droplets, eyes, mandalas) placed by layouts (Poisson disc, lattices, kaleidoscope folds, tunnels, self-similar zooms) and driven by periodic modulators (fields, integer beats, delays). Every modulator is periodic in u, so the loop closes by construction. fabric and kaleido-quasicrystal rebuilt as scenes are bit-exact against the hand-written versions, and `tessera.compose.generate` composes new scenes from a seed.
+
+| | | |
+|---|---|---|
+| ![](docs/gallery/temple.webp) **temple**<br>isometric pyramids and droplet bouquets in a D8 kaleidoscope, sizes driven by a quasicrystal field | ![](docs/gallery/serpent-garden.webp) **serpent-garden**<br>striped, scaled and segmented serpents over a glyph lattice sized by graphene's \|f(k)\|, droplets on delayed beats | ![](docs/gallery/mandala-tunnel.webp) **mandala-tunnel**<br>flower-mandala wedges mapped onto a tunnel wall, bead chains running toward the vanishing point |
+| ![](docs/gallery/generated-2.webp) **generated-2**<br>a seeded composition: glyph kaleidoscope around a petal medallion | ![](docs/gallery/generated-3.webp) **generated-3**<br>a seeded composition: serpents and bouquets over one dim palette-tier background | |
+
 ### Ornament, curves and fractals
 
 | | | |
