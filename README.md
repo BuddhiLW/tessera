@@ -81,6 +81,14 @@ Etienne Jacob's techniques (bleuje.com) applied to physics: every element runs t
 |---|---|---|
 | ![](docs/gallery/hopf-fibration.webp) **hopf-fibration**<br>Villarceau circles of S³ → S² on nested tori, stereographically projected, beads flowing along the fibres | ![](docs/gallery/torus-knots.webp) **torus-knots**<br>(p, q) torus knots at fixed poses, light pulses travelling along them, depth of field | ![](docs/gallery/lissajous-3d.webp) **lissajous-3d**<br>a lattice of 3D Lissajous curves with integer frequency triples, one comet each |
 
+### Fractals in 3D
+
+Sphere-traced from distance estimators (`tessera.raymarch`) with fixed step and iteration budgets, so every frame costs the same and is a pure function of u.
+
+| | | |
+|---|---|---|
+| ![](docs/gallery/mandelbulb.webp) **mandelbulb**<br>the power-8 bulb turns a seventh of a turn per loop, which is its own symmetry (z⁸ turns by 8/7 of a turn), while the key light goes once around; colour by orbit trap | | |
+
 ### Band structures and reciprocal space
 
 | | | |

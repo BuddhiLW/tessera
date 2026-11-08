@@ -58,6 +58,7 @@
    :hofstadter ["Fractals" ["hofstadter" "butterfly" "magnetic-flux" "spectrum"]]
    :flower-mandala ["Fractals" ["dyadic" "labyrinth" "tunnel" "mandala"]]
    :hyperspace ["Fractals" ["dyadic" "log-polar" "warp" "kaleidoscope"]]
+   :mandelbulb ["Fractals" ["mandelbulb" "3d" "raymarching" "distance-estimator" "seven-fold"]]
 
    ;; Lattices: band structure, Fermi surfaces, Brillouin zones
    :graphene-fermi ["Lattices" ["graphene" "fermi-surface" "dirac" "hexagonal"]]
@@ -141,6 +142,7 @@
    :hofstadter "Hofstadter Butterfly"
    :flower-mandala "Flower Mandala"
    :hyperspace "Hyperspace"
+   :mandelbulb "Mandelbulb"
    :graphene-fermi "Graphene Fermi Contours"
    :graphene-zones "Graphene Brillouin Zones"
    :kagome-fermi "Kagome Fermi Contours"
