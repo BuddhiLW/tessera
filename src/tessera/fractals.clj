@@ -340,7 +340,107 @@
    :post (fn [_] [{:type :bloom :radius 10 :strength 0.6}
                   {:type :vignette :strength 0.45}])})
 
+;; ── Apollonian gasket ────────────────────────────────────────────────────
+
+(def gasket
+  "The symmetric Apollonian gasket in the unit disc: three equal circles of
+   radius r = 2 sqrt 3 - 3 centred at distance 1 - r, and the four dual
+   circles [cx cy R^2], each orthogonal to the three circles bounding one
+   curvilinear triangle. Inversion in a dual circle maps the gasket onto
+   itself, so folding a point through them until it lands in a circle finds
+   the circle of the gasket it lies in, and the depth of that circle."
+  (let [r (- (* 2.0 (Math/sqrt 3.0)) 3.0)
+        d (- 1.0 r)
+        angle (fn [k] (+ (/ Math/PI 2.0) (* k (/ lp/tau 3.0))))
+        cs (vec (for [k (range 3)] [(* d (Math/cos (angle k))) (* d (Math/sin (angle k)))]))
+        ;; the central triangle: centred, through the three tangency points
+        inner [0.0 0.0 (- (* d d) (* r r))]
+        ;; the triangle between the unit circle and circles k+1, k+2, on the
+        ;; ray opposite circle k: orthogonal to the unit circle
+        ;; (t^2 = 1 + R^2) and to circle k+1 (|t e - c|^2 = r^2 + R^2)
+        outer (for [k (range 3)
+                    :let [a (+ (angle k) Math/PI)
+                          ex (Math/cos a) ey (Math/sin a)
+                          [cx cy] (nth cs (mod (inc k) 3))
+                          t (/ (- (+ (* d d) 1.0) (* r r)) (* 2.0 (+ (* ex cx) (* ey cy))))]]
+                [(* t ex) (* t ey) (- (* t t) 1.0)])]
+    {:r r :centres cs :duals (vec (cons inner outer))}))
+
+(def ^:const gasket-depth 30)
+
+(def gasket-palette
+  "Teal through ice to gold by depth."
+  (pal/cosine [0.40 0.55 0.60] [0.35 0.30 0.25] [1.0 1.0 1.0] [0.55 0.45 0.28]))
+
+(defn gasket-shader
+  "The gasket at phase u, seen through the Moebius map of the disc
+   z -> (z - a) / (1 - conj(a) z), a = (0.30 sin 2 pi u, 0.16 sin 4 pi u),
+   then turned by a third of a turn per loop (its own symmetry). Both are
+   the identity at u = 0 and u = 1, so the frames close. Each circle's rim
+   glows at a width fixed in screen units, carried through the inversions
+   by the chain's derivative."
+  [u]
+  (let [u (lp/frac (double u))
+        {:keys [r centres duals]} gasket
+        r (double r) r2 (* r r)
+        cxs (double-array (map first centres)) cys (double-array (map second centres))
+        dx (double-array (map #(nth % 0) duals)) dy (double-array (map #(nth % 1) duals))
+        dr2 (double-array (map #(nth % 2) duals))
+        th (* (/ lp/tau 3.0) (double u))
+        ct (Math/cos th) st (Math/sin th)
+        ar (* 0.30 (Math/sin (* lp/tau (double u)))) ai (* 0.16 (Math/sin (* 2.0 lp/tau (double u))))
+        scale 0.262
+        width (/ 0.0055 scale)
+        shift (double u)]
+    (fn ^long [^double x ^double y]
+      (let [zr (* scale x) zi (* scale y)
+            m0 (+ (* zr zr) (* zi zi))]
+        (if (> m0 1.0)
+          (let [g (Math/exp (/ (- (/ (- (Math/sqrt m0) 1.0) scale)) 0.02))]
+            (rm/pack (* 0.10 g) (* 0.45 g) (* 0.55 g)))
+          (let [nr (- zr ar) ni (- zi ai)
+                dr (- 1.0 (+ (* ar zr) (* ai zi))) di (- (- (* ar zi) (* ai zr)))
+                dd (+ (* dr dr) (* di di))
+                wr (/ (+ (* nr dr) (* ni di)) dd) wi (/ (- (* ni dr) (* nr di)) dd)
+                k0 (/ (- 1.0 (+ (* ar ar) (* ai ai))) dd)
+                pr (- (* ct wr) (* st wi)) pim (+ (* st wr) (* ct wi))]
+            (loop [n 0 px pr py pim k k0]
+              (let [inside (loop [j 0]
+                             (cond (= j 3) -1
+                                   (< (let [ex (- px (aget cxs j)) ey (- py (aget cys j))]
+                                        (+ (* ex ex) (* ey ey))) r2) j
+                                   :else (recur (inc j))))
+                    m (+ (* px px) (* py py))]
+                (if (or (>= inside 0) (> m 1.0) (>= n gasket-depth))
+                  (let [rim (if (>= inside 0)
+                              (- r (Math/sqrt (let [ex (- px (aget cxs inside)) ey (- py (aget cys inside))]
+                                                (+ (* ex ex) (* ey ey)))))
+                              (- (Math/sqrt m) 1.0))
+                        line (Math/exp (- (/ (/ (Math/abs rim) k) width)))
+                        c (pal/at gasket-palette (+ (* 0.13 n) shift))
+                        face (/ 0.16 (+ 1.0 (* 0.12 n)))
+                        lit (fn ^double [^long s]
+                              (+ (* (rm/linear c s) (+ face (* 2.2 line))) (* 0.35 line line)))]
+                    (rm/pack (lit 16) (lit 8) (lit 0)))
+                  (let [j (loop [j 0]
+                            (if (or (= j 3)
+                                    (< (let [ex (- px (aget dx j)) ey (- py (aget dy j))]
+                                         (+ (* ex ex) (* ey ey))) (aget dr2 j)))
+                              j (recur (inc j))))
+                        ex (- px (aget dx j)) ey (- py (aget dy j))
+                        f (/ (aget dr2 j) (+ (* ex ex) (* ey ey)))]
+                    (recur (inc n) (+ (aget dx j) (* f ex)) (+ (aget dy j) (* f ey)) (* k f))))))))))))
+
+(def apollonian
+  {:id :apollonian
+   :title "Apollonian gasket under a Moebius flow of the disc, a third of a turn per loop"
+   :seconds 16 :fps 30 :size [1920 1080] :view view :ss 2
+   :field gasket-shader
+   :post (fn [_] [{:type :bloom :radius 10 :strength 0.8}
+                  {:type :vignette :strength 0.35}])})
+
 (def loops
   "The fractal loops, by id."
   (array-map :mandelbulb mandelbulb :quaternion-julia quaternion-julia
-             :menger-flight menger-flight :cardioid-julia cardioid-julia))
+             :menger-flight menger-flight :cardioid-julia cardioid-julia
+             :apollonian apollonian))

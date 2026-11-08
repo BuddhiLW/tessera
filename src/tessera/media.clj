@@ -62,6 +62,7 @@
    :quaternion-julia ["Fractals" ["julia" "quaternion" "3d" "raymarching" "distance-estimator"]]
    :menger-flight ["Fractals" ["menger" "sponge" "fly-through" "3d" "raymarching" "tunnel"]]
    :cardioid-julia ["Fractals" ["julia" "mandelbrot" "cardioid" "complex" "escape-time"]]
+   :apollonian ["Fractals" ["apollonian" "gasket" "inversion" "moebius" "circles"]]
 
    ;; Lattices: band structure, Fermi surfaces, Brillouin zones
    :graphene-fermi ["Lattices" ["graphene" "fermi-surface" "dirac" "hexagonal"]]
@@ -149,6 +150,7 @@
    :quaternion-julia "Quaternion Julia Set"
    :menger-flight "Menger Sponge Flight"
    :cardioid-julia "Julia Sets Along the Cardioid"
+   :apollonian "Apollonian Gasket"
    :graphene-fermi "Graphene Fermi Contours"
    :graphene-zones "Graphene Brillouin Zones"
    :kagome-fermi "Kagome Fermi Contours"
