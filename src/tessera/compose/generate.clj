@@ -47,6 +47,11 @@
               {:type :lattice-cell :in [:s :t]}] [:a :b]]
     :plain [[{:type :let :bind [[:px :x] [:py :y] [:r [:hypot :x :y]]]}] [:px :py]]))
 
+(def background-gain
+  "Peak brightness of any full-frame (background) layer relative to the
+   foreground: background layers are dimmed to this fraction."
+  0.30)
+
 (defn- field-layers
   "Contour ink layers of a plane-wave field on the chart plane."
   [rng [sx sy] chart]
@@ -60,11 +65,6 @@
                :value [:* :fade 0.55 background-gain [:glow [:- :level 0.10] 0.035]]}
               {:ink :secondary :role :background
                :value [:* :fade 0.45 background-gain :pulse [:glow [:+ :level 0.10] 0.030]]}]}))
-
-(def background-gain
-  "Peak brightness of any full-frame (background) layer relative to the
-   foreground: background layers are dimmed to this fraction."
-  0.30)
 
 (defn- tier-colors
   "Two palette tiers [outer inner] for background strokes: never a rainbow."
