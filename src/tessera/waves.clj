@@ -1,25 +1,20 @@
 (ns tessera.waves
   "Exactly periodic waves.
 
-     :caustics   photons refracted by a toroidal water surface and bilinearly
-                 splatted into a periodic pool-floor density buffer
-     :breathers  exact sine-Gordon breathers as a portable field form
+     :caustics       photons refracted by a toroidal water surface and
+                     bilinearly splatted into a periodic pool-floor buffer
+     :caustics-gold  a finer caustic network in a warm gold palette
+     :breathers      a lattice of exact sine-Gordon breathers rendered as
+                     glowing level sets of their analytic height field
 
   All temporal phases are integral turns. The spatial wave vectors are
   integral too. Caustics build one CPU density buffer per frame; breathers
-  run unchanged on the :jvm, :raster and :gpu field backends."
-  (:require [desargues.wallpaper.field :as fld]
-            [desargues.wallpaper.render :as r]))
+  evaluate the closed-form breather and its slope per pixel."
+  (:require [desargues.wallpaper.render :as r]))
 
 (set! *warn-on-reflection* true)
 
 (def ^:private tau (* 2.0 Math/PI))
-
-(defn- form [params bindings rgb]
-  {:params (vec params) :body (list 'let (vec bindings) (vec rgb))})
-
-(defn- sum [terms] (cons '+ terms))
-(defn- pow2 [x] (list '* x x))
 
 ;; Caustics ---------------------------------------------------------------
 
@@ -162,60 +157,66 @@
     (* 4.0 (Math/atan (/ (* k (Math/sin (* tau n (double u))))
                          (Math/cosh (* k (double x))))))))
 
-(defn- breather-bindings []
-  (vec
-   (mapcat
-    identity
-    (for [row (range 3) col (range 4)
-          :let [n (breather-rows row)
-                w (/ (double n) (Math/sqrt (+ (* n n) 25.0)))
-                k (/ (Math/sqrt (- 1.0 (* w w))) w)
-                j (+ (* 4 row) col)
-                v (symbol (str "v" j))
-                b (symbol (str "b" j))
-                z (list '* k (list '- 'x (* 3.6 (- col 1.5))))
-                dy (list '- 'y (* 2.55 (- row 1)))
-                env (list 'exp (list '* -3.2 (pow2 dy)))
-                a (list '/ (list '* k (symbol (str "p" j)))
-                        (list '* 0.5 (list '+ (list 'exp z)
-                                           (list 'exp (list '- z)))))]]
-      [v (list '* (/ 4.0 Math/PI) (list 'atan2 a 1.0) env)
-       b (pow2 v)]))))
+(defn- breather-u-and-slope
+  "Exact breather value u and its x-slope du/dx at offset dx, with
+  s = sin(wt) already evaluated. k = sqrt(1-w^2)/w.
+  u  = 4 atan(k s / cosh(k dx))
+  du = -4 k^2 s sinh(k dx) / (cosh^2(k dx) (1 + (k s / cosh(k dx))^2))."
+  [^double k ^double s ^double dx]
+  (let [z (* k dx)
+        c (Math/cosh z) sh (Math/sinh z)
+        a (/ (* k s) c)
+        denom (+ 1.0 (* a a))]
+    [(* 4.0 (Math/atan a))
+     (* -4.0 (/ (* k k s sh) (* c c denom)))]))
 
-(def breather-field
-  "Twelve independent 1+1 breathers, extended across y only as luminous
-  ribbon envelopes. atan and cosh are expanded with the closed field
-  vocabulary. The value is the exact breather, not a Gaussian pulse."
-  (let [bindings (breather-bindings)
-        values (map #(symbol (str "v" %)) (range 12))
-        bodies (map #(symbol (str "b" %)) (range 12))
-        stripes (map (fn [v b]
-                       (list '* b (list 'pow
-                                        (list '+ 0.5 (list '* 0.5 (list 'cos (list '* 19.0 v)))) 14.0)))
-                     values bodies)
-        energy (sum bodies)
-        hot (list 'pow (list 'min 1.0 energy) 3.0)
-        stripe (sum stripes)
-        rows (map (fn [row] (sum (subvec (vec stripes) (* 4 row) (* 4 (inc row))))) (range 3))]
-    (form (map #(symbol (str "p" %)) (range 12))
-          (concat bindings ['energy energy 'hot hot 'stripe stripe])
-          [(list '+ 0.004 (list '* 0.28 (nth rows 0)) (list '* 0.62 (nth rows 1))
-                 (list '* 0.10 (nth rows 2)) (list '* 0.09 'energy) (list '* 0.28 'hot))
-           (list '+ 0.003 (list '* 0.07 (nth rows 0)) (list '* 0.43 (nth rows 1))
-                 (list '* 0.66 (nth rows 2)) (list '* 0.04 'energy) (list '* 0.23 'hot))
-           (list '+ 0.018 (list '* 0.40 (nth rows 0)) (list '* 0.13 (nth rows 1))
-                 (list '* 0.72 (nth rows 2)) (list '* 0.15 'energy) (list '* 0.20 'hot))])))
+(def breather-lattice
+  "Three rows by four columns of exact breathers. Row r uses n = (2,3,4);
+  columns sit at x = -5.4,-1.8,1.8,5.4, rows at y = -2.55,0,2.55.
+  Phases alternate 0 and pi/2 across the checkerboard, so neighbouring
+  breathers breathe in quadrature and the whole lattice never goes flat."
+  (vec (for [row (range 3) col (range 4)]
+         (let [n (breather-rows row)]
+           {:n n :k (/ 5.0 n)
+            :x0 (* 3.6 (- col 1.5)) :y0 (* 2.55 (- row 1))
+            :phase (if (even? (+ row col)) 0.0 (* 0.5 Math/PI))}))))
+
+(defn- breather-height
+  "Lit height field h(x,y) = sum_i u_i(x) exp(-0.55 (y-y_i)^2), with its
+  analytic gradient. Returns [h dh/dx dh/dy]."
+  [u ^double x ^double y]
+  (reduce (fn [[h gx gy] {:keys [n k x0 y0 phase]}]
+            (let [s (Math/sin (+ (* tau n (double u)) phase))
+                  dx (- x x0) dy (- y y0)
+                  env (Math/exp (* -0.55 (* dy dy)))
+                  denv (* -1.1 dy env)
+                  [v dv] (breather-u-and-slope k s dx)]
+              [(+ h (* v env)) (+ gx (* dv env)) (+ gy (* v denv))]))
+          [0.0 0.0 0.0] breather-lattice))
 
 (defn- breather-shader [u]
-  (apply fld/bind breather-field
-         (for [row (range 3) col (range 4)
-               :let [n (breather-rows row)
-                     phase (if (even? (+ row col)) 0.0 (* 0.5 Math/PI))]]
-           (Math/sin (+ (* tau n (double u)) phase)))))
+  (fn ^long [^double x ^double y]
+    (let [[h gx gy] (breather-height u x y)
+          ah (Math/abs h)
+          warm (if (pos? h) 1.0 0.0)
+          ;; Glowing level sets of the signed height: the zero level draws
+          ;; the nodal network, positive levels warm, negative levels cool.
+          lv (* h 2.2)
+          frac (- lv (Math/floor lv))
+          dist (min frac (- 1.0 frac))
+          line (Math/exp (* -500.0 (* dist dist)))
+          grad (Math/sqrt (+ (* gx gx) (* gy gy)))
+          aa (/ 1.0 (+ 1.0 (* 0.04 grad)))
+          line (* line aa)
+          body (* 0.05 (Math/pow (min 1.0 (/ ah 4.5)) 1.8))
+          spec (Math/pow (max 0.0 (/ (+ (* -0.5 gx) (* 0.866 gy)) (+ 1.0 grad))) 3.0)]
+      (r/rgb (+ 0.001 (* body 0.95) (* line (+ 0.40 (* 0.55 warm))) (* 0.10 spec))
+             (+ 0.0015 (* body 0.80) (* line (+ 0.60 (* 0.18 warm))) (* 0.16 spec))
+             (+ 0.005 (* body 1.05) (* line (+ 0.95 (* -0.60 warm))) (* 0.26 spec))))))
 
 (def breathers
   {:id :breathers
-   :title "Sine-Gordon breathers: a lattice of exact, luminous oscillations"
+   :title "Sine-Gordon breathers: glowing level sets of an exact breather lattice, warm peaks and cool troughs"
    :seconds 12 :fps 30 :size [1920 1080] :view [(/ 128.0 9.0) 8.0] :ss 2
    :field breather-shader
    :post (fn [_] [{:type :bloom :radius 11 :strength 0.65}
