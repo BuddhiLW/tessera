@@ -4,3 +4,5 @@ out/
 *.mp4
 *.webm
 .claude/
+.clj-kondo/
+.lsp/
