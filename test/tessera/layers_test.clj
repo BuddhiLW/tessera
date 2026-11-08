@@ -31,6 +31,11 @@
    :brillouin_zones '[edge_width pulse_zones]
    :kaleido_quasicrystal '[fold_order wave_number lens_scale contour_density]})
 
+(def own-layers
+  "The first ten layers, which this namespace covers; the ported second
+   wave (tessera.layers.ports) is covered by tessera.layers.ports-test."
+  (filterv #(contains? expected-param-order (:id %)) layers/layers))
+
 (defn reference-field
   "Offline pre-postprocess reference. Graphene deliberately corrects a to
    4pi/3; compare the shipped 4.2 separately, not as an implementation error."
@@ -73,11 +78,11 @@
 (defn parity-report []
   (mapv (fn [l]
           {:id (:id l) :phases (mapv (fn [u] (assoc (parity l u) :u u)) phases)})
-        layers/layers))
+        own-layers))
 
 (deftest published-parameter-order
-  (is (= (set (keys expected-param-order)) (set (map :id layers/layers))))
-  (doseq [l layers/layers]
+  (is (= (set (keys expected-param-order)) (set (map :id own-layers))))
+  (doseq [l own-layers]
     (testing (name (:id l))
       (is (vector? (:params l)))
       (is (= (expected-param-order (:id l)) (mapv first (:params l))))
@@ -89,14 +94,14 @@
         (is (<= min default max))))))
 
 (deftest every-form-compiles-on-jvm-and-glsl
-  (doseq [l layers/layers]
+  (doseq [l own-layers]
     (testing (name (:id l))
       (is (fn? (field/jvm-shader (layers/bind l 0.0))))
       (is (result/ok? (field/source :glsl (:form l) {})))
       (is (result/ok? (emit/compiled l))))))
 
 (deftest isf-structure-and-input-order
-  (doseq [l layers/layers]
+  (doseq [l own-layers]
     (testing (name (:id l))
       (let [compiled (emit/compiled l)
             text (when (result/ok? compiled) (emit/isf (:ok compiled)))
@@ -110,7 +115,7 @@
         (is (str/includes? text "vec4(clamp(desargues_c, 0.0, 1.0), 1.0)"))))))
 
 (deftest trama-structure-and-slot-order
-  (doseq [l layers/layers]
+  (doseq [l own-layers]
     (testing (name (:id l))
       (let [files (emit/layer-files (assoc l :target :trama))
             _ (is (result/ok? files))
@@ -137,9 +142,9 @@
    :kaleido_quasicrystal "Kaleido Quasicrystal"})
 
 (deftest pfx-names-and-slot-order
-  (is (= (map :id layers/layers) (keys layers/effects)))
+  (is (= (map :id own-layers) (keys layers/effects)))
   (is (= (count expected-effect-names) (count (distinct (vals expected-effect-names)))))
-  (doseq [l layers/layers]
+  (doseq [l own-layers]
     (testing (name (:id l))
       (let [id (name (:id l))
             files (emit/layer-files (layers/pfx-layer l))
@@ -167,7 +172,7 @@
 
 (deftest wgsl-expression-tree-agrees-with-jvm
   ;; CPU interpretation of exactly the emitted WGSL IR; not a GPU claim.
-  (doseq [l layers/layers
+  (doseq [l own-layers
           :let [compiled (wgsl/ir (:form l))
                 tree (:ok compiled)]]
     (is (result/ok? compiled))
@@ -177,14 +182,14 @@
              (apply field/pack (wgsl/interpret tree x y (:field/args bf))))))))
 
 (deftest field-raster-parity
-  (doseq [l layers/layers u phases]
+  (doseq [l own-layers u phases]
     (testing (str (:id l) " u=" u)
       (let [{:keys [mean max]} (parity l u)]
         (is (< mean 1.0))
         (is (<= max 1))))))
 
 (deftest supersampling-preserves-parity
-  (doseq [l layers/layers u phases]
+  (doseq [l own-layers u phases]
     (testing (str (:id l) " u=" u " 192x108 ss=2")
       (let [{:keys [mean max]} (parity l u [192 108] 2)]
         (is (< mean 1.0))
