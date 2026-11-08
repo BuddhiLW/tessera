@@ -22,7 +22,8 @@
             [tessera.quantum :as quantum]
             [tessera.choreography :as chor]
             [tessera.mechanics :as mech]
-            [tessera.orbitals :as orb]))
+            [tessera.orbitals :as orb]
+            [tessera.space3d :as s3d]))
 
 (set! *warn-on-reflection* true)
 
@@ -186,6 +187,7 @@
    chor/loops
    mech/loops
    orb/loops
+   s3d/loops
    recip/symmetry-family
    (into (array-map)
          (map (juxt :id identity))
