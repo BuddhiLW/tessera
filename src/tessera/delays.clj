@@ -107,26 +107,31 @@
 
 (def ^:private pendulum-spacing 0.4)
 
+(defn pendulum-grid
+  "Pivots on a `cols` x 11 square grid, centred. Each pendulum is tuned (its
+   length chosen) so its period is 1/5 loop at ANY amplitude. Amplitude
+   follows |field| over `peak` (default: the grid's own maximum), the delay
+   is arg(field)/2pi: the delay winds by one whole period round each node,
+   and nodal lanes barely move."
+  [cols peak]
+  (let [s pendulum-spacing rows 11
+        cells (for [j (range rows) i (range cols)]
+                [(* s (- i (/ (dec cols) 2.0))) (+ 0.12 (* s (- j (/ (dec rows) 2.0))))])
+        fields (mapv (fn [[x y]] (huygens x y)) cells)
+        peak (or peak (apply max (map (fn [[re im]] (Math/hypot re im)) fields)))]
+    (mapv (fn [[x y] [re im]]
+            (let [mag (/ (Math/hypot re im) peak)]
+              {:pivot [x y]
+               :strength mag
+               ;; capped at 1.6 rad (92 deg) so long rods never sweep
+               ;; into the row above; still well into the nonlinear regime
+               :amplitude (* 1.6 (Math/pow mag 1.1))
+               :delay (/ (Math/atan2 im re) lp/tau)}))
+          cells fields)))
+
 (def ^:private pendulums
-  "Pivots on a 20 x 11 square grid. Each pendulum is tuned (its length
-   chosen) so its period is 1/5 loop at ANY amplitude. Amplitude follows
-   |field|, the delay is arg(field)/2pi: the delay winds by one whole period
-   round each node, and nodal lanes barely move."
-  (delay
-    (let [s pendulum-spacing cols 20 rows 11
-          cells (for [j (range rows) i (range cols)]
-                  [(* s (- i (/ (dec cols) 2.0))) (+ 0.12 (* s (- j (/ (dec rows) 2.0))))])
-          fields (mapv (fn [[x y]] (huygens x y)) cells)
-          peak (apply max (map (fn [[re im]] (Math/hypot re im)) fields))]
-      (mapv (fn [[x y] [re im]]
-              (let [mag (/ (Math/hypot re im) peak)]
-                {:pivot [x y]
-                 :strength mag
-                 ;; capped at 1.6 rad (92 deg) so long rods never sweep
-                 ;; into the row above; still well into the nonlinear regime
-                 :amplitude (* 1.6 (Math/pow mag 1.1))
-                 :delay (/ (Math/atan2 im re) lp/tau)}))
-            cells fields))))
+  "The 20 x 11 grid of the 16:9 frame."
+  (delay (pendulum-grid 20 nil)))
 
 (def swing-stops
   "Cyan -> violet -> gold -> violet, closed into a cycle. The return leg goes
@@ -183,8 +188,9 @@
    completes 5 swings per loop. A thin rod, a bob and a continuous swept arc
    over the last 15% of the period; arc light and length scale with |field|.
    Colour is the cyclic palette at u - delay, so phase fronts drift outward.
-   The three sources are faint rings pulsing with the drive (5 per loop)."
-  [u]
+   The three sources are faint rings pulsing with the drive (5 per loop).
+   `pends` is a pendulum-grid, the 16:9 one by default."
+  [u & [pends]]
   (let [u (double u) swings 5.0 len (* 0.8 pendulum-spacing)
         arc-n 40 arc-span 0.15
         drive (+ 0.55 (* 0.45 (Math/cos (* lp/tau swings u))))]
@@ -230,7 +236,7 @@
                                         0.008 (* 0.55 l) (* 0.85 l) l])))
                         out (range 40)))
               (transient []) (:points huygens-sources))
-      @pendulums))))
+      (or pends @pendulums)))))
 
 (def ^:private huygens-peak
   (delay (double (reduce max (for [x (range -4.0 4.0 0.05) y (range -2.25 2.25 0.05)]
@@ -349,17 +355,20 @@
     (let [s (min 1.0 (/ p 0.22) (/ (- 1.0 p) 0.22))]
       (* s s s (+ 10.0 (* s (+ -15.0 (* 6.0 s))))))))
 
-(def ^:private flow-particles
-  "Stratified seeds over a slightly enlarged view; golden-ratio life offsets,
-   so a fresh stroke fades in somewhere every frame as an old one fades out."
-  (delay
-    (let [rng (java.util.Random. 7041) cols 64 rows 36 [vw vh] view]
-      (vec (for [j (range rows) i (range cols)
-                 :let [idx (+ i (* j cols))
-                       x (* 1.08 vw (- (/ (+ i (.nextDouble rng)) cols) 0.5))
-                       y (* 1.08 vh (- (/ (+ j (.nextDouble rng)) rows) 0.5))
-                       offset (lp/frac (* 0.618033988749895 idx))]]
-             {:offset offset :path (trace-particle [x y] offset)})))))
+(defn flow-seeds
+  "Stratified seeds on a `cols` x `rows` grid over a slightly enlarged
+   window [vw vh]; golden-ratio life offsets, so a fresh stroke fades in
+   somewhere every frame as an old one fades out."
+  [[vw vh] cols rows]
+  (let [rng (java.util.Random. 7041)]
+    (vec (for [j (range rows) i (range cols)
+               :let [idx (+ i (* j cols))
+                     x (* 1.08 vw (- (/ (+ i (.nextDouble rng)) cols) 0.5))
+                     y (* 1.08 vh (- (/ (+ j (.nextDouble rng)) rows) 0.5))
+                     offset (lp/frac (* 0.618033988749895 idx))]]
+           {:offset offset :path (trace-particle [x y] offset)}))))
+
+(def ^:private flow-particles (delay (flow-seeds view 64 36)))
 
 (defn- path-at
   "Particle position at age p, linear in the stored samples, clamped."
@@ -383,8 +392,8 @@
 (defn flow-grid
   "The flow at phase u tabulated on a 0.025-unit grid over the enlarged view:
    {:vx :vy :w} float planes plus geometry, sampled bilinearly by flow-at."
-  [u]
-  (let [h 0.025 [vw vh] view
+  [u & [window]]
+  (let [h 0.025 [vw vh] (or window view)
         x0 (- (* 0.6 (double vw))) y0 (- (* 0.6 (double vh)))
         nx (long (Math/ceil (/ (* 1.2 (double vw)) h))) ny (long (Math/ceil (/ (* 1.2 (double vh)) h)))
         vx (double-array (* nx ny)) vy (double-array (* nx ny)) w (double-array (* nx ny))]
@@ -408,9 +417,9 @@
    particle, traced both ways by unit-speed midpoint steps; the particle
    itself rides the flow. Light tapers to the stroke's ends and to zero at
    birth and death (replacement), so there is no pop and no seam."
-  [u]
+  [u & [particles window]]
   (let [u (lp/frac (double u)) half 16 ds 0.02
-        {:keys [h x0 y0 nx ny vx vy w]} (flow-grid u)
+        {:keys [h x0 y0 nx ny vx vy w]} (flow-grid u window)
         h (double h) x0 (double x0) y0 (double y0) nx (long nx) ny (long ny)
         ^doubles vx vx ^doubles vy vy ^doubles w w]
     (persistent!
@@ -441,7 +450,7 @@
                                    sg (/ (* dir ds) (max 1.0e-6 (Math/hypot gx2 gy2)))]
                                (recur (inc k) (+ x (* sg gx2)) (+ y (* sg gy2)) out)))))]
               (-> out (walk 1.0) (walk -1.0))))))
-      (transient []) @flow-particles))))
+      (transient []) (or particles @flow-particles)))))
 
 (def noise-flow-lines
   {:id :noise-flow-lines
@@ -498,23 +507,25 @@
 
 (def ^:private mesh-spacing 0.2)
 
-(def ^:private mesh
-  "Triangular lattice vertices (rest positions) and edges [i j]."
-  (delay
-    (let [s mesh-spacing h (* s (Math/sqrt 3.0) 0.5)
-          cols 48 rows 30
-          idx (fn [i j] (+ i (* j cols)))
-          verts (vec (for [j (range rows) i (range cols)]
-                       [(+ (* s (- i (/ cols 2.0))) (if (odd? j) (* 0.5 s) 0.0))
-                        (* h (- j (/ (dec rows) 2.0)))]))
-          edges (vec (concat
-                      (for [j (range rows) i (range (dec cols))] [(idx i j) (idx (inc i) j)])
-                      (for [j (range (dec rows)) i (range cols)] [(idx i j) (idx i (inc j))])
-                      (for [j (range (dec rows)) i (range cols)
-                            :let [i2 (if (odd? j) (inc i) (dec i))]
-                            :when (< -1 i2 cols)]
-                        [(idx i j) (idx i2 (inc j))])))]
-      {:verts verts :edges edges})))
+(defn mesh-of
+  "Triangular lattice vertices (rest positions) and edges [i j], `cols` by
+   `rows`, centred."
+  [cols rows]
+  (let [s mesh-spacing h (* s (Math/sqrt 3.0) 0.5)
+        idx (fn [i j] (+ i (* j cols)))
+        verts (vec (for [j (range rows) i (range cols)]
+                     [(+ (* s (- i (/ cols 2.0))) (if (odd? j) (* 0.5 s) 0.0))
+                      (* h (- j (/ (dec rows) 2.0)))]))
+        edges (vec (concat
+                    (for [j (range rows) i (range (dec cols))] [(idx i j) (idx (inc i) j)])
+                    (for [j (range (dec rows)) i (range cols)] [(idx i j) (idx i (inc j))])
+                    (for [j (range (dec rows)) i (range cols)
+                          :let [i2 (if (odd? j) (inc i) (dec i))]
+                          :when (< -1 i2 cols)]
+                      [(idx i j) (idx i2 (inc j))])))]
+    {:verts verts :edges edges}))
+
+(def ^:private mesh (delay (mesh-of 48 30)))
 
 (def mesh-stops
   "Trough deep blue -> teal -> crest gold, by height: not phase-cycled."
@@ -535,8 +546,8 @@
   "Thin glowing edges and bead vertices of the displaced mesh. Light grows
    with height (crests glow, troughs fade) and with local compression of
    the edge (the trochoid bunches parcels into sharp crests)."
-  [u]
-  (let [{:keys [verts edges]} @mesh
+  [u & [m]]
+  (let [{:keys [verts edges]} (or m @mesh)
         moved (mapv (fn [[x y]] (let [[dx dy z] (gerstner x y u)]
                                   [(+ (double x) dx) (+ (double y) dy) z]))
                     verts)

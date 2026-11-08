@@ -227,11 +227,24 @@
     [(* 4.0 (Math/atan a))
      (* -4.0 (/ (* k k s sh) (* c c denom)))]))
 
+(defn breather-lattice-of
+  "Three rows by `cols` columns (even) of exact breathers, columns 3.6 apart
+   about x = 0, rows at y = -2.55, 0, 2.55. Row r uses n = (2,3,4). Phases
+   alternate 0 and pi/2 across the checkerboard, so neighbouring breathers
+   breathe in quadrature and the whole lattice never goes flat; the
+   checkerboard is anchored at the centre, so a wider lattice extends the
+   narrower one."
+  [cols]
+  (let [half (quot (long cols) 2)]
+    (vec (for [row (range 3) col (range cols)]
+           (let [n (breather-rows row)
+                 j (- col half)]
+             {:n n :k (/ 5.0 n)
+              :x0 (* 3.6 (+ j 0.5)) :y0 (* 2.55 (- row 1))
+              :phase (if (even? (+ row j)) 0.0 (* 0.5 Math/PI))})))))
+
 (def breather-lattice
-  "Three rows by four columns of exact breathers. Row r uses n = (2,3,4);
-  columns sit at x = -5.4,-1.8,1.8,5.4, rows at y = -2.55,0,2.55.
-  Phases alternate 0 and pi/2 across the checkerboard, so neighbouring
-  breathers breathe in quadrature and the whole lattice never goes flat."
+  "The 16:9 lattice: three rows by four columns, at x = -5.4,-1.8,1.8,5.4."
   (vec (for [row (range 3) col (range 4)]
          (let [n (breather-rows row)]
            {:n n :k (/ 5.0 n)
@@ -241,7 +254,7 @@
 (defn- breather-height
   "Lit height field h(x,y) = sum_i u_i(x) exp(-0.55 (y-y_i)^2), with its
   analytic gradient. Returns [h dh/dx dh/dy]."
-  [u ^double x ^double y]
+  [lattice u ^double x ^double y]
   (reduce (fn [[h gx gy] {:keys [n k x0 y0 phase]}]
             (let [s (Math/sin (+ (* tau n (double u)) phase))
                   dx (- x x0) dy (- y y0)
@@ -249,11 +262,13 @@
                   denv (* -1.1 dy env)
                   [v dv] (breather-u-and-slope k s dx)]
               [(+ h (* v env)) (+ gx (* dv env)) (+ gy (* v denv))]))
-          [0.0 0.0 0.0] breather-lattice))
+          [0.0 0.0 0.0] lattice))
 
-(defn- breather-shader [u]
+(defn breather-shader
+  "The lattice at phase `u`; `lattice` defaults to the 16:9 one."
+  [u & [lattice]]
   (fn ^long [^double x ^double y]
-    (let [[h gx gy] (breather-height u x y)
+    (let [[h gx gy] (breather-height (or lattice breather-lattice) u x y)
           ah (Math/abs h)
           warm (if (pos? h) 1.0 0.0)
           ;; Glowing level sets of the signed height: the zero level draws

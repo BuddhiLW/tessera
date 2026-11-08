@@ -266,14 +266,18 @@
 (defn hofstadter-shader
   "Stationary Harper spectrum with a crisp white-core, warm-halo scanner.
    A gamma exposure reveals nested butterflies; cyan band edges sit above
-   violet depths. Only allowed energies become amber-white at the probe."
-  [u]
+   violet depths. Only allowed energies become amber-white at the probe.
+   With `periodic?` the flux axis wraps: the spectrum is periodic in flux
+   with period one, so a wider frame shows the neighbouring butterflies."
+  [u & [periodic?]]
   (let [{:keys [w h values]} @spectrum
         w (long w) h (long h) ^doubles values values
         alpha (+ 0.08 (* 0.84 (lp/wave (double u))))
         p (pal/scheme :blue-magenta-orange)]
     (fn ^long [^double x ^double y]
-      (let [flux (+ 0.5 (/ x 8.0)) fy (+ 0.5 (/ y 4.5))
+      (let [flux (+ 0.5 (/ x 8.0))
+            flux (if periodic? (lp/frac flux) flux)
+            fy (+ 0.5 (/ y 4.5))
             fx (* flux (dec w)) yy (* fy (dec h))
             i (max 0 (min (- w 2) (long fx))) j (max 0 (min (- h 2) (long yy)))
             tx (- fx i) ty (- yy j) o (+ (* j w) i)
