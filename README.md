@@ -20,6 +20,7 @@ this project holds the loops themselves.
 | `julia-orbit` | the Julia set of c = 0.7885·e^{2πiu}, c once around its circle |
 | `sierpinski-zoom` | a zoom by 2 into a corner of Sierpinski's triangle, its own similarity ratio |
 | `girih-gold` | path traced by LuxCore: gold strands extruded over glazed lapis stars and terracotta squares, an area lamp orbiting once per loop |
+| `bz-glass` | path traced by LuxCore on the GPU: the first Brillouin zones of the sc, bcc, fcc and hexagonal lattices (cube, rhombic dodecahedron, truncated octahedron, hexagonal prism), cut from their Bragg planes, as glass with gold edges and glowing high-symmetry points; only the lamp moves (`tessera.bz3d/loops`) |
 
 ## Render
 
@@ -83,6 +84,16 @@ clojure -M:render --only girih-gold --format mp4
 ```
 
 The test suite does not render path-traced loops.
+
+`bz-glass` (`tessera.bz3d`) renders on the GPU: `renderengine.type =
+PATHOCL` with the CPU devices off (`opencl.cpu.use 0`,
+`opencl.native.threads.count 0`), Intel OIDN denoising and a fixed linear
+exposure, all passed through the scene's `:config` map. The first PATHOCL
+run compiles CUDA kernels for about two minutes; later runs reuse the cache.
+On an RTX 4070 laptop GPU at 32 spp a frame takes about 5.4 s at 640x360
+and 24 s at 1920x1080, so the 10 s, 24 fps loop is about 22 minutes as a
+preview and 1.6 hours at 1080p. It is not in `tessera.loops/catalog`;
+render it from the REPL with `desargues.wallpaper.render/encode!`.
 
 ## Roadmap
 
