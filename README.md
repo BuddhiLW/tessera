@@ -154,6 +154,18 @@ Against a local desargues checkout instead of the pinned git sha:
 clojure -Sdeps '{:deps {io.github.mentat-collective/desargues {:local/root "../desargues"}}}' -M:render --preview
 ```
 
+## Live shader layers
+
+Ten loops are also written as desargues field forms in `tessera.layers` (graphene, kagome, square, penrose, heptagonal and octagonal Fermi contours, quasicrystal, lieb, brillouin-zones and kaleido-quasicrystal). Each matches its rendered loop bit for bit and compiles to GPU shaders, so a VJ host can run it live at any resolution with its real parameters as controls:
+
+```clojure
+(require '[tessera.layers :as layers])
+(layers/emit-trama! "out/layers")      ; fosfora trama sources: <id>.wgsl
+(layers/emit-isf! "out/layers/isf")    ; ISF v2 layers for other VJ hosts
+```
+
+Each layer's phase is a rate parameter, so it loops seamlessly at any tempo. Parameter order is part of the layer's interface and only ever grows at the end, because saved bindings refer to slots. For fosfora, point `FOSFORA_TRAMA_DIRS` at `out/layers/`: new files load live and edits hot-swap.
+
 ## Live preview
 
 From a REPL, `desargues.wallpaper.preview` keeps one mpv window looping the
