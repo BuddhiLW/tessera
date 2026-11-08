@@ -93,7 +93,9 @@ run compiles CUDA kernels for about two minutes; later runs reuse the cache.
 On an RTX 4070 laptop GPU at 32 spp a frame takes about 5.4 s at 640x360
 and 24 s at 1920x1080, so the 10 s, 24 fps loop is about 22 minutes as a
 preview and 1.6 hours at 1080p. It is not in `tessera.loops/catalog`;
-render it from the REPL with `desargues.wallpaper.render/encode!`.
+render it from the REPL with `desargues.wallpaper.render/encode!`. The
+`:config` key needs desargues c87f974 or later; with the pinned 2807cff
+the device, denoiser and exposure options are not written.
 
 ## Roadmap
 
