@@ -60,6 +60,7 @@
    :hyperspace ["Fractals" ["dyadic" "log-polar" "warp" "kaleidoscope"]]
    :mandelbulb ["Fractals" ["mandelbulb" "3d" "raymarching" "distance-estimator" "seven-fold"]]
    :quaternion-julia ["Fractals" ["julia" "quaternion" "3d" "raymarching" "distance-estimator"]]
+   :menger-flight ["Fractals" ["menger" "sponge" "fly-through" "3d" "raymarching" "tunnel"]]
 
    ;; Lattices: band structure, Fermi surfaces, Brillouin zones
    :graphene-fermi ["Lattices" ["graphene" "fermi-surface" "dirac" "hexagonal"]]
@@ -145,6 +146,7 @@
    :hyperspace "Hyperspace"
    :mandelbulb "Mandelbulb"
    :quaternion-julia "Quaternion Julia Set"
+   :menger-flight "Menger Sponge Flight"
    :graphene-fermi "Graphene Fermi Contours"
    :graphene-zones "Graphene Brillouin Zones"
    :kagome-fermi "Kagome Fermi Contours"

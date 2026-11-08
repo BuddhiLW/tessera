@@ -199,6 +199,86 @@
    :post (fn [_] [{:type :bloom :radius 14 :strength 0.6}
                   {:type :vignette :strength 0.4}])})
 
+;; ── Menger sponge flight ─────────────────────────────────────────────────
+
+(def ^:const menger-levels 4)
+
+(defn- wrap2
+  "v mod 2, shifted to [-1, 1)."
+  ^double [^double v]
+  (- (- v (* 2.0 (Math/floor (/ v 2.0)))) 1.0))
+
+(defn menger-de
+  "Distance estimate to the infinite Menger sponge of period 2: solid
+   2-cubes from which each level carves the galleries of half-width 1/3 of
+   its cell, `menger-levels` levels, each three times finer. The level-0
+   galleries run along the lines where two coordinates are 0 mod 2."
+  ^double [^double px ^double py ^double pz]
+  (loop [i 0 s 1.0 d -1.0e9]
+    (if (>= i menger-levels)
+      d
+      (let [rx (Math/abs (- 1.0 (* 3.0 (Math/abs (wrap2 (* px s))))))
+            ry (Math/abs (- 1.0 (* 3.0 (Math/abs (wrap2 (* py s))))))
+            rz (Math/abs (- 1.0 (* 3.0 (Math/abs (wrap2 (* pz s))))))
+            c (/ (- (min (max rx ry) (min (max ry rz) (max rz rx))) 1.0) (* 3.0 s))]
+        (recur (inc i) (* 3.0 s) (max d c))))))
+
+(defn menger-eye
+  "The camera at phase u: down the gallery x = y = 0, one period (2) of the
+   sponge per loop, weaving on whole harmonics."
+  [u]
+  (let [a (* lp/tau (double u))]
+    [(* 0.09 (Math/cos a)) (* 0.07 (Math/cos (+ (* 2.0 a) 0.6))) (- 1.0 (* 2.0 (double u)))]))
+
+(def menger-palette
+  "Bronze and copper walls, cooling to teal in the distance."
+  (pal/cosine [0.52 0.40 0.30] [0.42 0.32 0.24] [1.0 1.0 1.0] [0.02 0.10 0.22]))
+
+(defn menger-shader
+  "The flight at phase u: a lamp rides with the camera, fog falls to deep
+   blue, and a warm light burns at the far end of the gallery. The sponge
+   has period 2 along z, so the eye one period further on sees the same
+   field: frame N is frame 0."
+  [u]
+  (let [a (* lp/tau (double u))
+        eye (menger-eye u)
+        look [(* 0.22 (Math/cos (+ a 0.5))) (* 0.14 (Math/cos (- (* 2.0 a) 0.4))) -1.0]
+        cam (rm/camera eye (mapv + eye look) 64.0 view [(* 0.12 (Math/cos a)) 1.0 0.0])
+        [ex ey ez] eye ex (double ex) ey (double ey) ez (double ez)]
+    (rm/shader
+     {:de menger-de :cam cam :tmax 16.0 :eps 0.0018 :steps 90 :ao 0.06
+      :shade (fn ^long [^doubles h]
+               (let [t (aget h rm/T)
+                     beam (Math/pow (max 0.0 (- (aget h rm/DZ))) 300.0)]
+                 (if (neg? t)
+                   (rm/pack (+ 0.005 (* 1.8 beam)) (+ 0.008 (* 1.1 beam)) (+ 0.02 (* 0.45 beam)))
+                   (let [px (aget h rm/PX) py (aget h rm/PY) pz (aget h rm/PZ)
+                         nx (aget h rm/NX) ny (aget h rm/NY) nz (aget h rm/NZ)
+                         ao (aget h rm/AO)
+                         lx (- ex px) ly (- (+ ey 0.06) py) lz (- ez pz)
+                         l2 (+ (* lx lx) (* ly ly) (* lz lz))
+                         il (/ 1.0 (Math/sqrt l2))
+                         dif (max 0.0 (* il (+ (* nx lx) (* ny ly) (* nz lz))))
+                         head (/ (* 2.2 dif) (+ 0.15 (* 1.2 l2)))
+                         far (* 1.0 (max 0.0 nz) (Math/exp (* -0.15 t)))
+                         fog (- 1.0 (Math/exp (* -0.30 t)))
+                         c (pal/at menger-palette (+ 0.10 (* 0.08 (Math/abs nx)) (* 0.5 fog)))
+                         k (* (+ head far) (* ao ao))
+                         mixf (fn ^double [^double v ^double fogc]
+                                (+ (* (- 1.0 fog) k v) (* fog fogc)))]
+                     (rm/pack (mixf (rm/linear c 16) 0.004)
+                              (mixf (rm/linear c 8) 0.012)
+                              (mixf (rm/linear c 0) 0.035))))))})))
+
+(def menger-flight
+  {:id :menger-flight
+   :title "Flight down a gallery of the infinite Menger sponge, one period per loop"
+   :seconds 12 :fps 30 :size [1920 1080] :view view :ss 2
+   :field menger-shader
+   :post (fn [_] [{:type :bloom :radius 16 :strength 0.7}
+                  {:type :vignette :strength 0.5}])})
+
 (def loops
   "The fractal loops, by id."
-  (array-map :mandelbulb mandelbulb :quaternion-julia quaternion-julia))
+  (array-map :mandelbulb mandelbulb :quaternion-julia quaternion-julia
+             :menger-flight menger-flight))
