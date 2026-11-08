@@ -48,13 +48,13 @@ repository holds the loops.
 | | |
 |---|---|
 | ![](docs/gallery/curl-flow.webp) **curl-flow**<br>an incompressible flow v = curl ψ from eight asymmetric modes with integer temporal frequencies; particles fade in and out as they take each other's places, so the loop closes exactly | ![](docs/gallery/vortex-street.webp) **vortex-street**<br>a von Kármán street of point vortices under the Kirchhoff Hamiltonian H = −(1/4π) Σ ΓᵢΓⱼ log rᵢⱼ with the periodic Green's function; the street advances one period per loop, tracer dye striped by origin |
-| ![](docs/gallery/caustics.webp) **caustics**<br>sunlight refracted through a periodic water surface (twelve waves with integer wavevectors and frequencies), photons splatted onto the pool floor; the folds glow aqua to white-gold | ![](docs/gallery/breathers.webp) **breathers**<br>sine-Gordon breathers u = 4 atan(√(1−ω²)/ω · sin ωt / cosh √(1−ω²)x), exact periodic solitons with commensurate ω |
+| ![](docs/gallery/caustics.webp) **caustics**<br>sunlight refracted through a periodic water surface (twelve waves with integer wavevectors and frequencies), photons splatted onto the pool floor; the folds glow aqua to white-gold | ![](docs/gallery/breathers.webp) **breathers**<br>sine-Gordon breathers u = 4 atan(√(1−ω²)/ω · sin ωt / cosh √(1−ω²)x), exact periodic solitons with commensurate ω, a lattice of them drawn as glowing signed level sets (warm crests, cool troughs) | ![](docs/gallery/caustics-gold.webp) **caustics-gold**<br>the same pool under a finer surface (eighteen waves, shorter wavelengths), a denser photon network in amber and champagne gold |
 
 ### Quantum
 
 | | | |
 |---|---|---|
-| ![](docs/gallery/hydrogen-beat.webp) **hydrogen-beat**<br>a 3s/4d/4f/5g superposition; Eₙ = −1/2n² is rational, so ψ returns exactly | ![](docs/gallery/drum.webp) **drum**<br>square membrane modes with Pythagorean frequency ratios, mirrored to fill the frame | ![](docs/gallery/box-modes.webp) **box-modes**<br>a 16:9 infinite well, E ∝ m²/16² + n²/9², 48 commensurate modes |
+| ![](docs/gallery/hydrogen-beat.webp) **hydrogen-beat**<br>a 3s/4d/4f/5g superposition; Eₙ = −1/2n² is rational, so ψ returns exactly | ![](docs/gallery/drum.webp) **drum**<br>square membrane modes with Pythagorean frequency ratios, mirrored to fill the frame | ![](docs/gallery/box-modes.webp) **box-modes**<br>a particle in a 2D box: five modes with commensurate energies 2:5:8:10:10, |ψ|² as a saturating glow with iso-density contours, phase as a cyclic hue |
 | ![](docs/gallery/quantum-tapestry.webp) **quantum-tapestry**<br>the Talbot carpet in domain colouring: hue is the phase of ψ(x, t) | ![](docs/gallery/quantum-carpet.webp) **quantum-carpet**<br>a wave packet in a box; n² energies make the revival exact | ![](docs/gallery/double-slit.webp) **double-slit**<br>Huygens sources, crests in neon, the screen's cos² intensity as a bar graph |
 
 ### 3D
