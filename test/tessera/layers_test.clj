@@ -6,7 +6,12 @@
             [hive-dsl.result :as result]
             [tessera.layers :as layers]
             [tessera.palette :as palette]
-            [tessera.reciprocal :as reciprocal])
+            [tessera.reciprocal :as reciprocal]
+            [tessera.lattice :as lattice]
+            [tessera.loops :as loops]
+            [tessera.vj :as vj]
+            [clojure.data.json :as json]
+            [clojure.string :as str])
   (:import (java.awt.image BufferedImage)))
 
 (def phases [0.0 0.3 0.7])
@@ -16,17 +21,31 @@
   ;; Binding ABI: loop_rate is implicit slot 0. Only append new params.
   {:graphene_fermi '[fermi_level contour_step sharpness lattice_scale]
    :kagome_fermi '[fermi_level contour_step sharpness lattice_scale]
-   :square_fermi '[fermi_level contour_step sharpness lattice_scale]})
+   :square_fermi '[fermi_level contour_step sharpness lattice_scale]
+   :penrose_fermi '[fermi_level contour_step sharpness lattice_scale]
+   :heptagonal_fermi '[fermi_level contour_step sharpness lattice_scale]
+   :octagonal_fermi '[fermi_level contour_step sharpness lattice_scale]
+   :quasicrystal '[wave_number contrast phase_offset]
+   :lieb_fermi '[lattice_scale contour_step sharpness probe_amplitude flat_band_pulse]
+   :brillouin_zones '[edge_width pulse_zones]
+   :kaleido_quasicrystal '[fold_order wave_number lens_scale contour_density]})
 
 (defn reference-field
   "Offline pre-postprocess reference. Graphene deliberately corrects a to
-   4pi/3; shipped-reference-field retains the old 4.2 for the separate audit."
+   4pi/3; compare the shipped 4.2 separately, not as an implementation error."
   [id u]
   (case id
     :graphene_fermi (reciprocal/fermi-shader u {:palette (palette/scheme :yellow-purple-magenta)
                                               :a (/ (* 4.0 Math/PI) 3.0)})
     :kagome_fermi ((:field reciprocal/kagome-fermi) u)
-    :square_fermi ((:field reciprocal/square-fermi) u)))
+    :square_fermi ((:field reciprocal/square-fermi) u)
+    :penrose_fermi ((:field reciprocal/penrose-fermi) u)
+    :heptagonal_fermi ((:field reciprocal/heptagonal-fermi) u)
+    :octagonal_fermi ((:field reciprocal/octagonal-fermi) u)
+    :quasicrystal ((:field loops/quasicrystal) u)
+    :lieb_fermi (lattice/lieb-shader u)
+    :brillouin_zones ((:field reciprocal/brillouin-zones) u)
+    :kaleido_quasicrystal (vj/kaleido-shader u)))
 
 (defn raster
   [shader view size ss]
@@ -75,9 +94,30 @@
       (is (result/ok? (field/source :glsl (:form l) {})))
       (is (result/ok? (emit/compiled (layers/isf-layer l)))))))
 
+(deftest isf-structure-and-input-order
+  (doseq [l layers/layers]
+    (testing (name (:id l))
+      (let [compiled (emit/compiled (layers/isf-layer l))
+            text (when (result/ok? compiled) (emit/isf (:ok compiled)))
+            header-text (when text (second (re-find #"(?s)^/\*(.*?)\*/" text)))
+            header (when header-text (json/read-str header-text))]
+        (is (= "2" (get header "ISFVSN")))
+        (is (= (into ["u" "rate"] (map name (expected-param-order (:id l))))
+               (mapv #(get % "NAME") (get header "INPUTS"))))
+        (is (= (name (:id l)) (get-in header ["DESARGUES" "id"])))
+        (is (str/includes? text "void main()"))
+        (is (str/includes? text "vec4(clamp(desargues_c, 0.0, 1.0), 1.0)"))))))
+
 (deftest field-raster-parity
   (doseq [l layers/layers u phases]
     (testing (str (:id l) " u=" u)
       (let [{:keys [mean max]} (parity l u)]
+        (is (< mean 1.0))
+        (is (<= max 1))))))
+
+(deftest supersampling-preserves-parity
+  (doseq [l layers/layers u phases]
+    (testing (str (:id l) " u=" u " 192x108 ss=2")
+      (let [{:keys [mean max]} (parity l u [192 108] 2)]
         (is (< mean 1.0))
         (is (<= max 1))))))
