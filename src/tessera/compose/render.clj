@@ -138,13 +138,17 @@
                      (+ b (* v (aget inks (+ o 2))))))))))))
 
 (defn- prepare-layer
-  "Normalise one layer: its nodes (layout + motif stroke) and its value."
-  [i {:keys [layout motif at style nodes] :as layer}]
-  (let [raw (keyword (str "layer-" i))
-        stroke (when motif [{:type :stroke :motif motif :at at :out raw :style style}])]
-    (assoc layer
-           :nodes (vec (concat layout nodes stroke))
-           :expr (layer-value layer (if motif raw (:raw layer))))))
+  "Normalise one layer: its nodes and its value. An ink layer's :layout is
+   chart nodes and its motif a stroke node; a paint layer's :layout is its
+   own site spec, and only its :nodes join the graph."
+  [i {:keys [paint layout motif at style nodes] :as layer}]
+  (if paint
+    (assoc layer :nodes (vec nodes))
+    (let [raw (keyword (str "layer-" i))
+          stroke (when motif [{:type :stroke :motif motif :at at :out raw :style style}])]
+      (assoc layer
+             :nodes (vec (concat layout nodes stroke))
+             :expr (layer-value layer (if motif raw (:raw layer)))))))
 
 (defn compile-scene
   "Compile a scene map (see tessera.compose.scene/Scene) to the field

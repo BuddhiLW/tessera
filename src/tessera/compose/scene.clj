@@ -12,7 +12,9 @@
             [tessera.compose.render :as cr]
             [tessera.compose.layout]
             [tessera.compose.motif]
-            [tessera.compose.modulate]))
+            [tessera.compose.modulate]
+            [tessera.compose.relief]
+            [tessera.compose.sprite]))
 
 (def Expr
   "number | slot keyword | [op-keyword expr ..] (see tessera.compose.core/expr)."

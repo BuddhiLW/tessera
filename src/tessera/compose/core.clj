@@ -57,6 +57,7 @@
     :min (reify IFactor (at [_ c] (min (.at ^IFactor a c) (.at ^IFactor b c))))
     :max (reify IFactor (at [_ c] (max (.at ^IFactor a c) (.at ^IFactor b c))))
     :pow (reify IFactor (at [_ c] (Math/pow (.at ^IFactor a c) (.at ^IFactor b c))))
+    :mod (reify IFactor (at [_ c] (mod (.at ^IFactor a c) (.at ^IFactor b c))))
     :hypot (reify IFactor (at [_ c] (Math/hypot (.at ^IFactor a c) (.at ^IFactor b c))))
     :atan2 (reify IFactor (at [_ c] (Math/atan2 (.at ^IFactor a c) (.at ^IFactor b c))))
     :glow (reify IFactor (at [_ c] (glow (.at ^IFactor a c) (.at ^IFactor b c))))))
@@ -96,7 +97,7 @@
         (if (= 1 (count xs))
           (if (= op :-) (unary :neg (first xs)) (binary :/ (expr 1.0 slot) (first xs)))
           (reduce #(binary op %1 %2) xs))
-        (:pow :hypot :atan2 :glow) (binary op (xs 0) (xs 1))
+        (:pow :mod :hypot :atan2 :glow) (binary op (xs 0) (xs 1))
         :if (let [[t a b] xs]
               (reify IFactor (at [_ c] (if (> (.at ^IFactor t c) 0.0) (.at ^IFactor a c) (.at ^IFactor b c)))))
         :< (let [[a b] xs] (reify IFactor (at [_ c] (if (< (.at ^IFactor a c) (.at ^IFactor b c)) 1.0 0.0))))
