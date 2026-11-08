@@ -205,3 +205,25 @@
   (let [col (long (max 0.0 (min 29.0 (Math/floor (* 2.0 (+ x 5.0))))))
         row (long (max 0.0 (min 19.0 (Math/floor (* 2.0 (+ y 3.0))))))]
     (+ col (* row 30))))
+
+(defn site-values
+  "Per-site modulation: run field `nodes` at each site's x, y (a graphene
+   band, a quasicrystal, loop noise sampled per sprite), then bindings
+   [[slot expr] ..] over :i :u :x :y and those slots. Returns
+   (fn [u]) -> (fn [site]) -> (fn [slot-key]) -> double."
+  [nodes bind]
+  (let [slot (c/allocator) ii (long (slot :i)) iu (long (slot :u))
+        graph (c/chain nodes slot)
+        outs (mapv (comp slot first) bind)
+        es (mapv #(c/expr (second %) slot) bind)
+        n @slot]
+    (fn [u]
+      (let [^IStep step (graph u)]
+        (fn [{:keys [i x y]}]
+          (let [ctx (double-array (max n 4))]
+            (aset ctx 0 (double x)) (aset ctx 1 (double y))
+            (aset ctx ii (double i)) (aset ctx iu (double u))
+            (.run step ctx)
+            (doseq [[o e] (map vector outs es)]
+              (aset ctx (long o) (.at ^tessera.compose.core.IFactor e ctx)))
+            (fn [k] (aget ctx (long (slot k))))))))))

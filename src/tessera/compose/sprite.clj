@@ -10,6 +10,7 @@
             [desargues.wallpaper.render :as r]
             [tessera.compose.core :as c]
             [tessera.compose.layout :as layout]
+            [tessera.compose.motif :as m]
             [tessera.compose.render :as cr])
   (:import (tessera.compose.render IPaint)))
 
@@ -93,39 +94,50 @@
                 chain (r/rgb (* 0.94 pulse) (* 0.67 pulse) 0.015)]
             (cr/over color chain (cr/cover d))))))))
 
-(defn- site-values
-  "Evaluate per-site bindings [[slot expr] ..] over :i :u :x :y."
-  [bind]
-  (let [slot (c/allocator) ii (long (slot :i)) iu (long (slot :u))
-        outs (mapv (comp slot first) bind)
-        es (mapv #(c/expr (second %) slot) bind)
-        n @slot]
-    (fn [{:keys [i x y]} u]
-      (let [ctx (double-array (max n 4))]
-        (aset ctx 0 (double x)) (aset ctx 1 (double y))
-        (aset ctx ii (double i)) (aset ctx iu (double u))
-        (doseq [[o e] (map vector outs es)]
-          (aset ctx (long o) (.at ^tessera.compose.core.IFactor e ctx)))
-        (fn [k] (aget ctx (long (slot k))))))))
+(defmethod kind :glyph
+  ;; Any registry motif as a sprite: double outline (outer + inner) in a
+  ;; rainbow hue set by the site phase, scaled by the site radius, painted
+  ;; with alpha = light (so glyphs overlap cleanly instead of clipping).
+  [{:keys [motif hue-spread inner] :or {hue-spread 1.0 inner 0.045}}]
+  (let [sdf ^clojure.lang.IFn$DDD (:sdf (m/motif motif))
+        spread (double hue-spread) inner (double inner)]
+    (fn [_]
+      (reify ISprite
+        (paint [_ dx dy color rec o]
+          (let [radius (aget rec (+ o 2)) phase (aget rec (+ o 4)) pulse (aget rec (+ o 5))
+                d (* radius (.invokePrim sdf (/ dx radius) (/ dy radius)))]
+            (if (> d 0.12) color
+                (let [outline (* 1.3 (c/glow (- d 0.009) 0.017))
+                      inline (* 0.72 (c/glow (+ d inner) 0.012))
+                      hue (lp/frac (* spread (/ phase lp/tau)))
+                      a (min 1.0 (+ outline inline))
+                      ink (cr/over (cr/rainbow hue (* 0.94 pulse))
+                                   (cr/rainbow (+ hue 0.5) (* 0.90 pulse))
+                                   (/ inline (max 1.0e-9 (+ outline inline))))]
+                  (cr/over color ink a)))))))))
 
 (defn site-records
   "Packed records [x y radius kind phase pulse] at phase u.
-   kind cycles through `kinds` by site index; a kind's :bouquet adds extra
-   heads [dx dy radius-scale dphase] beside its site."
-  ^doubles [sites kinds bind u]
-  (let [values (site-values bind) nk (count kinds)]
+   The kind is :kind-of evaluated per site (default: cycle through `kinds`
+   by site index); a kind's :bouquet adds extra heads [dx dy r-scale dphase]
+   beside its site. Sites whose :visible is <= 0 are dropped."
+  ^doubles [sites kinds {:keys [nodes bind]} u]
+  (let [values ((layout/site-values nodes bind) u) nk (count kinds)
+        keys* (set (map first bind))]
     (double-array
      (mapcat
       (fn [{:keys [i x y] :as site}]
-        (let [v (values site u) k (mod (long i) nk)
+        (let [v (values site)
+              k (if (keys* :kind-of) (mod (long (v :kind-of)) nk) (mod (long i) nk))
               radius (v :radius) phase (v :phase) pulse (v :pulse)
-              yy (+ (double y) (v :bob))
+              yy (+ (double y) (if (keys* :bob) (v :bob) 0.0))
               base [(double x) yy radius (double k) phase pulse]]
-          (concat base
-                  (mapcat (fn [[hx hy hr hp]]
-                            [(+ (double x) (double hx)) (+ yy (double hy)) (* (double hr) radius)
-                             (double k) (+ phase (double hp)) pulse])
-                          (:bouquet (nth kinds k))))))
+          (when (or (not (keys* :visible)) (pos? (v :visible)))
+            (concat base
+                    (mapcat (fn [[hx hy hr hp]]
+                              [(+ (double x) (double hx)) (+ yy (double hy)) (* (double hr) radius)
+                               (double k) (+ phase (double hp)) pulse])
+                            (:bouquet (nth kinds k)))))))
       sites))))
 
 (defmethod cr/painter :sprites
@@ -136,7 +148,7 @@
         makers (mapv kind kinds)
         support (double (or support 0.5))]
     (fn [u]
-      (let [^doubles rec (site-records sites kinds bind u)
+      (let [^doubles rec (site-records sites kinds spec u)
             ^objects bins (layout/spatial-bins rec stride support)
             sprites (object-array (map #(% u) makers))]
         (reify IPaint

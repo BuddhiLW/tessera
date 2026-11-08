@@ -36,13 +36,12 @@
   ;; once per loop with a per-site phase (integer frequency).
   [{:keys [tiers scale support tone] :or {tiers 3 support 1.05 tone :uv} :as spec} _slot]
   (let [sites (layout/sites (:layout spec))
-        slot (c/allocator) ii (long (slot :i))
-        scale-e (c/expr scale slot) n @slot
+        ;; Site scale is static: an expression over :i and the site fields
+        ;; (:nodes run at the site, sampled at u = 0).
+        values ((layout/site-values (:nodes spec) [[:scale scale]]) 0.0)
         sdf ^clojure.lang.IFn$DDD (:sdf (motif/motif (or (:motif spec) {:motif :stepped-cross})))
-        data (double-array (mapcat (fn [{:keys [i x y]}]
-                                     (let [ctx (double-array (max n 3))]
-                                       (aset ctx ii (double i))
-                                       [(double x) (double y) (.at ^tessera.compose.core.IFactor scale-e ctx)]))
+        data (double-array (mapcat (fn [{:keys [x y] :as site}]
+                                     [(double x) (double y) ((values site) :scale)])
                                    sites))
         ^objects bins (layout/spatial-bins data 3 support)
         tone (cr/->tone tone) tiers (long tiers)]
