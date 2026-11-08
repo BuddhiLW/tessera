@@ -550,7 +550,9 @@
               t (+ 0.5 (* 0.5 (/ zm zmax)))
               len (Math/hypot (- bx ax) (- by ay))
               squeeze (/ (double mesh-spacing) (max 0.05 len))
-              light (* 0.30 (+ 0.15 (* 0.85 t t)) (Math/pow squeeze 1.5))
+              ;; smooth taper: smoothstep in height, a soft saturating squeeze
+              crest (lp/smoothstep (max 0.0 (min 1.0 t)))
+              light (* 0.34 (+ 0.15 (* 0.85 crest crest)) (Math/tanh (* 1.1 squeeze)))
               [cr cg cb] (height-colour t)
               cr (* light (double cr)) cg (* light (double cg)) cb (* light (double cb))]
           (reduce (fn [out k]
