@@ -24,7 +24,8 @@
             [tessera.mechanics :as mech]
             [tessera.orbitals :as orb]
             [tessera.space3d :as s3d]
-            [tessera.bz3d :as bz3d]))
+            [tessera.bz3d :as bz3d]
+            [tessera.flows :as flows]))
 
 (set! *warn-on-reflection* true)
 
@@ -187,6 +188,7 @@
           recip/square-fermi recip/penrose-fermi recip/heptagonal-fermi recip/octagonal-fermi])
    chor/loops
    mech/loops
+   flows/loops
    orb/loops
    s3d/loops
    recip/symmetry-family

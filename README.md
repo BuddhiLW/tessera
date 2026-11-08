@@ -41,6 +41,12 @@ repository holds the loops.
 | ![](docs/gallery/pendulum-wave.webp) **pendulum-wave**<br>24 nonlinear pendulums. L = ½ml²θ̇² + mgl cos θ through Emmy; lengths from 4√(l/g)·K(sin θ₀/2), so pendulum k swings exactly 18+k times | ![](docs/gallery/kepler-resonance.webp) **kepler-resonance**<br>six orbits with periods 12:6:4:3:2:1, Kepler's equation by Newton iteration, inclined planes | ![](docs/gallery/lissajous-oscillators.webp) **lissajous-oscillators**<br>3D harmonic oscillators with whole frequencies, checked against the Euler-Lagrange equations |
 | ![](docs/gallery/figure-eight.webp) **figure-eight**<br>the Chenciner-Montgomery three-body choreography, Yoshida 4th-order symplectic, energy drift 2e-7 | ![](docs/gallery/choreographies.webp) **choreographies**<br>figure-eight, Butterfly I, Moth I and Yin-yang 1a (Šuvakov-Dmitrašinović), shot closed to 1e-9 | ![](docs/gallery/phase-flow.webp) **phase-flow**<br>pendulum phase space H = p²/2 − cos q; each particle turns its action-angle variable a whole number of times |
 
+### Fluids
+
+| | |
+|---|---|
+| ![](docs/gallery/curl-flow.webp) **curl-flow**<br>an incompressible flow v = curl ψ from eight asymmetric modes with integer temporal frequencies; particles fade in and out as they take each other's places, so the loop closes exactly | ![](docs/gallery/vortex-street.webp) **vortex-street**<br>a von Kármán street of point vortices under the Kirchhoff Hamiltonian H = −(1/4π) Σ ΓᵢΓⱼ log rᵢⱼ with the periodic Green's function; the street advances one period per loop, tracer dye striped by origin |
+
 ### Quantum
 
 | | | |
