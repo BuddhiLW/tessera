@@ -16,6 +16,8 @@ first.
   <img src="docs/hero/bz-glass.webp" width="49%" alt="Brillouin zones as glass">
   <img src="docs/hero/kaleido-quasicrystal.webp" width="49%" alt="quasicrystal kaleidoscope">
   <img src="docs/hero/textile-tunnel.webp" width="49%" alt="textile tunnel">
+  <img src="docs/hero/fabric.webp" width="49%" alt="fabric">
+  <img src="docs/hero/flower-mandala.webp" width="49%" alt="flower mandala">
 </p>
 
 Every loop is a function of a phase `u ∈ [0, 1)`. An N-frame video samples
@@ -88,6 +90,7 @@ Dense blacklight-neon ornament in the spirit of psytrance stage visuals, each on
 | | | |
 |---|---|---|
 | ![](docs/gallery/textile-tunnel.webp) **textile-tunnel**<br>an exact ray-cylinder tunnel lined with stepped crosses, nested diamonds and bead chains; the wall travels one motif cell per loop, a dashed mandala pulsing at the vanishing point | ![](docs/gallery/kaleido-quasicrystal.webp) **kaleido-quasicrystal**<br>a five-wave quasicrystal folded into a D8 mirror wedge under a log-radial lens, contours in tiers of cyan, magenta, lime and gold | ![](docs/gallery/sprite-lattice.webp) **sprite-lattice**<br>a lattice of textile glyphs whose size is graphene's \|1 + e^{ik₁} + e^{ik₂}\| and whose colour is a second slow field; it slides one period per loop |
+| ![](docs/gallery/fabric.webp) **fabric**<br>an all-over composition: isometric stepped pyramids, striped, scaled and segmented serpents sliding along themselves, rainbow droplet bouquets bobbing on integer beats, lashed eyes and stars, placed by a seeded Poisson disc | ![](docs/gallery/hyperspace.webp) **hyperspace**<br>a starfield seeded on a hex lattice, folded into a D12 kaleidoscope, streaming outward log-radially; the field is self-similar under ×2, so one doubling closes the loop | ![](docs/gallery/flower-mandala.webp) **flower-mandala**<br>a twelve-fold triangular tunnel in magenta and blue double outlines, labyrinth worms and hatching in lime and gold, a ring of dashed circles at the centre; one self-similar step per loop |
 
 ### Ornament, curves and fractals
 
