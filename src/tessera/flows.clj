@@ -208,27 +208,29 @@
 
 (defn tile-points
   "Canonical periodic coordinates and their visible neighbouring images.
-   The halo margin hides raster support at cell edges, without duplicate light."
-  [[x y] [width height] [drift-x drift-y]]
-  (let [wrap (fn [v period] (- v (* period (Math/floor (+ 0.5 (/ v period))))))
-        x (double (wrap (+ x drift-x) width))
-        y (double (if height (wrap (+ y drift-y) height) (+ y drift-y)))
-        width (double width) height (double (or height 0.0))
-        [vw vh] view
-        reach (inc (long (Math/ceil (/ vw (* 2.0 width)))))]
-    (for [i (range (- reach) (inc reach))
-          j (if (pos? height) [-1 0 1] [0])
-          :let [px (+ x (* (double i) width)) py (+ y (* (double j) height))]
-          :when (and (< (Math/abs (double px)) (+ 0.12 (* 0.5 vw)))
-                     (< (Math/abs (double py)) (+ 0.12 (* 0.5 vh))))]
-      [px py])))
+   The halo margin hides raster support at cell edges, without duplicate light.
+   `window` is the scene window shown, `view` unless a wider frame asks."
+  ([q tile drift] (tile-points q tile drift view))
+  ([[x y] [width height] [drift-x drift-y] window]
+   (let [wrap (fn [v period] (- v (* period (Math/floor (+ 0.5 (/ v period))))))
+         x (double (wrap (+ x drift-x) width))
+         y (double (if height (wrap (+ y drift-y) height) (+ y drift-y)))
+         width (double width) height (double (or height 0.0))
+         [vw vh] window
+         reach (inc (long (Math/ceil (/ vw (* 2.0 width)))))]
+     (for [i (range (- reach) (inc reach))
+           j (if (pos? height) [-1 0 1] [0])
+           :let [px (+ x (* (double i) width)) py (+ y (* (double j) height))]
+           :when (and (< (Math/abs (double px)) (+ 0.12 (* 0.5 vw)))
+                      (< (Math/abs (double py)) (+ 0.12 (* 0.5 vh))))]
+       [px py]))))
 
 (defn streak-rows
   "Replacement is per particle: p=frac(u+offset), origin and birth phase
    repeat every loop. Both current-age AND tail-age envelopes multiply the
    entire streak; no old tail can flash when an open trajectory resets."
-  [particles u {:keys [tile drift tail samples radius power]
-                :or {drift 0.0 tail 0.040 samples 14 radius 0.011 power 0.46}}]
+  [particles u {:keys [tile drift tail samples radius power window]
+                :or {drift 0.0 tail 0.040 samples 14 radius 0.011 power 0.46 window view}}]
   (let [u (lp/frac (double u))]
     (persistent!
      (reduce
@@ -244,25 +246,27 @@
                              q (path-point path age)]
                          (reduce (fn [out [x y]]
                                    (conj! out [x y (* radius (- 1.0 (* 0.4 f))) r g b]))
-                                 out (tile-points q tile [(* drift (- u lag)) 0.0]))))))
+                                 out (tile-points q tile [(* drift (- u lag)) 0.0] window))))))
                out (range samples)))))
       (transient []) particles))))
 
 (defn curl-splats [u]
   (streak-rows @curl-particles u {:tile view :tail 0.037 :samples 14 :power 0.42}))
 
-(defn street-splats [u]
-  (let [u (lp/frac (double u)) length (:length street)]
-    (into (streak-rows @street-particles u
-                       {:tile [length nil] :drift length :tail 0.026
-                        :samples 16 :radius 0.010 :power 0.34})
-          (mapcat (fn [p family]
-                    (mapcat (fn [[x y]]
-                              (let [[r g b] (pigment family 0.2)]
-                                [[x y 0.050 (* 0.9 r) (* 0.9 g) (* 0.9 b)]
-                                 [x y 0.015 2.0 2.0 1.8]]))
-                            (tile-points p [length nil] [(* length u) 0.0])))
-                  (:positions street) (range 2)))))
+(defn street-splats
+  ([u] (street-splats u view))
+  ([u window]
+   (let [u (lp/frac (double u)) length (:length street)]
+     (into (streak-rows @street-particles u
+                        {:tile [length nil] :drift length :tail 0.026
+                         :samples 16 :radius 0.010 :power 0.34 :window window})
+           (mapcat (fn [p family]
+                     (mapcat (fn [[x y]]
+                               (let [[r g b] (pigment family 0.2)]
+                                 [[x y 0.050 (* 0.9 r) (* 0.9 g) (* 0.9 b)]
+                                  [x y 0.015 2.0 2.0 1.8]]))
+                             (tile-points p [length nil] [(* length u) 0.0] window)))
+                   (:positions street) (range 2))))))
 
 (def curl-flow
   {:id :curl-flow :title "Curl flow: copper and glacial dye in periodic eddies"

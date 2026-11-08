@@ -4,9 +4,16 @@
      clojure -M:render --list
      clojure -M:render --preview                    ; a still + small GIF of each
      clojure -M:render --only girih-light,julia-orbit --format mp4 --size 1920x1080
-     clojure -M:render --only quasicrystal --format webm --seconds 6 --out out/"
+     clojure -M:render --only quasicrystal --format webm --seconds 6 --out out/
+     clojure -M:render --uw --only box-modes          ; 2560x1080 into out/uw/
+
+   --size at another aspect than 16:9 renders each loop through
+   tessera.frame/at-size: field loops show more of their plane, loops laid
+   out for 16:9 are rebuilt by their :reframe (tessera.widescreen). --uw is
+   --size 2560x1080 (fosfora's HDMI-0) with --out defaulting to out/uw."
   (:require [clojure.string :as str]
             [desargues.wallpaper.render :as r]
+            [tessera.frame :as frame]
             [tessera.loops :as loops]))
 
 (defn- split-on
@@ -22,6 +29,7 @@
       (empty? xs) opts
       (= a "--list") (recur (rest xs) (assoc opts :list true))
       (= a "--preview") (recur (rest xs) (assoc opts :preview true))
+      (= a "--uw") (recur (rest xs) (assoc opts :uw true :size frame/ultrawide))
       (= a "--only") (recur more (assoc opts :only (mapv keyword (split-on b \,))))
       (= a "--format") (recur more (assoc opts :format (keyword b)))
       (= a "--size") (recur more (assoc opts :size (mapv parse-long (split-on b \x))))
@@ -49,7 +57,8 @@
     (if preview
       [(r/still! spec 0.25 (str out "/" id ".png") {:size [960 540]})
        (r/encode! :gif spec (str out "/" id ".gif") {:size [480 270] :fps 15 :progress prog})]
-      (let [fmt (or format :mp4)]
+      (let [fmt (or format :mp4)
+            spec (frame/at-size spec size)]
         [(r/encode! fmt spec (str out "/" id "." (name fmt))
                     (cond-> {:progress prog}
                       size (assoc :size size)
@@ -57,7 +66,8 @@
                       seconds (assoc :seconds seconds)))]))))
 
 (defn -main [& args]
-  (let [{:keys [list only] :as opts} (update (parse-args args) :out #(or % "out"))]
+  (let [{:keys [list only] :as opts} (let [o (parse-args args)]
+                                       (update o :out #(or % (if (:uw o) "out/uw" "out"))))]
     (if list
       (doseq [{:keys [id title seconds fps]} (vals loops/catalog)]
         (println (format "%-16s %3ss @ %dfps  %s" (name id) seconds fps title)))

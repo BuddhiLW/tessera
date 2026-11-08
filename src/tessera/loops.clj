@@ -32,7 +32,8 @@
             [tessera.chaos :as chaos]
             [tessera.vj2 :as vj2]
             [tessera.delays :as delays]
-            [tessera.compose.loops :as composed]))
+            [tessera.compose.loops :as composed]
+            [tessera.widescreen :as widescreen]))
 
 (set! *warn-on-reflection* true)
 
@@ -67,9 +68,14 @@
                                                  scale {:band 11 :line 5}))}))
      :light (fn [u] (orn/sweep-light u {:angle -0.9 :lambda 11.0 :floor 0.8 :peak 0.35}))}))
 
-(def girih-assembly
+(defn girih-assembly-at
+  "The assembly loop over the scene window `shown`. The radial wave's
+   timing is normalised by the window's corner radius, so every tile in the
+   frame is back in place by u = 1 (a tile beyond the corner would still be
+   in flight at the seam)."
+  [shown]
   (let [scale 1.15
-        rect (orn/rect-of view scale [0 0])
+        rect (orn/rect-of shown scale [0 0])
         rmax (g/vlen [(nth rect 1) (nth rect 3)])]
     {:id :girih-assembly
      :title "Assembly and disassembly: a radial wave takes the ceiling apart"
@@ -87,6 +93,9 @@
                 {:background pal/ink
                  :shapes (orn/girih-shapes (g/pattern :4.8.8 rect (g/khatam-angle) 0.0) scale {:xf xf})}))
      :light (fn [u] (orn/sweep-light u {:angle 1.2 :floor 0.85 :peak 0.3}))}))
+
+(def girih-assembly
+  (assoc (girih-assembly-at view) :reframe girih-assembly-at))
 
 (def quasicrystal
   {:id :quasicrystal
@@ -186,32 +195,34 @@
    :scene girih-gold-scene})
 
 (def all
-  "Every loop, by id, in gallery order."
-  (merge
-   (into (array-map)
-         (map (juxt :id identity))
-         [neon/neon-pulse neon/neon-khatam
-          recip/graphene-fermi recip/kagome-fermi recip/twisted-bilayer
-          recip/square-fermi recip/penrose-fermi recip/heptagonal-fermi recip/octagonal-fermi])
-   chor/loops
-   mech/loops
-   chaos/loops
-   delays/loops
-   flows/loops
-   waves/loops
-   orb/loops
-   lattice/loops
-   vj/loops
-   vj2/loops
-   composed/loops
-   s3d/loops
-   recip/symmetry-family
-   (into (array-map)
-         (map (juxt :id identity))
-         [recip/brillouin-zones recip/brillouin-square recip/brillouin-oblique recip/brillouin-rect
-          quantum/quantum-tapestry quantum/quantum-carpet quantum/double-slit
-          curves/moore-comets girih-light girih-drift girih-assembly
-          quasicrystal julia-orbit sierpinski-zoom])))
+  "Every loop, by id, in gallery order. Loops laid out for the 16:9 window
+   carry a :reframe for wider frames (tessera.widescreen, tessera.frame)."
+  (widescreen/attach
+   (merge
+    (into (array-map)
+          (map (juxt :id identity))
+          [neon/neon-pulse neon/neon-khatam
+           recip/graphene-fermi recip/kagome-fermi recip/twisted-bilayer
+           recip/square-fermi recip/penrose-fermi recip/heptagonal-fermi recip/octagonal-fermi])
+    chor/loops
+    mech/loops
+    chaos/loops
+    delays/loops
+    flows/loops
+    waves/loops
+    orb/loops
+    lattice/loops
+    vj/loops
+    vj2/loops
+    composed/loops
+    s3d/loops
+    recip/symmetry-family
+    (into (array-map)
+          (map (juxt :id identity))
+          [recip/brillouin-zones recip/brillouin-square recip/brillouin-oblique recip/brillouin-rect
+           quantum/quantum-tapestry quantum/quantum-carpet quantum/double-slit
+           curves/moore-comets girih-light girih-drift girih-assembly
+           quasicrystal julia-orbit sierpinski-zoom]))))
 
 (def path-traced
   "Loops rendered by LuxCore (luxcoreconsole on PATH), by id."

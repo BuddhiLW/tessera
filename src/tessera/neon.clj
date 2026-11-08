@@ -47,18 +47,19 @@
        [(g/regular-polygon 24 c 0.36 0.0) ice 0.055]])))
 
 (defn frame
-  "The bead frame at phase `u`."
-  [u]
+  "The bead frame at phase `u`: cells i0 <= i < i1 across, beads kept
+   within |x| < xmax (wider for a wider frame)."
+  [u & [{:keys [i0 i1 xmax] :or {i0 -5 i1 7 xmax 8.5}}]]
   (let [shift (g/v* (* u cell) [1.0 1.0])
         k 0.07]
     {:background "#000000"
-     :shapes (vec (for [i (range -5 7) j (range -4 7)
+     :shapes (vec (for [i (range i0 i1) j (range -4 7)
                         :let [c (g/v- [(* i cell) (* j cell)] shift)
                               glow (+ 0.42 (* 0.58 (Math/pow (lp/wave (lp/frac (- u (/ (g/vlen c) 8.0)))) 2.0)))]
                         [pts col spacing] (outlines c (even? (+ i j)) u)
                         p (g/beads pts spacing u true)
                         :let [[[x y] s] (tilt p k)]
-                        :when (and (< -8.5 x 8.5) (< -5.0 y 5.0))]
+                        :when (and (< (- xmax) x xmax) (< -5.0 y 5.0))]
                     {:node :dot :at [x y] :opacity (min 1.0 glow) :opts {:radius (* 0.024 s)}
                      :fill {:color col :opacity 1.0}}))}))
 
@@ -112,8 +113,9 @@
 
 (defn pulse-frame
   "The neon-pulse bead frame at phase `u`: the plane drifts one cell, the
-   camera dollies in and out once, light beats four times with one dip."
-  [u]
+   camera dollies in and out once, light beats four times with one dip.
+   Cells i0 <= i < i1 across, beads kept within |x| < xmax."
+  [u & [{:keys [i0 i1 xmax] :or {i0 -3 i1 5 xmax 4.3}}]]
   (let [shift (g/v* (* u cell) [1.0 1.0])
         zoom (+ 1.0 (* 0.06 (Math/sin (* lp/tau u))))
         k 0.12
@@ -121,21 +123,21 @@
         place (fn [p] (tilt p k))]
     {:background "#000000"
      :shapes (vec (concat
-                   (for [i (range -3 5) j (range -3 5)
+                   (for [i (range i0 i1) j (range -3 5)
                          :let [c (g/v* zoom (g/v- [(* i cell) (* j cell)] shift))
                                ring (Math/pow (lp/wave (lp/frac (- u (/ (g/vlen c) 6.0)))) 2.0)
                                glow (* b (+ 0.7 (* 0.3 ring)))]
                          [pts col spacing w] (pulse-outlines c (even? (+ i j)) u (+ i j))
                          p (g/beads pts (* zoom spacing) u true)
                          :let [[[x y] s] (place p)]
-                         :when (and (< -4.3 x 4.3) (< -2.5 y 2.5))]
+                         :when (and (< (- xmax) x xmax) (< -2.5 y 2.5))]
                      {:node :dot :at [x y] :opacity (min 1.0 (* w glow 1.15)) :opts {:radius (* zoom 0.03 s)}
                       :fill {:color col :opacity 1.0}})
-                   (for [i (range -3 5) j (range -3 5)
+                   (for [i (range i0 i1) j (range -3 5)
                          dy [-0.12 0.0 0.12]
                          :let [c (g/v* zoom (g/v- [(* (+ i 0.5) cell) (* (+ j 0.5) cell)] shift))
                                [[x y] s] (place (g/v+ c [0.0 dy]))]
-                         :when (and (< -4.3 x 4.3) (< -2.5 y 2.5))]
+                         :when (and (< (- xmax) x xmax) (< -2.5 y 2.5))]
                      {:node :dot :at [x y] :opacity (* 0.9 b) :opts {:radius (* 0.03 s)}
                       :fill {:color (:blue colors) :opacity 1.0}})))}))
 

@@ -223,8 +223,12 @@
   core ever clips to white. Because k is a constant, brightness never pumps."
   (/ (- (Math/log (- 1.0 0.85))) 5.097170099097348))
 
-(defn- box-shader [u]
-  (let [samples 2048 sx (sine-table samples 5) sy (sine-table samples 4)
+(defn box-shader
+  "The well at phase `u`. The box fills the frame: [0,16]x[0,9] at 16:9, or
+   `width` units wide for a wider frame (same modes, same energies in the
+   box's own coordinates, so the loop closes the same way)."
+  [u & [width]]
+  (let [samples 2048 width (double (or width 16.0)) sx (sine-table samples 5) sy (sine-table samples 4)
         phases (double-array 10)]
     (dotimes [i 5]
       (let [m (aget ^longs box-mode-numbers (* 2 i))
@@ -234,7 +238,7 @@
         (aset phases (inc (* 2 i)) (Math/sin angle))))
     (fn ^long [^double x ^double y]
       ;; The well occupies [0,16]x[0,9]; the frame is that box exactly.
-      (let [qx (+ 0.5 (/ x 16.0)) qy (+ 0.5 (/ y 9.0))]
+      (let [qx (+ 0.5 (/ x width)) qy (+ 0.5 (/ y 9.0))]
         (loop [i 0 re 0.0 im 0.0]
           (if (= i 5)
             (let [d (+ (* re re) (* im im))

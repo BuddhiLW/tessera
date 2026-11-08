@@ -11,6 +11,8 @@
  :aliases
  {;; clojure -M:render --list | --preview | --only id,id --format mp4|webm|gif|png --size 1920x1080
   :render {:main-opts ["-m" "tessera.main"]}
+  ;; clojure -M:uw [--only id,id]: native 2560x1080 (fosfora HDMI-0) into out/uw/
+  :uw {:main-opts ["-m" "tessera.main" "--uw"]}
   :test {:extra-paths ["test"]
          :extra-deps {io.github.cognitect-labs/test-runner {:git/tag "v0.5.1" :git/sha "dfb30dd"}}
          :main-opts ["-m" "cognitect.test-runner"]}}}
