@@ -29,7 +29,9 @@
    :quasicrystal '[wave_number contrast phase_offset]
    :lieb_fermi '[lattice_scale contour_step sharpness probe_amplitude flat_band_pulse]
    :brillouin_zones '[edge_width pulse_zones]
-   :kaleido_quasicrystal '[fold_order wave_number lens_scale contour_density]})
+   :kaleido_quasicrystal '[fold_order wave_number lens_scale contour_density]
+   :graphene_zones '[fermi_level contour_step sharpness lattice_scale
+                     edge_width kagome_flash dirac_glow zone_cycle]})
 
 (defn reference-field
   "Offline pre-postprocess reference. Graphene deliberately corrects a to
@@ -46,7 +48,10 @@
     :quasicrystal ((:field loops/quasicrystal) u)
     :lieb_fermi (lattice/lieb-shader u)
     :brillouin_zones ((:field reciprocal/brillouin-zones) u)
-    :kaleido_quasicrystal (vj/kaleido-shader u)))
+    :kaleido_quasicrystal (vj/kaleido-shader u)
+    ;; No closure predates this layer: the offline loop renders the layer's
+    ;; own form, so this checks the loop wiring; the math is checked below.
+    :graphene_zones ((:field (:graphene-zones loops/all)) u)))
 
 (defn raster
   [shader view size ss]
@@ -134,7 +139,7 @@
   {:graphene_fermi "Graphene Fermi" :kagome_fermi "Kagome Fermi" :square_fermi "Square Fermi"
    :penrose_fermi "Penrose Fermi" :heptagonal_fermi "Heptagonal Fermi" :octagonal_fermi "Octagonal Fermi"
    :quasicrystal "Quasicrystal" :lieb_fermi "Lieb Fermi" :brillouin_zones "Brillouin Zones"
-   :kaleido_quasicrystal "Kaleido Quasicrystal"})
+   :kaleido_quasicrystal "Kaleido Quasicrystal" :graphene_zones "Graphene Zones"})
 
 (deftest pfx-names-and-slot-order
   (is (= (map :id layers/layers) (keys layers/effects)))
@@ -199,3 +204,107 @@
                   (raster ((:field reciprocal/graphene-fermi) u) [8.0 4.5] parity-size 1))
                  :u u))
         phases))
+
+;; ── graphene-zones: geometry of the overlay ──────────────────────────────
+
+(def ^:private gz-probe
+  "x, y -> [|f| zone sqrt3_d kagome_d bragg_d] of the graphene-zones form at its
+   default params, by interpreting the emitted expression tree in doubles."
+  (delay
+    (let [defaults (into {'u 0.0} (map (fn [[p s]] [p (:default s)])) (:params layers/graphene-zones))
+          probe (fn [channels]
+                  (let [form (layers/graphene-zones-form channels)
+                        args (:field/args (apply field/bind form (map defaults (:params form))))
+                        tree (:ok (wgsl/ir form))]
+                    (fn [x y] (wgsl/interpret tree (double x) (double y) args))))
+          a (probe '[e zn sqrt3_d])
+          b (probe '[kagome_d bragg_d 0.0])]
+      (fn [x y] (into (vec (a x y)) (take 2 (b x y)))))))
+
+(def ^:private s3 (Math/sqrt 3.0))
+(def ^:private a-exact (/ (* 4.0 Math/PI) 3.0))
+(def ^:private pixel (/ 8.0 960.0))
+
+(def ^:private k-points
+  "Hexagram tips: the |G| = 1 points of the unit hexagonal lattice."
+  (for [k (range 6) :let [t (* k (/ Math/PI 3.0))]] [(Math/cos t) (Math/sin t)]))
+
+(def ^:private m-points
+  "Midpoints of the sqrt3 edges: halfway between adjacent tips."
+  (map (fn [[ax ay] [bx by]] [(* 0.5 (+ ax bx)) (* 0.5 (+ ay by))])
+       k-points (concat (rest k-points) [(first k-points)])))
+
+(defn- argmin-miss
+  "Distance, in pixels, from [x0 y0] to the pixel centre minimizing
+   (score x y) on a pixel grid of (2r+1)^2 centres around [x0 y0], the grid
+   shifted off [x0 y0] by a sub-pixel amount."
+  [score [x0 y0] r]
+  (let [sx 0.37 sy 0.21
+        [i j] (apply min-key (fn [[i j]] (score (+ x0 (* (+ sx i) pixel)) (+ y0 (* (+ sy j) pixel))))
+                     (for [i (range (- r) (inc r)) j (range (- r) (inc r))] [i j]))]
+    (Math/sqrt (+ (Math/pow (+ sx i) 2) (Math/pow (+ sy j) 2)))))
+
+(deftest graphene-zones-lattice-constant-is-exact
+  (is (= a-exact (some (fn [[p s]] (when (= 'lattice_scale p) (:default s))) (:params layers/graphene-zones))))
+  (testing "the band is reciprocal/graphene-band at a = 4pi/3"
+    (doseq [x [-3.1 -0.4 0.0 0.77 2.9] y [-2.0 -0.3 0.5 1.9]]
+      (is (< (Math/abs (- (first (@gz-probe x y)) (reciprocal/graphene-band a-exact x y))) 1.0e-12)))))
+
+(deftest graphene-zones-dirac-points-on-hexagram-tips
+  (doseq [[x y :as k] k-points]
+    (testing (str "K " k)
+      (is (< (first (@gz-probe x y)) 1.0e-7) "|f(K)| = 0")
+      (is (< (nth (@gz-probe x y) 2) 1.0e-12) "K is a corner of graphene's BZ")
+      (is (<= (argmin-miss (fn [x y] (first (@gz-probe x y))) k 4) 1.0)
+          "the zero of |f| on the pixel grid is within a pixel of the tip"))))
+
+(deftest graphene-zones-saddles-on-sqrt3-edge-midpoints
+  (doseq [[x y :as m] m-points
+          :let [[e _ sqrt3-d kagome-d] (@gz-probe x y)]]
+    (testing (str "M " m)
+      (is (< (Math/abs (- (Math/sqrt (+ (* x x) (* y y))) (/ s3 2.0))) 1.0e-12))
+      (is (< (Math/abs (- e 1.0)) 1.0e-12) "|f(M)| = 1")
+      (is (< sqrt3-d 1.0e-12) "M lies on a sqrt3 plane")
+      (is (< kagome-d 1.0e-12) "the kagome net passes through M")
+      (is (<= (argmin-miss (fn [x y] (let [[_ _ d kd] (@gz-probe x y)] (+ d kd))) m 4) 1.0)
+          "the kagome net crosses the sqrt3 plane within a pixel of M"))))
+
+(deftest graphene-zones-kagome-net-is-the-van-hove-level
+  (doseq [x [-2.7 -0.9 0.3 1.6 3.3] y [-1.7 -0.2 0.6 2.1]
+          :let [p1 (* a-exact x) p2 (* a-exact (+ (* 0.5 x) (* 0.5 s3 y)))
+                [e] (@gz-probe x y)]]
+    (is (< (Math/abs (- (- (* e e) 1.0)
+                        (* 8.0 (Math/cos (* 0.5 p1)) (Math/cos (* 0.5 p2)) (Math/cos (* 0.5 (- p1 p2))))))
+           1.0e-12)))
+  (testing "points on a kagome line (k.a1 = pi) sit at |f| = 1 with kagome_d = 0"
+    (doseq [y [-2.0 -0.7 0.0 0.9 2.2]
+            :let [[e _ _ kd] (@gz-probe 0.75 y)]]
+      (is (< (Math/abs (- e 1.0)) 1.0e-12))
+      (is (< kd 1.0e-12))))
+  (testing "the kagome lines lie halfway between the |G| = 1 and |G| = 2 planes"
+    (is (< (nth (@gz-probe 0.75 0.0) 3) 1.0e-12))
+    (is (< (Math/abs (- (nth (@gz-probe 0.5 0.0) 4) 0.0)) 1.0e-12) "|G| = 1 plane at x = 1/2")
+    (is (< (Math/abs (- (nth (@gz-probe 1.0 0.0) 4) 0.0)) 1.0e-12) "|G| = 2 plane at x = 1")
+    (is (< (Math/abs (- (nth (@gz-probe 0.5 0.0) 3) 0.25)) 1.0e-12))
+    (is (< (Math/abs (- (nth (@gz-probe 1.0 0.0) 3) 0.25)) 1.0e-12))))
+
+(deftest graphene-zones-graphene-bz-is-zones-one-to-three
+  (let [inside (for [i (range -60 61) j (range -60 61)
+                     :let [x (* i 0.0165) y (* j 0.0165)]
+                     :when (every? (fn [[gx gy]] (< (+ (* x gx) (* y gy)) 1.4999))
+                                   (for [k (range 6) :let [t (+ (/ Math/PI 6.0) (* k (/ Math/PI 3.0)))]]
+                                     [(* s3 (Math/cos t)) (* s3 (Math/sin t))]))]
+                 (long (second (@gz-probe x y))))
+        counts (frequencies inside)
+        n (count inside)]
+    (is (= #{1 2 3} (set (keys counts))))
+    (doseq [z [1 2 3]]
+      (is (< (Math/abs (- (/ (double (counts z)) n) (/ 1.0 3.0))) 0.02) (str "zone " z " is a third")))))
+
+(deftest graphene-zones-loop-is-seamless
+  (let [l layers/graphene-zones]
+    (is (<= (+ 2 (count (:params l))) 16) "params + loop_rate + rate integral fit 16 slots")
+    (let [{:keys [mean max]} (channel-diff (raster (layers/bind l 0.0) (:view l) [160 90] 1)
+                                           (raster (layers/bind l 1.0) (:view l) [160 90] 1))]
+      (is (< mean 0.05))
+      (is (<= max 1)))))

@@ -180,28 +180,36 @@
                        (+ (* plus 0.94) (* minus (+ AB (* 0.20 b))) hot
                           lattice (* 0.78 cusp) (* 0.72 flat_glow))]))}}))
 
-(def brillouin-zones
+(defn- bragg-planes
+  "Unrolled Bragg planes of the unit hexagonal reciprocal lattice within
+   radius rmax, as field-form let bindings:
+   {:bindings [..] :zone sym :nearest sym :planes [[plane-sym |G|^2] ..]}.
+   plane_i is the signed distance beyond the bisector of 0-G, zone is
+   1 + the number of planes crossed, nearest is min |plane_i|."
+  [rmax]
   (let [s3 (Math/sqrt 3.0)
         gs (for [i (range -24 25) j (range -24 25)
                  :let [gx (+ (* i 1.0) (* j 0.5)) gy (+ (* i 0.0) (* j (/ s3 2.0)))
                        r2 (+ (* gx gx) (* gy gy))]
-                 :when (and (pos? r2) (< r2 (* 9.5 9.5)))]
-             [gx gy r2])
-        {:keys [bindings zone nearest]}
-        (reduce (fn [{:keys [bindings zone nearest]} [i [gx gy r2]]]
-                  (let [d (symbol (str "plane_" i))
-                        z (symbol (str "zone_" i))
-                        m (symbol (str "nearest_" i))]
-                    {:bindings (into bindings
-                                     [d (list '* (/ 1.0 (Math/sqrt r2))
-                                              (list '- (list '+ (list '* 'x gx) (list '* 'y gy)) (* 0.5 r2)))
-                                      ;; ceil(d), clipped: 1 iff d>0, including
-                                      ;; exact zero as 0. No soft Bragg planes.
-                                      z (list '+ zone (list 'clamp (list '- (list 'floor (list '- d))) 0.0 1.0))
-                                      m (list 'min nearest (list 'abs d))])
-                     :zone z :nearest m}))
-                {:bindings [] :zone 1.0 :nearest 1.0e9}
-                (map-indexed vector gs))
+                 :when (and (pos? r2) (< r2 (* rmax rmax)))]
+             [gx gy r2])]
+    (reduce (fn [{:keys [bindings zone nearest planes]} [i [gx gy r2]]]
+              (let [d (symbol (str "plane_" i))
+                    z (symbol (str "zone_" i))
+                    m (symbol (str "nearest_" i))]
+                {:bindings (into bindings
+                                 [d (list '* (/ 1.0 (Math/sqrt r2))
+                                          (list '- (list '+ (list '* 'x gx) (list '* 'y gy)) (* 0.5 r2)))
+                                  ;; ceil(d), clipped: 1 iff d>0, including
+                                  ;; exact zero as 0. No soft Bragg planes.
+                                  z (list '+ zone (list 'clamp (list '- (list 'floor (list '- d))) 0.0 1.0))
+                                  m (list 'min nearest (list 'abs d))])
+                 :zone z :nearest m :planes (conj planes [d r2])}))
+            {:bindings [] :zone 1.0 :nearest 1.0e9 :planes []}
+            (map-indexed vector gs))))
+
+(def brillouin-zones
+  (let [{:keys [bindings zone nearest]} (bragg-planes 9.5)
         [cr cg cb] (palette-channels :blue-magenta-orange 'palette_t)
         tail (walk/postwalk-replace
               {'ZONE zone 'NEAREST nearest 'RED cr 'GREEN cg 'BLUE cb}
@@ -311,10 +319,79 @@
                                    (if (and (seq? e) (= 'glow (first e)))
                                      (glow-form (second e) (nth e 2)) e)) body)}}))
 
+(defn graphene-zones-form
+  "Field form of graphene-zones whose innermost let body is `tail`. In scope
+   for tail: the params, zn (Brillouin zone number of the unit hexagonal
+   lattice), bragg_d (distance to the nearest Bragg plane), sqrt3_d (distance
+   to the |G| = sqrt3 planes, graphene's first-zone edges), e = |f(k)| of
+   graphene with a = lattice_scale, and kagome_d (distance to the |f| = 1
+   lines k.a_i in pi(2Z+1), exact at any lattice_scale)."
+  [tail]
+  (let [{:keys [bindings zone nearest planes]} (bragg-planes 9.5)
+        sqrt3 (reduce (fn [acc [d _]] (list 'min acc (list 'abs d))) 1.0e9
+                      (filter (fn [[_ r2]] (< (Math/abs (- r2 3.0)) 1.0e-9)) planes))]
+    {:params '[u fermi_level contour_step sharpness lattice_scale
+               edge_width kagome_flash dirac_glow zone_cycle]
+     :body (list 'let (into bindings
+                            ['zn zone 'bragg_d nearest 'sqrt3_d sqrt3
+                             'p1 '(* lattice_scale x)
+                             'p2 '(* lattice_scale (+ (* 0.5 x) (* 0.8660254037844386 y)))
+                             'p3 '(- p1 p2)
+                             'e '(sqrt (max 0.0 (+ 3.0 (* 2.0 (cos p1)) (* 2.0 (cos p2))
+                                                   (* 2.0 (cos p3)))))
+                             'w1 '(abs (- (frac (/ p1 tau)) 0.5))
+                             'w2 '(abs (- (frac (/ p2 tau)) 0.5))
+                             'w3 '(abs (- (frac (/ p3 tau)) 0.5))
+                             'kagome_d '(/ (* tau (min w1 (min w2 w3))) lattice_scale)])
+                 tail)}))
+
+(def graphene-zones
+  (let [[cr cg cb] (palette-channels :blue-magenta-orange 'palette_t)
+        tail (walk/postwalk-replace
+              {'RED cr 'GREEN cg 'BLUE cb}
+              '(let [palette_t (frac (/ (- zn 1.0) zone_cycle))
+                     cr RED cg GREEN cb BLUE
+                     r2 (+ (* x x) (* y y))
+                     inside_bz (clamp (- 4.0 zn) 0.0 1.0)
+                     reach (exp (/ (- 1.0 zn) 14.0))
+                     fill (* (+ 0.025 (* 0.07 inside_bz)) (+ 0.4 (* 0.6 reach)))
+                     qb (/ bragg_d edge_width)
+                     bragg (* 0.42 reach (exp (- (* qb qb))))
+                     qs (/ sqrt3_d (* 1.6 edge_width))
+                     fade (exp (* -0.35 (max 0.0 (- r2 1.0))))
+                     gedge (* 0.95 (+ 0.25 (* 0.75 fade)) (exp (- (* qs qs))))
+                     line (pow (wave (frac (- (/ (- e fermi_level) contour_step) u))) sharpness)
+                     lit (* 0.85 line (+ 0.35 (* 0.65 reach)))
+                     c (frac (- (/ (- 1.0 fermi_level) contour_step) u))
+                     s (- (frac (+ c 0.5)) 0.5)
+                     flash (* kagome_flash (exp (* -70.0 s s)))
+                     qk (/ kagome_d (* 1.3 edge_width))
+                     kag (* (+ 0.03 flash) (exp (- (* qk qk))))
+                     breathe (+ 0.8 (* 0.2 (cos (* tau u))))
+                     dirac (* dirac_glow breathe (exp (* -60.0 e e)))
+                     r (+ (* cr (+ fill lit)) (* bragg (+ 0.5 (* 0.5 cr))) gedge
+                          (* 0.45 kag) (* 0.95 dirac))
+                     g (+ (* cg (+ fill lit)) (* bragg (+ 0.5 (* 0.5 cg))) (* 0.74 gedge)
+                          (* 0.92 kag) (* 0.90 dirac))
+                     b (+ (* cb (+ fill lit)) (* bragg (+ 0.5 (* 0.5 cb))) (* 0.32 gedge)
+                          kag dirac)]
+                 [(- 1.0 (exp (* -1.2 r))) (- 1.0 (exp (* -1.2 g))) (- 1.0 (exp (* -1.2 b)))]))]
+    {:id :graphene_zones
+     :title "Graphene in the hexagonal Brillouin zones: Fermi contours, kagome van Hove net, Dirac points"
+     :period 16 :view [8.0 4.5] :blend :lighten
+     :params (-> (contour-params (/ (* 4.0 Math/PI) 3.0) 0.25)
+                 (assoc-in [2 1 :default] 40.0)
+                 (into [['edge_width {:default 0.012 :min 0.002 :max 0.12 :label "Bragg-plane glow width"}]
+                        ['kagome_flash {:default 1.0 :min 0.0 :max 3.0 :label "Kagome flash at |f| = 1"}]
+                        ['dirac_glow {:default 1.0 :min 0.0 :max 3.0 :label "Dirac-point glow"}]
+                        ['zone_cycle {:default 7.0 :min 2.0 :max 24.0 :label "Zones per palette cycle"}]]))
+     :form (graphene-zones-form tail)}))
+
 (def layers
   "Published live layers in stable registry order."
   [graphene-fermi kagome-fermi square-fermi penrose-fermi heptagonal-fermi
-   octagonal-fermi quasicrystal lieb-fermi brillouin-zones kaleido-quasicrystal])
+   octagonal-fermi quasicrystal lieb-fermi brillouin-zones kaleido-quasicrystal
+   graphene-zones])
 
 (def by-id (into {} (map (juxt :id identity)) layers))
 
@@ -331,7 +408,9 @@
   {:kaleido_quasicrystal
    "fold_order is clamped and floored in the field. desargues c3523fc ParamSpec is closed (default/min/max/label only) and trama hardcodes integers=[], so an integer slider needs upstream :integer? metadata support. Then emit integers=[fold_order] without changing the slot."
    :brillouin_zones
-   "The exact 312-plane finite sum emits about 65 KB of WGSL. Naga accepts it, but GPU compilation can hitch on first load and the per-pixel cost is high at 2560x1080. The scalar field DSL has no constant arrays/indexing/loops; retain this parity-exact version until those primitives exist upstream."})
+   "The exact 312-plane finite sum emits about 65 KB of WGSL. Naga accepts it, but GPU compilation can hitch on first load and the per-pixel cost is high at 2560x1080. The scalar field DSL has no constant arrays/indexing/loops; retain this parity-exact version until those primitives exist upstream."
+   :graphene_zones
+   "Unrolls the same 312 Bragg planes as brillouin_zones, so it carries the same shader size and per-pixel cost."})
 
 (defn bind
   "Bind a layer's field at phase u, optionally overriding named math params.
@@ -367,7 +446,8 @@
    :quasicrystal {:name "Quasicrystal" :description "Seven plane waves: a quasicrystal breathing."}
    :lieb_fermi {:name "Lieb Fermi" :description "Lieb lattice: four-fold Fermi contours and flat-band polarization."}
    :brillouin_zones {:name "Brillouin Zones" :description "Brillouin zones of the hexagonal lattice as stained glass."}
-   :kaleido_quasicrystal {:name "Kaleido Quasicrystal" :description "D8 kaleidoscope of five-wave contours through a log radial lens."}))
+   :kaleido_quasicrystal {:name "Kaleido Quasicrystal" :description "D8 kaleidoscope of five-wave contours through a log radial lens."}
+   :graphene_zones {:name "Graphene Zones" :description "Graphene Fermi contours rising in the hexagonal Brillouin zones, a kagome flash at the van Hove level, Dirac points on the hexagram tips."}))
 
 (defn pfx-layer
   "Layer `l` as a fosfora layer-effect spec (:target :pfx) with its
