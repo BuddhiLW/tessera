@@ -9,6 +9,7 @@
   (:require [clojure.walk :as walk]
             [desargues.wallpaper.emit :as emit]
             [desargues.wallpaper.field :as field]
+            [tessera.layers.ports :as ports]
             [thi.ng.color.gradients :as grad]))
 
 (defn- quantized-channel
@@ -389,19 +390,23 @@
 
 (def layers
   "Published live layers in stable registry order."
-  [graphene-fermi kagome-fermi square-fermi penrose-fermi heptagonal-fermi
-   octagonal-fermi quasicrystal lieb-fermi brillouin-zones kaleido-quasicrystal
-   graphene-zones])
+  (into [graphene-fermi kagome-fermi square-fermi penrose-fermi heptagonal-fermi
+         octagonal-fermi quasicrystal lieb-fermi brillouin-zones kaleido-quasicrystal
+         graphene-zones]
+        ports/layers))
 
 (def by-id (into {} (map (juxt :id identity)) layers))
 
 (def skipped
   "Candidate audit; no painter/raster approximation is presented as a port."
-  {:hofstadter
-   "The shipped shader bilinearly samples a precomputed 1200x720 Harper atlas (864000 constants, max-q 72). Field forms have no indexed arrays or texture lookup. Embedding that table as scalar expressions exceeds the JVM method/code-size limits; summing analytic band edges instead would change the original raster kernel and fail parity. Needs a texture/lookup field primitive, not a fake butterfly."
-   :bloch_oscillation "Precomputed site-density and phase rasters; outside the scalar field-only port."
-   :quantum_carpet "Samples a per-frame precomputed raster; outside the scalar field-only port."
-   :girih "Frame/vector painter, not a per-pixel scalar field."})
+  (merge
+   {:hofstadter
+    "The shipped shader bilinearly samples a precomputed 1200x720 Harper atlas (864000 constants, max-q 72). Field forms have no indexed arrays or texture lookup. Embedding that table as scalar expressions exceeds the JVM method/code-size limits; summing analytic band edges instead would change the original raster kernel and fail parity. Needs a texture/lookup field primitive, not a fake butterfly."
+    :bloch_oscillation "Precomputed site-density and phase rasters; outside the scalar field-only port."
+    ;; quantum_carpet is ported (tessera.layers.ports.carpet): its raster is
+    ;; psi at grid-cell centres, which a field evaluates per pixel.
+    :girih "Frame/vector painter, not a per-pixel scalar field."}
+   ports/skipped))
 
 (def follow-ups
   "Known live-host considerations, without changing the parameter-slot ABI."
@@ -455,7 +460,8 @@
    pattern. Params and their order are the trama ones, untouched."
   [l]
   (assoc l :target :pfx
-         :pfx (merge {:author "tessera" :category "pattern"} (effects (:id l)))))
+         :pfx (merge {:author "tessera" :category "pattern"}
+                     (or (effects (:id l)) (ports/effects (:id l))))))
 
 (defn emit-pfx!
   "Emit one fosfora layer effect per layer into dir (e.g. \"out/effects\"):
