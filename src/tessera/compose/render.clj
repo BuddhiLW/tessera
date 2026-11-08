@@ -104,6 +104,14 @@
    scene's slot allocator. Open: sprite and ribbon painters extend it."
   (fn [spec _slot] (:paint spec)))
 
+(defn at-slots
+  "The slot indices a painter reads its plane point from: the layer's
+   :at [sx sy] chart slots (a fold, a lens, a tunnel), default screen x y.
+   This is how any painter is placed in any layout chart."
+  [spec slot]
+  (let [[sx sy] (:at spec [:x :y])]
+    [(long (slot sx)) (long (slot sy))]))
+
 (defn- ink-of
   "A layer's ink: [r g b] linear weights, or a palette key."
   [palette ink]
@@ -160,6 +168,7 @@
    packed colour so far. :ground is the base colour."
   [{:keys [ground palette tone nodes layers] :or {ground 0 tone :neon}}]
   (let [slot (c/allocator)
+        iu (long (slot :u))
         prepared (map-indexed prepare-layer layers)
         graph (c/chain (distinct (concat nodes (mapcat :nodes prepared))) slot)
         groups (partition-by #(if (:paint %) (gensym) (:group % :ink)) prepared)
@@ -178,7 +187,7 @@
             fs (object-array (map #(% u) compiled))]
         (fn ^long [^double x ^double y]
           (let [c (double-array width)]
-            (aset c 0 x) (aset c 1 y)
+            (aset c 0 x) (aset c 1 y) (aset c iu u)
             (.run step c)
             (loop [i 0 col ground]
               (if (= i (alength fs)) col

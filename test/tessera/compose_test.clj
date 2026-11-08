@@ -2,6 +2,9 @@
   (:require [clojure.test :refer [deftest is testing]]
             [desargues.wallpaper.render :as r]
             [tessera.compose.core :as c]
+            [tessera.compose.generate :as gen]
+            [tessera.compose.loops :as composed]
+            [tessera.loops :as loops]
             [tessera.compose.layout :as layout]
             [tessera.compose.scene :as scene]
             [tessera.compose.scenes :as scenes]
@@ -47,3 +50,36 @@
 
 (deftest poisson-layout-is-the-approved-placement
   (is (= vj2/fabric-sites (layout/poisson-disc 73129 100 0.46))))
+
+(deftest spec-built-loops-are-black-ground-saturated-and-seamless
+  (doseq [[id spec] composed/loops]
+    (testing (name id)
+      (let [{:keys [seam typical-max]} (metrics/seam-stats spec)
+            {:keys [mean std near-black lit-saturation white-clip]}
+            (metrics/image-stats (r/render-frame spec 0.3 {:size [240 135]}))]
+        (is (= id (:id spec)))
+        (is (contains? loops/all id))
+        ;; Strict: the wrap is no larger than an ordinary frame step.
+        (is (<= seam typical-max))
+        (is (> mean 5.0))
+        (is (> std 10.0))
+        (is (> near-black 0.30))
+        (is (> lit-saturation 0.80))
+        (is (zero? white-clip))))))
+
+(deftest the-generator-is-deterministic-valid-and-closed-under-constraints
+  (doseq [seed (range 1 13)]
+    (let [s (gen/generate seed)]
+      (is (= s (gen/generate seed)))
+      (is (nil? (scene/explain s)))
+      (is (= s (read-string (pr-str s))))))
+  (is (not= (gen/generate 1) (gen/generate 2)))
+  (doseq [seed (range 20)]
+    (let [s (gen/generate seed {:chart #{:tunnel} :symmetry #{8} :palette #{:ice} :serpents? false})]
+      (is (some #(= :tunnel-map (:type %)) (:nodes s)))
+      (is (= (gen/palettes :ice) (:palette s)))
+      (is (not-any? #(= :serpents (:paint %)) (:layers s)))))
+  (doseq [seed [5 9 11]
+          :let [spec (scene/->spec (gen/generate seed))
+                {:keys [seam typical-max]} (metrics/seam-stats spec)]]
+    (is (<= seam typical-max))))

@@ -143,8 +143,9 @@
 (defmethod cr/painter :sprites
   ;; {:paint :sprites :layout {...sites} :kinds [{:kind k ..} ..]
   ;;  :bind [[:phase e] [:radius e] [:bob e] [:pulse e]] :support r}
-  [{:keys [kinds bind support] :as spec} _slot]
-  (let [sites (layout/sites (:layout spec))
+  [{:keys [kinds support] :as spec} slot]
+  (let [[ix iy] (cr/at-slots spec slot) ix (long ix) iy (long iy)
+        sites (layout/sites (:layout spec))
         makers (mapv kind kinds)
         support (double (or support 0.5))]
     (fn [u]
@@ -153,7 +154,7 @@
             sprites (object-array (map #(% u) makers))]
         (reify IPaint
           (paint [_ c base]
-            (let [x (aget c 0) y (aget c 1)
+            (let [x (aget c ix) y (aget c iy)
                   ^ints ids (aget bins (layout/bin-of x y))]
               (loop [j 0 color base]
                 (if (= j (alength ids)) color

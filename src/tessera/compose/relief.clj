@@ -34,8 +34,9 @@
   ;; {:paint :iso-pyramids :layout {...} :tiers 3 :motif {...} :scale expr
   ;;  :tone t :support r}. Site scale from expr over :i; light breathes
   ;; once per loop with a per-site phase (integer frequency).
-  [{:keys [tiers scale support tone] :or {tiers 3 support 1.05 tone :uv} :as spec} _slot]
-  (let [sites (layout/sites (:layout spec))
+  [{:keys [tiers scale support tone] :or {tiers 3 support 1.05 tone :uv} :as spec} slot]
+  (let [[ix iy] (cr/at-slots spec slot) ix (long ix) iy (long iy)
+        sites (layout/sites (:layout spec))
         ;; Site scale is static: an expression over :i and the site fields
         ;; (:nodes run at the site, sampled at u = 0).
         values ((layout/site-values (:nodes spec) [[:scale scale]]) 0.0)
@@ -49,7 +50,7 @@
       (let [phase (* lp/tau (double u))]
         (reify IPaint
           (paint [_ ctx color]
-            (let [x (aget ctx 0) y (aget ctx 1)
+            (let [x (aget ctx ix) y (aget ctx iy)
                   ^ints ids (aget bins (layout/bin-of x y))]
               (loop [j 0 color (long color)]
                 (if (= j (alength ids)) color
@@ -120,14 +121,15 @@
   ;; {:paint :serpents :ribbons [[cx cy angle half-length skin] ..]
   ;;  :period p :ease e :tone t}: the skin advances one texture period
   ;; (arclength p) per loop; :segments skins are bead-segmented bodies.
-  [{:keys [ribbons period ease tone] :or {period 0.20 ease 0.72 tone :uv}} _slot]
-  (let [tables (vec (map-indexed ribbon-table ribbons))
+  [{:keys [ribbons period ease tone] :or {period 0.20 ease 0.72 tone :uv} :as spec} slot]
+  (let [[ix iy] (cr/at-slots spec slot) ix (long ix) iy (long iy)
+        tables (vec (map-indexed ribbon-table ribbons))
         period (double period) tone (cr/->tone tone)]
     (fn [u]
       (let [v (layout/travel-phase (double u) (double ease))]
         (reify IPaint
           (paint [_ ctx base]
-            (let [x (aget ctx 0) y (aget ctx 1)]
+            (let [x (aget ctx ix) y (aget ctx iy)]
               (loop [k 0 color base]
                 (if (= k (count tables)) color
                     (let [[cx cy ca sa length skin ^doubles ys ^doubles normals ^doubles arcs] (nth tables k)
