@@ -65,29 +65,25 @@
                :points [d q e qp]})))))
 
 (defn tiles
-  "The stained-glass pieces of the 4.8.8 khatam pattern over the square of
-   half-side `half`: a partition of the panel into the regions bounded by
-   Hankin's strands (8-point stars, the kites between them, the small square
-   accents), each tagged with a jewel colour and carrying the strands as the
-   gold came. Pieces are shrunk by `s` about their own centre so the came
-   shows between them."
-  ([half] (tiles half 0.90))
+  "The pieces of the 4.8.8 khatam pattern over the square of half-side
+   `half`, for a LAYERED stained-glass panel (no partition needed): the
+   8-point stars (:star, lapis) and the small 4-point crosses (:accent,
+   ruby), each shrunk by `s` about its own centre, plus the strands that
+   become the gold came. A continuous amber backing pane behind them covers
+   every gap, so the panel has no holes and no partition bugs."
+  ([half] (tiles half 0.94))
   ([half s]
    (let [polys (g/pattern :4.8.8 [(- half) half (- half) half] (g/khatam-angle) 0.0)]
      (vec
-      (for [{:keys [kind vertices] :as p} polys
-            :let [hk (g/hankin vertices (g/khatam-angle) 0.0)
-                  centre (g/centroid vertices)]
-            piece (region-pieces vertices hk
-                                 (if (= kind :octagon) :star :accent) :kite :accent)]
-        (let [c (:centre piece)
-              keep? (and (<= (Math/abs (first centre)) half)
-                         (<= (Math/abs (second centre)) half))]
-          (assoc piece
-                 :keep? keep?
-                 :points (mapv (fn [v] (g/v+ c (g/v* s (g/v- v c)))) (:points piece))
-                 :strands (when (= :star (:colour piece)) (:strands hk))
-                 :cell-centre centre)))))))
+      (for [{:keys [kind centre vertices rosette strands] :as p} polys
+            :when (and (<= (Math/abs (first centre)) half)
+                       (<= (Math/abs (second centre)) half))]
+        (let [pts (if (= kind :octagon) rosette (mapv (fn [v] (g/v+ centre (g/v* 0.62 (g/v- v centre)))) vertices))
+              c (g/centroid pts)]
+          {:colour (if (= kind :octagon) :star :accent)
+           :centre centre
+           :strands strands
+           :points (mapv (fn [v] (g/v+ c (g/v* s (g/v- v c)))) pts)}))))))
 
 ;; -- Promote: meshes -------------------------------------------------------
 
@@ -134,8 +130,9 @@
 ;; -- Promote: the stained-glass panel --------------------------------------
 
 (def tilt
-  "The panel leans back by this angle from vertical (radians)."
-  (/ Math/PI 6.0))
+  "The panel leans back by this angle from vertical (radians): a gentle
+   10 degrees, so the frame stays full edge to edge."
+  (/ Math/PI 18.0))
 
 (def panel-z
   "World z of the panel's mid-height."
@@ -160,19 +157,22 @@
      :faces (:faces m)}))
 
 (defn panel-objects
-  "The stained-glass panel: one merged glass solid per jewel colour plus the
-   gold came, in world coordinates. `th` glass thickness (along the panel
-   normal), `w` came width. Every piece is a separate closed solid; pieces
-   partition the panel, so no two overlap."
+  "The LAYERED stained-glass panel: one merged solid for the lapis stars,
+   one for the ruby crosses, the gold came on top, and a continuous amber
+   backing pane behind them covering the whole panel, so there are no gaps
+   and no partition to get wrong. `th` glass thickness, `w` came width."
   [ts th w]
-  (let [ts (filter :keep? ts)
-        glass (fn [c] (lx/merge-meshes
+  (let [glass (fn [c] (lx/merge-meshes
                        (for [t ts :when (= c (:colour t))]
-                         (lx/prism (:points t) (- (/ th 2.0)) (/ th 2.0)))))]
+                         (lx/prism (:points t) (- (/ th 2.0)) (/ th 2.0)))))
+        half (inc (apply max (map (comp #(Math/abs (double %)) first :centre) ts)))
+        backing {:vertices [[(- half) (- half) (- th)] [(- half) half (- th)]
+                            [half half (- th)] [half (- half) (- th)]]
+                 :faces [[0 1 2] [0 2 3]]}]
     {:star (panel-mesh (glass :star))
-     :kite (panel-mesh (glass :kite))
      :accent (panel-mesh (glass :accent))
-     :came (panel-mesh (lx/ribbons (distinct (mapcat :strands ts)) w (- (/ th 2.0)) (+ (/ th 2.0) 0.01)))}))
+     :backing (panel-mesh backing)
+     :came (panel-mesh (lx/ribbons (mapcat :strands ts) w (- (/ th 2.0)) (+ (/ th 2.0) 0.01)))}))
 
 ;; -- Collect: the emissive backdrop ----------------------------------------
 
@@ -251,22 +251,22 @@
    :faces [[0 2 1] [0 3 2]]})
 
 (defn girih-glass-scene
-  "STAINED GLASS, backlit. The 4.8.8 khatam panel leans back 30 deg at y = 0,
-   its regions coloured glass with gold came. An EMISSIVE BACKDROP just
-   behind the panel supplies what the glass transmits -- a warm band
-   sweeping across it once per loop -- so the jewels glow and the sweep is
-   unmistakable. A small sun behind the panel adds the coloured projection
-   on the dark floor in front; its direction swings with integer frequency,
-   exactly periodic. The camera sits in front, slightly below the panel's
-   mid-height and off axis.
+  "STAINED GLASS, backlit, layered. A continuous amber pane backs the panel;
+   lapis 8-point stars and ruby crosses sit in front of it; the gold came
+   lies on top. Behind everything, an emissive backdrop (hidden from camera
+   rays, so there is no grey wash) supplies what the glass transmits: a warm
+   band sweeping across the panel once per loop, exactly periodic. A small
+   sun behind the panel adds direction to the light. The camera is nearly
+   square-on and framed tight, so the panel fills the frame edge to edge --
+   no floor, no horizon.
 
    Options: :spp (default 32), :exposure (linear tonemap scale), :gain (sun
    gain), :half (panel half-width in pattern units), :base/:peak (backdrop
-   emission), :strips (backdrop resolution)."
+   emission), :strips (backdrop resolution), :hide-backdrop? (default true)."
   ([u] (girih-glass-scene u {}))
-  ([u {:keys [spp exposure gain half base peak strips th]
-       :or {spp 32 exposure 0.02 gain 0.5 half 4.8 base 0.35 peak 3.0
-            strips 48 th 0.05}}]
+  ([u {:keys [spp exposure gain half base peak strips th hide-backdrop?]
+       :or {spp 32 exposure 0.3 gain 0.5 half 4.8 base 1.2 peak 3.0
+            strips 48 th 0.05 hide-backdrop? true}}]
    (let [az (+ Math/PI (* 0.25 (Math/sin (* 2.0 Math/PI (double u)))))
          el (+ 0.42 (* 0.10 (Math/sin (* 4.0 Math/PI (double u)))))
          dir [(* (Math/cos el) (Math/cos az)) (* (Math/cos el) (Math/sin az)) (Math/sin el)]
@@ -275,29 +275,35 @@
          span (+ 4.0 (* 2.0 half))
          width (/ span strips)
          xs (vec (for [i (range strips)] (+ (- (/ span 2.0)) (* width (+ i 0.5)))))
-         ems (sweep-emissions u strips base peak 3.0)]
+         ems (sweep-emissions u strips base peak 3.0)
+         half-panel (inc (apply max (map (comp #(Math/abs (double %)) first :centre) ts)))
+         mid-z (+ panel-z 0.35)
+         fov 52.0
+         ;; LuxCore's fieldofview is the VERTICAL angle. Frame by the
+         ;; panel's projected HEIGHT (it leans back, so cos tilt), pulled
+         ;; in a little so the panel overflows the frame on every side:
+         ;; no dark borders, no horizon.
+         half-height (* half-panel (Math/cos tilt))
+         dist (* 0.62 (/ half-height (Math/tan (* 0.5 (Math/toRadians fov)))))]
      (merge (gpu exposure)
-            {:camera {:orig [1.2 -9.8 3.4] :target [0.0 0.0 3.4] :fov 50
-                      :lensradius 0.02 :focaldistance 10.0}
+            {:camera {:orig [(* 0.08 dist) (- dist) mid-z] :target [0.0 0.0 mid-z]
+                      :fov fov :lensradius 0.02 :focaldistance dist}
              :materials (merge {:star {:type "glass" :kr [1 1 1] :kt [0.10 0.30 0.95]
                                        :interiorior 1.50 :cauchyb 0.008}
-                                :kite {:type "glass" :kr [1 1 1] :kt [0.10 0.70 0.25]
-                                       :interiorior 1.50 :cauchyb 0.008}
-                                :accent {:type "glass" :kr [1 1 1] :kt [0.95 0.55 0.08]
+                                :accent {:type "glass" :kr [1 1 1] :kt [0.85 0.08 0.10]
                                          :interiorior 1.50 :cauchyb 0.008}
-                                :gold {:type "metal2" :preset "gold" :roughness 0.18}
-                                :floor {:type "glossy2" :kd [0.03 0.03 0.035]
-                                        :ks [0.04 0.04 0.04]
-                                        :uroughness 0.10 :vroughness 0.10}}
+                                :amber {:type "glass" :kr [1 1 1] :kt [0.95 0.55 0.08]
+                                        :interiorior 1.50 :cauchyb 0.008}
+                                :gold {:type "metal2" :preset "gold" :roughness 0.18}}
                                (backdrop-materials ems))
              :lights {:key {:type "sun" :dir dir :turbidity 2.2 :relsize 2.0
                             :color [1.0 0.94 0.85] :gain [gain gain gain]}}
-             :objects (merge {:floor (merge {:material :floor} (quad [0 0] 60.0 0.0))
-                              :stars (assoc (:star objs) :material :star)
-                              :kites (assoc (:kite objs) :material :kite)
+             :objects (merge {:stars (assoc (:star objs) :material :star)
                               :accents (assoc (:accent objs) :material :accent)
+                              :amber (assoc (:backing objs) :material :amber)
                               :came (assoc (:came objs) :material :gold)}
-                             (backdrop xs width (+ 2.0 (* 2.0 half)) 0.35 ems))
+                             (into {} (map (fn [[k v]] [k (if hide-backdrop? (assoc v :camerainvisible true) v)])
+                                           (backdrop xs width (+ 2.0 (* 2.0 half)) 0.35 ems))))
              :spp spp}))))
 
 (defn scene-props
