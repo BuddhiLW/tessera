@@ -27,7 +27,8 @@
             [tessera.bz3d :as bz3d]
             [tessera.flows :as flows]
             [tessera.waves :as waves]
-            [tessera.lattice :as lattice]))
+            [tessera.lattice :as lattice]
+            [tessera.vj :as vj]))
 
 (set! *warn-on-reflection* true)
 
@@ -194,6 +195,7 @@
    waves/loops
    orb/loops
    lattice/loops
+   vj/loops
    s3d/loops
    recip/symmetry-family
    (into (array-map)
