@@ -38,14 +38,16 @@
      :peak-channel (apply max (map :v values))}))
 
 (defn seam-stats
-  "Wrap versus distributed consecutive samples at the actual spec frame count."
+  "Wrap versus distributed consecutive samples at the actual spec frame count.
+   `samples` evenly spaced ordinary steps estimate the typical maximum."
   ([spec] (seam-stats spec [160 90]))
-  ([spec size]
+  ([spec size] (seam-stats spec size [0.08 0.21 0.36 0.53 0.71 0.89]))
+  ([spec size fractions]
    (let [n (long (* (:fps spec) (:seconds spec)))
          frame (fn [i] (pixels (r/render-frame spec (/ (double i) n) {:size size})))
          steps (mapv #(let [i (long (* % n))]
                         (mean-diff (frame i) (frame (inc i))))
-                     [0.08 0.21 0.36 0.53 0.71 0.89])]
+                     fractions)]
      {:frames n
       :seam (mean-diff (frame (dec n)) (frame 0))
       :typical-max (apply max steps)
