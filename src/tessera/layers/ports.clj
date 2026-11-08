@@ -12,14 +12,16 @@
             [tessera.layers.ports.carpet :as carpet]
             [tessera.layers.ports.modes :as modes]
             [tessera.layers.ports.reciprocal :as recip]
-            [tessera.layers.ports.slit :as slit]))
+            [tessera.layers.ports.slit :as slit]
+            [tessera.layers.ports.uv :as uv]))
 
 (def layers
   "Ported layers in stable registry order (best visual payoff first)."
   [recip/twisted-bilayer slit/double-slit carpet/quantum-tapestry carpet/quantum-carpet
    modes/box-modes modes/drum breathers/breathers
    recip/fold-9 recip/fold-10 recip/fold-11 recip/fold-12
-   bz/brillouin-square bz/brillouin-oblique bz/brillouin-rect])
+   bz/brillouin-square bz/brillouin-oblique bz/brillouin-rect
+   uv/textile-tunnel uv/flower-mandala uv/hyperspace uv/sprite-lattice])
 
 (def source-loops
   "Layer id -> the tessera.loops/all id of the closure loop it reproduces."
@@ -28,7 +30,9 @@
    :box_modes :box-modes :drum_modes :drum :breathers :breathers
    :fold_9 :fold-9 :fold_10 :fold-10 :fold_11 :fold-11 :fold_12 :fold-12
    :brillouin_square :brillouin-square :brillouin_oblique :brillouin-oblique
-   :brillouin_rect :brillouin-rect})
+   :brillouin_rect :brillouin-rect
+   :textile_tunnel :textile-tunnel :flower_mandala :flower-mandala
+   :hyperspace :hyperspace :sprite_lattice :sprite-lattice})
 
 (def effects
   "fosfora layer-effect catalog name (a preset key: STABLE) and description
@@ -46,7 +50,11 @@
    :fold_12 {:name "Twelve-Fold Contours" :description "Twelve-fold quasiperiodic energy contours, rising."}
    :brillouin_square {:name "Brillouin Square" :description "Brillouin zones of the square lattice as four-fold stained glass."}
    :brillouin_oblique {:name "Brillouin Oblique" :description "Brillouin zones of an oblique lattice: only inversion survives."}
-   :brillouin_rect {:name "Brillouin Rectangular" :description "Brillouin zones of a rectangular lattice as stained glass."}})
+   :brillouin_rect {:name "Brillouin Rectangular" :description "Brillouin zones of a rectangular lattice as stained glass."}
+   :textile_tunnel {:name "Textile Tunnel" :description "A UV textile tunnel: stepped crosses on an exact cylinder, travelling endlessly inward."}
+   :flower_mandala {:name "Flower Mandala" :description "A dyadic triangular labyrinth flowering outward around a ring of dashed circles."}
+   :hyperspace {:name "Hyperspace Warp" :description "D12-folded hex-lattice stars streaking outward through a dyadic log-radial warp."}
+   :sprite_lattice {:name "Sprite Lattice" :description "UV glyphs sized by the graphene hopping band, sliding one cell per loop."}})
 
 (def skipped
   "Loops of tessera.loops/all audited for a field port and not ported, with
@@ -58,10 +66,6 @@
    :caustics_gold "Same splat buffer as :caustics, with eighteen waves."
    :standard_map "Samples a precomputed phase portrait (iterated standard-map orbits binned into W/R/G/B/C/S rasters)."
    :delay_pendulums "Uses :splat and :exposure (particle splats) on top of the Huygens field; not a pure field."
-   :sprite_lattice "Glyph sizes and colours come from a per-frame 24x16 cell table read at neighbouring cells; portable only by re-deriving each neighbour analytically. Not attempted."
-   :textile_tunnel "Per-pixel, but built on Math/hypot (no exact DSL equivalent; sqrt(x^2+y^2) differs in the last ulp) and many branches. Deferred, parity unproven."
-   :flower_mandala "Per-pixel with fixed loops (3 octaves, 18 dashed rings) and branches; portable in principle via unrolling and masks, but uses Math/hypot. Deferred, parity unproven."
-   :hyperspace "Per-pixel over precomputed star seeds with a data-dependent skip. Deferred, parity unproven."
    :fabric "Three composed closure layers reading spatial bins (int-array lookups per cell); needs arrays."
    :generated_2 "tessera.compose scene compiled to a closure over painter layers (iso pyramids, serpents); needs SDF field versions of the painters."
    :generated_3 "tessera.compose painter scene, as :generated_2."
@@ -98,4 +102,7 @@
    :quantum_tapestry "40 modes per pixel (about 160 sin/cos). The f32 phase frac(n^2 tau) carries about 1e-3 rad of error at n = 40; check it live."
    :quantum_carpet "40 modes per pixel, as quantum_tapestry."
    :double_slit "Wave number and slit geometry are not params: the fringe normalization is a constant of them (36 Huygens terms per pixel)."
-   :breathers "cosh/sinh as exponentials: exp(k dx) reaches about 1e13 at the frame edge, within f32 range."})
+   :breathers "cosh/sinh as exponentials: exp(k dx) reaches about 1e13 at the frame edge, within f32 range."
+   :sprite_lattice "Nine neighbour cells unrolled, each re-deriving its graphene-band glyph size and hue per pixel (the closure built a 24x16 table once per frame): about nine times the closure's per-pixel trig. Measure it live."
+   :flower_mandala "blend mixes PACKED colours, so the form quantizes to 8-bit levels before the ring blend; on the GPU an f32 level that lands within an ulp of an integer can floor one level differently."
+   :hyperspace "The 20 stars are evaluated unconditionally and masked by the closure's |da| > 4 width skip. log2 radius over the frame is small, so f32 frac(q - q_i) keeps its precision."})
