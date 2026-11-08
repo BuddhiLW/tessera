@@ -47,10 +47,13 @@
    :lissajous-3d ["Curves" ["lissajous" "3d" "comets" "harmonic"]]
    :lissajous-oscillators ["Curves" ["lissajous" "3d" "oscillator" "harmonic"]]
    :moore-comets ["Curves" ["space-filling" "moore" "comets" "hilbert"]]
+   :harmonograph ["Curves" ["harmonograph" "pendulum" "damped" "lissajous" "comets"]]
+   :spirograph ["Curves" ["spirograph" "hypotrochoid" "roulette" "symmetry" "comets"]]
 
    ;; Knots: topology in 3D
    :torus-knots ["Knots" ["torus-knot" "3d" "neon" "topology"]]
    :hopf-fibration ["Knots" ["hopf" "fibration" "torus" "topology" "3d"]]
+   :knot-tubes ["Knots" ["trefoil" "figure-eight-knot" "tube" "neon" "symmetry" "3d"]]
 
    ;; Fractals: self-similar sets and zooms
    :julia-orbit ["Fractals" ["julia" "complex" "escape-time"]]
@@ -58,6 +61,11 @@
    :hofstadter ["Fractals" ["hofstadter" "butterfly" "magnetic-flux" "spectrum"]]
    :flower-mandala ["Fractals" ["dyadic" "labyrinth" "tunnel" "mandala"]]
    :hyperspace ["Fractals" ["dyadic" "log-polar" "warp" "kaleidoscope"]]
+   :mandelbulb ["Fractals" ["mandelbulb" "3d" "raymarching" "distance-estimator" "seven-fold"]]
+   :quaternion-julia ["Fractals" ["julia" "quaternion" "3d" "raymarching" "distance-estimator"]]
+   :menger-flight ["Fractals" ["menger" "sponge" "fly-through" "3d" "raymarching" "tunnel"]]
+   :cardioid-julia ["Fractals" ["julia" "mandelbrot" "cardioid" "complex" "escape-time"]]
+   :apollonian ["Fractals" ["apollonian" "gasket" "inversion" "moebius" "circles"]]
 
    ;; Lattices: band structure, Fermi surfaces, Brillouin zones
    :graphene-fermi ["Lattices" ["graphene" "fermi-surface" "dirac" "hexagonal"]]
@@ -134,13 +142,21 @@
    :lissajous-3d "Lissajous Lattice"
    :lissajous-oscillators "Lissajous Oscillators"
    :moore-comets "Moore Curve Comets"
+   :harmonograph "Harmonograph"
+   :spirograph "Spirograph"
    :torus-knots "Torus Knot Garden"
    :hopf-fibration "Hopf Fibration"
+   :knot-tubes "Trefoil and Figure-Eight Knots"
    :julia-orbit "Julia Set Orbit"
    :sierpinski-zoom "Sierpinski Zoom"
    :hofstadter "Hofstadter Butterfly"
    :flower-mandala "Flower Mandala"
    :hyperspace "Hyperspace"
+   :mandelbulb "Mandelbulb"
+   :quaternion-julia "Quaternion Julia Set"
+   :menger-flight "Menger Sponge Flight"
+   :cardioid-julia "Julia Sets Along the Cardioid"
+   :apollonian "Apollonian Gasket"
    :graphene-fermi "Graphene Fermi Contours"
    :graphene-zones "Graphene Brillouin Zones"
    :kagome-fermi "Kagome Fermi Contours"

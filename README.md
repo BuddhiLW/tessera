@@ -81,6 +81,20 @@ Etienne Jacob's techniques (bleuje.com) applied to physics: every element runs t
 |---|---|---|
 | ![](docs/gallery/hopf-fibration.webp) **hopf-fibration**<br>Villarceau circles of S³ → S² on nested tori, stereographically projected, beads flowing along the fibres | ![](docs/gallery/torus-knots.webp) **torus-knots**<br>(p, q) torus knots at fixed poses, light pulses travelling along them, depth of field | ![](docs/gallery/lissajous-3d.webp) **lissajous-3d**<br>a lattice of 3D Lissajous curves with integer frequency triples, one comet each |
 
+### Fractals in 3D
+
+Sphere-traced from distance estimators (`tessera.raymarch`) with fixed step and iteration budgets, so every frame costs the same and is a pure function of u.
+
+| | | |
+|---|---|---|
+| ![](docs/gallery/mandelbulb.webp) **mandelbulb**<br>the power-8 bulb turns a seventh of a turn per loop, which is its own symmetry (z⁸ turns by 8/7 of a turn), while the key light goes once around; colour by orbit trap | ![](docs/gallery/quaternion-julia.webp) **quaternion-julia**<br>the slice w = 0 of the quaternion Julia set z ↦ z² + c, c once around a closed ellipse in (1, i, j, k); ice palette by orbit trap, the key light once around | ![](docs/gallery/menger-flight.webp) **menger-flight**<br>down a gallery of the infinite Menger sponge (period 2, four levels), one period per loop, weaving on whole harmonics; a lamp rides with the camera and a warm light burns at the far end |
+
+### Curves and knots
+
+| | | |
+|---|---|---|
+| ![](docs/gallery/harmonograph.webp) **harmonograph**<br>two damped pendulums per axis near 2:3, drawn over their whole decay; each term's phase turns a whole number of cycles per loop, so the woven rose breathes through its family and returns, three pens of light retracing it | ![](docs/gallery/spirograph.webp) **spirograph**<br>hypotrochoids with whole gear ratios R/r = p/q, each turning by its own symmetry angle 2π/p, its pen arm breathing; the comets ride the turn's shift in parameter, so they return to the same places; a wider frame gains columns of gears | ![](docs/gallery/knot-tubes.webp) **knot-tubes**<br>a trefoil and a figure-eight knot as shaded neon tubes (halo, body, hot core, painted far to near), each turning by its symmetry angle, 2π/3 and π, the pulses riding the matching parameter shift |
+
 ### Band structures and reciprocal space
 
 | | | |
@@ -116,6 +130,7 @@ These are not hand-written loops. Each is an EDN scene in `tessera.compose`: lay
 | ![](docs/gallery/neon-pulse.webp) **neon-pulse**<br>khatam stars as glowing beads on a breathing beat, bloom and red/blue fringe | ![](docs/gallery/neon-khatam.webp) **neon-khatam**<br>eight-pointed stars and octagons on a tilted plane | ![](docs/gallery/girih-light.webp) **girih-light**<br>Hankin's polygons-in-contact on 4.8.8, the contact angle breathing |
 | ![](docs/gallery/girih-assembly.webp) **girih-assembly**<br>the ceiling comes apart in a radial wave and settles back | ![](docs/gallery/moore-comets.webp) **moore-comets**<br>two closed Moore curves with comets | ![](docs/gallery/julia-orbit.webp) **julia-orbit**<br>the Julia set of c = 0.7885·e^{2πiu} |
 | ![](docs/gallery/quasicrystal.webp) **quasicrystal**<br>seven plane waves, phases once around | ![](docs/gallery/sierpinski-zoom.webp) **sierpinski-zoom**<br>a zoom by its own similarity ratio, 2 | ![](docs/gallery/girih-drift.webp) **girih-drift**<br>six-fold stars drifting one lattice period |
+| ![](docs/gallery/cardioid-julia.webp) **cardioid-julia**<br>c = μ/2 − μ²/4 with μ = 0.93·e^{2πiu}: c rides just inside the Mandelbrot set's main cardioid, the fixed point's multiplier turning once, so the Julia set passes every rotation number; a distance-estimate glow on the boundary | ![](docs/gallery/apollonian.webp) **apollonian**<br>the symmetric Apollonian gasket by inversion in its four dual circles, seen through a Möbius flow of the disc and turned a third of a turn per loop; rims glow at a fixed screen width, coloured by depth | |
 
 ### Path traced (LuxCore)
 

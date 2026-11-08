@@ -35,7 +35,9 @@
             [tessera.compose.loops :as composed]
             [tessera.widescreen :as widescreen]
             [tessera.layers :as layers]
-            [desargues.wallpaper.field :as field]))
+            [desargues.wallpaper.field :as field]
+            [tessera.fractals :as fractals]
+            [tessera.figures :as figures]))
 
 (set! *warn-on-reflection* true)
 
@@ -236,7 +238,9 @@
           [recip/brillouin-zones recip/brillouin-square recip/brillouin-oblique recip/brillouin-rect
            quantum/quantum-tapestry quantum/quantum-carpet quantum/double-slit
            curves/moore-comets girih-light girih-drift girih-assembly
-           quasicrystal julia-orbit sierpinski-zoom]))))
+           quasicrystal julia-orbit sierpinski-zoom])
+    fractals/loops
+    figures/loops)))
 
 (def path-traced
   "Loops rendered by LuxCore (luxcoreconsole on PATH), by id."
