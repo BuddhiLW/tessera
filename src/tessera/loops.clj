@@ -27,7 +27,12 @@
             [tessera.bz3d :as bz3d]
             [tessera.flows :as flows]
             [tessera.waves :as waves]
-            [tessera.lattice :as lattice]))
+            [tessera.lattice :as lattice]
+            [tessera.vj :as vj]
+            [tessera.chaos :as chaos]
+            [tessera.vj2 :as vj2]
+            [tessera.delays :as delays]
+            [tessera.compose.loops :as composed]))
 
 (set! *warn-on-reflection* true)
 
@@ -190,10 +195,15 @@
           recip/square-fermi recip/penrose-fermi recip/heptagonal-fermi recip/octagonal-fermi])
    chor/loops
    mech/loops
+   chaos/loops
+   delays/loops
    flows/loops
    waves/loops
    orb/loops
    lattice/loops
+   vj/loops
+   vj2/loops
+   composed/loops
    s3d/loops
    recip/symmetry-family
    (into (array-map)

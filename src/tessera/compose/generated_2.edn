@@ -1,0 +1,83 @@
+{:ground 0,
+ :palette
+ {:primary [0.03 0.25 1.0],
+  :secondary [0.02 0.88 1.0],
+  :accent [1.0 0.025 0.93],
+  :highlight [0.4 1.0 0.02]},
+ :seconds 16,
+ :size [1920 1080],
+ :title "Generated scene 2: fold D8 ice",
+ :tone :neon,
+ :fps 30,
+ :nodes
+ [{:type :polar}
+  {:type :dihedral-fold, :n 8}
+  {:type :cartesian, :in [:r :angle]}
+  {:type :plane-waves,
+   :n 9,
+   :k 2.205818484657282,
+   :scale 0.4,
+   :dirs :half,
+   :speed 1,
+   :in [:px :py]}
+  {:type :let,
+   :bind
+   [[:fade [:* [:min 1.0 [:* 2.5 :r]] [:- 1.0 [:* 0.07 :r]]]]
+    [:level [:- [:frac [:* 1.6 :field]] 0.5]]]}
+  {:type :phase,
+   :bind [[:pulse [:+ 0.7 [:* 0.3 [:wave [:* 1.0 :u]]]]]]}],
+ :id :generated-2,
+ :ss 2,
+ :layers
+ [{:ink :primary, :value [:* :fade 0.55 [:glow [:- :level 0.1] 0.035]]}
+  {:ink :secondary,
+   :value [:* :fade 0.45 :pulse [:glow [:+ :level 0.1] 0.03]]}
+  {:paint :sprites,
+   :at [:px :py],
+   :support 0.45,
+   :layout
+   {:type :lattice, :spacing 0.547609958440701, :extent [9.0 5.2]},
+   :kinds
+   [{:kind :glyph, :motif {:motif :chevron}}
+    {:kind :glyph, :motif {:motif :star4, :r 0.4}}],
+   :nodes
+   [{:type :graphene,
+     :a [1.4079804603743185 0.55],
+     :b [1.48 -1.7361255749652251],
+     :out :drive}
+    {:type :let, :bind [[:drive01 [:/ :drive 3.0]]]}],
+   :bind
+   [[:radius [:+ 0.02 [:* 0.5348299203170502 [:pow :drive01 1.2]]]]
+    [:phase
+     [:*
+      6.283185307179586
+      [:+
+       0.85169089403032
+       [:* 0.3 [:sin [:+ [:* 0.9 :x] [:* 0.4 :y]]]]]]]
+    [:pulse [:+ 0.5 [:* 0.4 :drive01]]]]}
+  {:paint :sprites,
+   :at [:x :y],
+   :support 0.5,
+   :layout
+   {:type :poisson,
+    :seed 63562,
+    :count 30,
+    :distance 0.9,
+    :extent [8.6 4.6]},
+   :kinds [{:kind :star4}],
+   :nodes
+   [{:type :loop-noise,
+     :freq 0.5088565468411841,
+     :radius 0.0,
+     :seed 150,
+     :out :delay}],
+   :bind
+   [[:phase [:* 2.399963229728653 :i]]
+    [:radius [:+ 0.07 [:* 0.06 [:frac [:* :i 0.61803398875]]]]]
+    [:bob
+     [:*
+      0.035
+      [:sin
+       [:+ [:* 6.283185307179586 [:* [:+ [:mod :i 2] 1] :u]] :phase]]]]
+    [:pulse [:+ 0.45 [:* 0.5 [:wave [:* 2.0 [:- :u :delay]]]]]]]}],
+ :view [8.0 4.5]}

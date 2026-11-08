@@ -14,6 +14,10 @@ first.
   <img src="docs/hero/hopf-fibration.webp" width="49%" alt="Hopf fibration">
   <img src="docs/hero/caustics.webp" width="49%" alt="caustics">
   <img src="docs/hero/bz-glass.webp" width="49%" alt="Brillouin zones as glass">
+  <img src="docs/hero/kaleido-quasicrystal.webp" width="49%" alt="quasicrystal kaleidoscope">
+  <img src="docs/hero/textile-tunnel.webp" width="49%" alt="textile tunnel">
+  <img src="docs/hero/fabric.webp" width="49%" alt="fabric">
+  <img src="docs/hero/flower-mandala.webp" width="49%" alt="flower mandala">
 </p>
 
 Every loop is a function of a phase `u ∈ [0, 1)`. An N-frame video samples
@@ -43,6 +47,20 @@ repository holds the loops.
 | ![](docs/gallery/pendulum-wave.webp) **pendulum-wave**<br>24 nonlinear pendulums. L = ½ml²θ̇² + mgl cos θ through Emmy; lengths from 4√(l/g)·K(sin θ₀/2), so pendulum k swings exactly 18+k times | ![](docs/gallery/kepler-resonance.webp) **kepler-resonance**<br>six orbits with periods 12:6:4:3:2:1, Kepler's equation by Newton iteration, inclined planes | ![](docs/gallery/lissajous-oscillators.webp) **lissajous-oscillators**<br>3D harmonic oscillators with whole frequencies, checked against the Euler-Lagrange equations |
 | ![](docs/gallery/figure-eight.webp) **figure-eight**<br>the Chenciner-Montgomery three-body choreography, Yoshida 4th-order symplectic, energy drift 2e-7 | ![](docs/gallery/choreographies.webp) **choreographies**<br>figure-eight, Butterfly I, Moth I and Yin-yang 1a (Šuvakov-Dmitrašinović), shot closed to 1e-9 | ![](docs/gallery/phase-flow.webp) **phase-flow**<br>pendulum phase space H = p²/2 − cos q; each particle turns its action-angle variable a whole number of times |
 
+### Chaos and billiards
+
+| | | |
+|---|---|---|
+| ![](docs/gallery/elliptic-billiard.webp) **elliptic-billiard**<br>Poncelet families of closed billiard orbits in an ellipse (rotation numbers 1/9, 1/5, 2/9, 1/3 and a hyperbolic family between the foci), their confocal conic caustics drawn as neon lines | ![](docs/gallery/standard-map.webp) **standard-map**<br>the Chirikov standard map at K = 0.92: rotational tori, island chains and a dim chaotic sea, light crests flowing along each invariant curve in its own angle variable | ![](docs/gallery/cat-map.webp) **cat-map**<br>Arnold's cat map on a 322 × 322 torus has period 24 and C¹² = −I, so a centrally symmetric khatam assembles twice per loop; each step is drawn as two sliding shears |
+
+### Delays and periodic noise
+
+Etienne Jacob's techniques (bleuje.com) applied to physics: every element runs the same periodic motion with a delay that depends on where it is, noise is sampled on a circle so it returns, and particles replace each other along their paths.
+
+| | | |
+|---|---|---|
+| ![](docs/gallery/delay-pendulums.webp) **delay-pendulums**<br>220 exact nonlinear pendulums; amplitude is the \|Huygens field\| of three coherent sources and the delay its phase, so the fringes show as still lanes and the phase fronts drift outward in cyan, violet and gold | ![](docs/gallery/noise-flow-lines.webp) **noise-flow-lines**<br>2304 particles carried by the curl of a periodic 4D stream function ψ(x, y, R cos 2πu, R sin 2πu), each drawing its streamline, fading in to take a neighbour's place; colour by vorticity sign | ![](docs/gallery/delay-mesh.webp) **delay-mesh**<br>a triangular mesh of Gerstner water parcels, each on the same circle delayed by k·x, three wave trains plus a ripple ring leaving once per loop; edges lit on the crests |
+
 ### Fluids
 
 | | |
@@ -54,7 +72,7 @@ repository holds the loops.
 
 | | | |
 |---|---|---|
-| ![](docs/gallery/hydrogen-beat.webp) **hydrogen-beat**<br>a 3s/4d/4f/5g superposition; Eₙ = −1/2n² is rational, so ψ returns exactly | ![](docs/gallery/drum.webp) **drum**<br>square membrane modes with Pythagorean frequency ratios, mirrored to fill the frame | ![](docs/gallery/box-modes.webp) **box-modes**<br>a particle in a 2D box: five modes with commensurate energies 2:5:8:10:10, |ψ|² as a saturating glow with iso-density contours, phase as a cyclic hue |
+| ![](docs/gallery/hydrogen-beat.webp) **hydrogen-beat**<br>a 3s/4d/4f/5g superposition; Eₙ = −1/2n² is rational, so ψ returns exactly | ![](docs/gallery/drum.webp) **drum**<br>square membrane modes with Pythagorean frequency ratios, mirrored to fill the frame | ![](docs/gallery/box-modes.webp) **box-modes**<br>a particle in a 2D box: five modes with commensurate energies 2:5:8:10:10, \|ψ\|² as a saturating glow with iso-density contours, phase as a cyclic hue |
 | ![](docs/gallery/quantum-tapestry.webp) **quantum-tapestry**<br>the Talbot carpet in domain colouring: hue is the phase of ψ(x, t) | ![](docs/gallery/quantum-carpet.webp) **quantum-carpet**<br>a wave packet in a box; n² energies make the revival exact | ![](docs/gallery/double-slit.webp) **double-slit**<br>Huygens sources, crests in neon, the screen's cos² intensity as a bar graph |
 
 ### 3D
@@ -72,6 +90,24 @@ repository holds the loops.
 | ![](docs/gallery/penrose-fermi.webp) **penrose-fermi**<br>5-fold quasiperiodic band Σ cos(k·eⱼ) | ![](docs/gallery/heptagonal-fermi.webp) **heptagonal-fermi**<br>7-fold | ![](docs/gallery/octagonal-fermi.webp) **octagonal-fermi**<br>8-fold |
 | ![](docs/gallery/fold-9.webp) **fold-9** | ![](docs/gallery/fold-11.webp) **fold-11** | ![](docs/gallery/fold-12.webp) **fold-12** |
 | ![](docs/gallery/hofstadter.webp) **hofstadter**<br>Hofstadter's butterfly: Harper-model spectra at rational flux p/q on the square lattice, a scanner sweeping the flux and lighting the bands it crosses | ![](docs/gallery/lieb-fermi.webp) **lieb-fermi**<br>Lieb lattice (three-site square cell) Fermi contours; the whole zone flashes as the energy crosses the flat band | ![](docs/gallery/bloch-oscillation.webp) **bloch-oscillation**<br>Gaussian packets in a tight-binding lattice under a constant field, exact complex propagator; Bloch period 2π/Fa closes the loop, sites coloured by phase |
+
+### VJ: UV ornament
+
+Dense blacklight-neon ornament in the spirit of psytrance stage visuals, each one driven by a real field.
+
+| | | |
+|---|---|---|
+| ![](docs/gallery/textile-tunnel.webp) **textile-tunnel**<br>an exact ray-cylinder tunnel lined with stepped crosses, nested diamonds and bead chains; the wall travels one motif cell per loop, a dashed mandala pulsing at the vanishing point | ![](docs/gallery/kaleido-quasicrystal.webp) **kaleido-quasicrystal**<br>a five-wave quasicrystal folded into a D8 mirror wedge under a log-radial lens, contours in tiers of cyan, magenta, lime and gold | ![](docs/gallery/sprite-lattice.webp) **sprite-lattice**<br>a lattice of textile glyphs whose size is graphene's \|1 + e^{ik₁} + e^{ik₂}\| and whose colour is a second slow field; it slides one period per loop |
+| ![](docs/gallery/fabric.webp) **fabric**<br>an all-over composition: isometric stepped pyramids, striped, scaled and segmented serpents sliding along themselves, rainbow droplet bouquets bobbing on integer beats, lashed eyes and stars, placed by a seeded Poisson disc | ![](docs/gallery/hyperspace.webp) **hyperspace**<br>a starfield seeded on a hex lattice, folded into a D12 kaleidoscope, streaming outward log-radially; the field is self-similar under ×2, so one doubling closes the loop | ![](docs/gallery/flower-mandala.webp) **flower-mandala**<br>a twelve-fold triangular tunnel in magenta and blue double outlines, labyrinth worms and hatching in lime and gold, a ring of dashed circles at the centre; one self-similar step per loop |
+
+### Composed scenes
+
+These are not hand-written loops. Each is an EDN scene in `tessera.compose`: layers of motifs (stepped crosses, pyramids, serpents, droplets, eyes, mandalas) placed by layouts (Poisson disc, lattices, kaleidoscope folds, tunnels, self-similar zooms) and driven by periodic modulators (fields, integer beats, delays). Every modulator is periodic in u, so the loop closes by construction. fabric and kaleido-quasicrystal rebuilt as scenes are bit-exact against the hand-written versions, and `tessera.compose.generate` composes new scenes from a seed.
+
+| | | |
+|---|---|---|
+| ![](docs/gallery/temple.webp) **temple**<br>isometric pyramids and droplet bouquets in a D8 kaleidoscope, sizes driven by a quasicrystal field | ![](docs/gallery/serpent-garden.webp) **serpent-garden**<br>striped, scaled and segmented serpents over a glyph lattice sized by graphene's \|f(k)\|, droplets on delayed beats | ![](docs/gallery/mandala-tunnel.webp) **mandala-tunnel**<br>flower-mandala wedges mapped onto a tunnel wall, bead chains running toward the vanishing point |
+| ![](docs/gallery/generated-2.webp) **generated-2**<br>a seeded composition: glyph kaleidoscope around a petal medallion | ![](docs/gallery/generated-3.webp) **generated-3**<br>a seeded composition: serpents and bouquets over one dim palette-tier background | |
 
 ### Ornament, curves and fractals
 
@@ -117,6 +153,18 @@ Against a local desargues checkout instead of the pinned git sha:
 ```sh
 clojure -Sdeps '{:deps {io.github.mentat-collective/desargues {:local/root "../desargues"}}}' -M:render --preview
 ```
+
+## Live shader layers
+
+Ten loops are also written as desargues field forms in `tessera.layers` (graphene, kagome, square, penrose, heptagonal and octagonal Fermi contours, quasicrystal, lieb, brillouin-zones and kaleido-quasicrystal). Each matches its rendered loop bit for bit and compiles to GPU shaders, so a VJ host can run it live at any resolution with its real parameters as controls:
+
+```clojure
+(require '[tessera.layers :as layers])
+(layers/emit-trama! "out/layers")      ; fosfora trama sources: <id>.wgsl
+(layers/emit-isf! "out/layers/isf")    ; ISF v2 layers for other VJ hosts
+```
+
+Each layer's phase is a rate parameter, so it loops seamlessly at any tempo. Parameter order is part of the layer's interface and only ever grows at the end, because saved bindings refer to slots. For fosfora, point `FOSFORA_TRAMA_DIRS` at `out/layers/`: new files load live and edits hot-swap.
 
 ## Live preview
 
