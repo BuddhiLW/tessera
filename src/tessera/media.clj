@@ -47,6 +47,7 @@
    :lissajous-3d ["Curves" ["lissajous" "3d" "comets" "harmonic"]]
    :lissajous-oscillators ["Curves" ["lissajous" "3d" "oscillator" "harmonic"]]
    :moore-comets ["Curves" ["space-filling" "moore" "comets" "hilbert"]]
+   :harmonograph ["Curves" ["harmonograph" "pendulum" "damped" "lissajous" "comets"]]
 
    ;; Knots: topology in 3D
    :torus-knots ["Knots" ["torus-knot" "3d" "neon" "topology"]]
@@ -139,6 +140,7 @@
    :lissajous-3d "Lissajous Lattice"
    :lissajous-oscillators "Lissajous Oscillators"
    :moore-comets "Moore Curve Comets"
+   :harmonograph "Harmonograph"
    :torus-knots "Torus Knot Garden"
    :hopf-fibration "Hopf Fibration"
    :julia-orbit "Julia Set Orbit"

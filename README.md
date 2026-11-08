@@ -89,6 +89,12 @@ Sphere-traced from distance estimators (`tessera.raymarch`) with fixed step and 
 |---|---|---|
 | ![](docs/gallery/mandelbulb.webp) **mandelbulb**<br>the power-8 bulb turns a seventh of a turn per loop, which is its own symmetry (z⁸ turns by 8/7 of a turn), while the key light goes once around; colour by orbit trap | ![](docs/gallery/quaternion-julia.webp) **quaternion-julia**<br>the slice w = 0 of the quaternion Julia set z ↦ z² + c, c once around a closed ellipse in (1, i, j, k); ice palette by orbit trap, the key light once around | ![](docs/gallery/menger-flight.webp) **menger-flight**<br>down a gallery of the infinite Menger sponge (period 2, four levels), one period per loop, weaving on whole harmonics; a lamp rides with the camera and a warm light burns at the far end |
 
+### Curves and knots
+
+| | | |
+|---|---|---|
+| ![](docs/gallery/harmonograph.webp) **harmonograph**<br>two damped pendulums per axis near 2:3, drawn over their whole decay; each term's phase turns a whole number of cycles per loop, so the woven rose breathes through its family and returns, three pens of light retracing it | | |
+
 ### Band structures and reciprocal space
 
 | | | |
