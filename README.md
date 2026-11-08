@@ -71,8 +71,20 @@ repository holds the loops.
 | ![](docs/gallery/girih-assembly.webp) **girih-assembly**<br>the ceiling comes apart in a radial wave and settles back | ![](docs/gallery/moore-comets.webp) **moore-comets**<br>two closed Moore curves with comets | ![](docs/gallery/julia-orbit.webp) **julia-orbit**<br>the Julia set of c = 0.7885·e^{2πiu} |
 | ![](docs/gallery/quasicrystal.webp) **quasicrystal**<br>seven plane waves, phases once around | ![](docs/gallery/sierpinski-zoom.webp) **sierpinski-zoom**<br>a zoom by its own similarity ratio, 2 | ![](docs/gallery/girih-drift.webp) **girih-drift**<br>six-fold stars drifting one lattice period |
 
-Also `girih-gold`, path traced by LuxCore: gold strands over glazed lapis stars,
-an area lamp orbiting once per loop.
+### Path traced (LuxCore)
+
+<p align="center">
+  <img src="docs/hero/bz-glass.webp" width="70%" alt="Brillouin zones as glass">
+</p>
+
+**bz-glass**: the first Brillouin zones of the simple cubic, BCC, FCC and
+hexagonal lattices (cube, rhombic dodecahedron, truncated octahedron, hexagonal
+prism), cut from their Bragg planes and rendered as dispersive glass with gold
+edges. The high-symmetry points Γ, X, L, W, K and U glow. Only the lamp moves.
+Rendered on the GPU by LuxCore (`tessera.bz3d`).
+
+**girih-gold**: gold strands over glazed lapis stars, an area lamp orbiting
+once per loop.
 
 ## Render
 
@@ -143,6 +155,12 @@ binary).
 ```sh
 clojure -M:render --only girih-gold --format mp4
 ```
+
+A scene's `:config` map is written into LuxCore's render config. `bz-glass`
+uses it to render on the GPU: `renderengine.type = PATHOCL` with the CPU devices
+off, Intel OIDN denoising and a fixed exposure. The first GPU run compiles
+kernels for about two minutes; later runs reuse the cache. On an RTX 4070 laptop
+GPU at 32 spp a frame takes about 5 s at 640x360 and 24 s at 1920x1080.
 
 ## How it was made
 

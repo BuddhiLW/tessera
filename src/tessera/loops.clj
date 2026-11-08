@@ -23,7 +23,8 @@
             [tessera.choreography :as chor]
             [tessera.mechanics :as mech]
             [tessera.orbitals :as orb]
-            [tessera.space3d :as s3d]))
+            [tessera.space3d :as s3d]
+            [tessera.bz3d :as bz3d]))
 
 (set! *warn-on-reflection* true)
 
@@ -198,7 +199,7 @@
 
 (def path-traced
   "Loops rendered by LuxCore (luxcoreconsole on PATH), by id."
-  (array-map :girih-gold girih-gold))
+  (merge (array-map :girih-gold girih-gold) bz3d/loops))
 
 (def catalog
   "Every loop the command line knows: `all`, then `path-traced`."
