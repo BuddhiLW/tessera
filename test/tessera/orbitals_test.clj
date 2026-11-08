@@ -98,16 +98,22 @@
       (is (near? (orbital/drum-amplitude u x y)
                  (orbital/drum-amplitude (inc u) x y))))))
 
-(deftest square-well-normalization
-  (is (= 48 (count (distinct (partition 2 orbital/box-mode-numbers)))))
-  (let [step 0.0025
-        coordinates (map #(* (+ % 0.5) step) (range 400))]
-    (is (near? 1.0
-               (* step step
-                  (reduce + 0.0
-                          (for [x coordinates y coordinates
-                                :let [[re im] (orbital/box-psi 0.31 x y)]]
-                            (+ (* re re) (* im im)))))))))
+(deftest square-well-modes-are-commensurate
+  (is (= 5 (count (distinct (partition 2 orbital/box-mode-numbers)))))
+  ;; Energies m^2+n^2 are integers, so every mode completes an integral
+  ;; number of cycles in one loop: psi(u+1) = psi(u) exactly (to float).
+  ;; Periodicity at points inside the 16 by 9 well.
+  (doseq [u [0.0 0.071 0.25 0.63]
+          [x y] [[1.6 1.8] [8.0 4.5] [11.7 3.7] [14.7 7.8]]]
+    (let [[re im] (orbital/box-psi u x y)
+          [re1 im1] (orbital/box-psi (inc u) x y)]
+      (is (near? re re1))
+      (is (near? im im1))))
+  ;; The wavefunction vanishes on the walls of the well.
+  (doseq [[x y] [[0.0 3.0] [16.0 3.0] [4.0 0.0] [4.0 9.0]]]
+    (let [[re im] (orbital/box-psi 0.31 x y)]
+      (is (near? 0.0 re))
+      (is (near? 0.0 im)))))
 
 (deftest drum-tiles-by-odd-reflection
   (let [fold (fn [q] (let [q (mod q 2.0)] (if (<= q 1.0) q (- 2.0 q))))
