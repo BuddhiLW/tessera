@@ -12,6 +12,8 @@ first.
   <img src="docs/hero/kepler-resonance.webp" width="49%" alt="Kepler resonance">
   <img src="docs/hero/quantum-tapestry.webp" width="49%" alt="quantum tapestry">
   <img src="docs/hero/hopf-fibration.webp" width="49%" alt="Hopf fibration">
+  <img src="docs/hero/caustics.webp" width="49%" alt="caustics">
+  <img src="docs/hero/bz-glass.webp" width="49%" alt="Brillouin zones as glass">
 </p>
 
 Every loop is a function of a phase `u ∈ [0, 1)`. An N-frame video samples
@@ -46,6 +48,7 @@ repository holds the loops.
 | | |
 |---|---|
 | ![](docs/gallery/curl-flow.webp) **curl-flow**<br>an incompressible flow v = curl ψ from eight asymmetric modes with integer temporal frequencies; particles fade in and out as they take each other's places, so the loop closes exactly | ![](docs/gallery/vortex-street.webp) **vortex-street**<br>a von Kármán street of point vortices under the Kirchhoff Hamiltonian H = −(1/4π) Σ ΓᵢΓⱼ log rᵢⱼ with the periodic Green's function; the street advances one period per loop, tracer dye striped by origin |
+| ![](docs/gallery/caustics.webp) **caustics**<br>sunlight refracted through a periodic water surface (twelve waves with integer wavevectors and frequencies), photons splatted onto the pool floor; the folds glow aqua to white-gold | ![](docs/gallery/breathers.webp) **breathers**<br>sine-Gordon breathers u = 4 atan(√(1−ω²)/ω · sin ωt / cosh √(1−ω²)x), exact periodic solitons with commensurate ω |
 
 ### Quantum
 

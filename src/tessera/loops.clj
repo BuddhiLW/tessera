@@ -25,7 +25,8 @@
             [tessera.orbitals :as orb]
             [tessera.space3d :as s3d]
             [tessera.bz3d :as bz3d]
-            [tessera.flows :as flows]))
+            [tessera.flows :as flows]
+            [tessera.waves :as waves]))
 
 (set! *warn-on-reflection* true)
 
@@ -189,6 +190,7 @@
    chor/loops
    mech/loops
    flows/loops
+   waves/loops
    orb/loops
    s3d/loops
    recip/symmetry-family
