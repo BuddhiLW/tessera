@@ -33,7 +33,9 @@
             [tessera.vj2 :as vj2]
             [tessera.delays :as delays]
             [tessera.compose.loops :as composed]
-            [tessera.widescreen :as widescreen]))
+            [tessera.widescreen :as widescreen]
+            [tessera.layers :as layers]
+            [desargues.wallpaper.field :as field]))
 
 (set! *warn-on-reflection* true)
 
@@ -194,6 +196,18 @@
    :seconds 8 :fps 15 :size [640 360]
    :scene girih-gold-scene})
 
+(def graphene-zones
+  "The live layer tessera.layers/graphene-zones, rendered offline from the
+   same field form at its default params."
+  (let [layer layers/graphene-zones]
+    {:id :graphene-zones
+     :title (:title layer)
+     :seconds (:period layer) :fps 30 :size [1920 1080] :view (:view layer) :ss 2
+     :field (fn [u] (field/jvm-shader (layers/bind layer u)))
+     :post (fn [_] [{:type :bloom :radius 12 :strength 1.0}
+                    {:type :chroma :shift 2}
+                    {:type :vignette :strength 0.55}])}))
+
 (def all
   "Every loop, by id, in gallery order. Loops laid out for the 16:9 window
    carry a :reframe for wider frames (tessera.widescreen, tessera.frame)."
@@ -202,7 +216,7 @@
     (into (array-map)
           (map (juxt :id identity))
           [neon/neon-pulse neon/neon-khatam
-           recip/graphene-fermi recip/kagome-fermi recip/twisted-bilayer
+           recip/graphene-fermi graphene-zones recip/kagome-fermi recip/twisted-bilayer
            recip/square-fermi recip/penrose-fermi recip/heptagonal-fermi recip/octagonal-fermi])
     chor/loops
     mech/loops

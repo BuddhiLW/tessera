@@ -77,10 +77,16 @@
         (for [l ports/layers]
           [(:id l) (mapv #(assoc (parity l %) :u %) phases)])))
 
-(deftest registered-after-the-first-ten
-  (let [ids (mapv :id layers/layers)]
-    (is (= (mapv :id ports/layers) (subvec ids 10)))
-    (is (= 10 (count (remove (set (map :id ports/layers)) ids))))
+(deftest registered-after-the-own-layers
+  ;; Ports are the registry's tail; tessera's own layers come first, the
+  ;; original ten in their published order (new own layers append after them).
+  (let [ids (mapv :id layers/layers)
+        n-own (- (count ids) (count ports/layers))]
+    (is (= (mapv :id ports/layers) (subvec ids n-own)))
+    (is (= [:graphene_fermi :kagome_fermi :square_fermi :penrose_fermi :heptagonal_fermi
+            :octagonal_fermi :quasicrystal :lieb_fermi :brillouin_zones :kaleido_quasicrystal]
+           (subvec ids 0 10)))
+    (is (<= 10 n-own))
     (is (apply distinct? ids))
     (is (= (set (keys expected-param-order)) (set (map :id ports/layers))))
     (is (= (set (keys ports/source-loops)) (set (map :id ports/layers))))
