@@ -352,3 +352,34 @@
    implicitly slot 0; no local :params adapter or local dependency needed."
   [dir]
   (emit/emit-all! (mapv #(assoc % :target :trama) layers) dir))
+
+(def effects
+  "fosfora layer-effect metadata per layer id: the catalog display name (a
+   preset key: STABLE, never rename) and a short description. Names are
+   checked against fosfora's built-ins by desargues.wallpaper.pfx."
+  (array-map
+   :graphene_fermi {:name "Graphene Fermi" :description "Graphene band energy contours rising from the Dirac points."}
+   :kagome_fermi {:name "Kagome Fermi" :description "Fermi contours of the corner-sharing triangle (kagome) lattice."}
+   :square_fermi {:name "Square Fermi" :description "Square-lattice Fermi surfaces: four-fold diamonds."}
+   :penrose_fermi {:name "Penrose Fermi" :description "Five-fold quasicrystal contours that never repeat."}
+   :heptagonal_fermi {:name "Heptagonal Fermi" :description "Seven-fold contours: a symmetry no crystal can have."}
+   :octagonal_fermi {:name "Octagonal Fermi" :description "Eight-fold Ammann-Beenker quasicrystal contours."}
+   :quasicrystal {:name "Quasicrystal" :description "Seven plane waves: a quasicrystal breathing."}
+   :lieb_fermi {:name "Lieb Fermi" :description "Lieb lattice: four-fold Fermi contours and flat-band polarization."}
+   :brillouin_zones {:name "Brillouin Zones" :description "Brillouin zones of the hexagonal lattice as stained glass."}
+   :kaleido_quasicrystal {:name "Kaleido Quasicrystal" :description "D8 kaleidoscope of five-wave contours through a log radial lens."}))
+
+(defn pfx-layer
+  "Layer `l` as a fosfora layer-effect spec (:target :pfx) with its
+   `effects` display name and description, author tessera, category
+   pattern. Params and their order are the trama ones, untouched."
+  [l]
+  (assoc l :target :pfx
+         :pfx (merge {:author "tessera" :category "pattern"} (effects (:id l)))))
+
+(defn emit-pfx!
+  "Emit one fosfora layer effect per layer into dir (e.g. \"out/effects\"):
+   <id>.pfx + <id>.wgsl, flat. Keep it apart from the trama folder, where a
+   .wgsl is routed to the trama reloader. Returns {id Result}."
+  [dir]
+  (emit/emit-all! (mapv pfx-layer layers) dir))
