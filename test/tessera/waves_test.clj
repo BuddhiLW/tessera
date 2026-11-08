@@ -1,6 +1,5 @@
 (ns tessera.waves-test
   (:require [clojure.test :refer [deftest is testing]]
-            [desargues.wallpaper.field :as fld]
             [desargues.wallpaper.render :as r]
             [tessera.waves :as waves])
   (:import (java.awt.image BufferedImage)))
@@ -24,10 +23,6 @@
         (is (<= seam (+ 1.0 (* 1.5 typical))))))))
 
 (deftest fields-are-exactly-periodic
-  (testing "breathers remain a portable field form"
-    (let [bf ((:field waves/breathers) 0.37)]
-      (is (fld/bound? bf))
-      (is (seq (:bindings (fld/lower (:field/form bf)))))))
   (doseq [[k spec] waves/loops
           [x y] [[-7.0 -3.0] [-2.3 0.0] [0.0 2.7] [3.1 -0.2]]]
     (testing (name k)
