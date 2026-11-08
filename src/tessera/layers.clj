@@ -326,6 +326,13 @@
    :quantum_carpet "Samples a per-frame precomputed raster; outside the scalar field-only port."
    :girih "Frame/vector painter, not a per-pixel scalar field."})
 
+(def follow-ups
+  "Known live-host considerations, without changing the parameter-slot ABI."
+  {:kaleido_quasicrystal
+   "fold_order is clamped and floored in the field. desargues c3523fc ParamSpec is closed (default/min/max/label only) and trama hardcodes integers=[], so an integer slider needs upstream :integer? metadata support. Then emit integers=[fold_order] without changing the slot."
+   :brillouin_zones
+   "The exact 312-plane finite sum emits about 65 KB of WGSL. Naga accepts it, but GPU compilation can hitch on first load and the per-pixel cost is high at 2560x1080. The scalar field DSL has no constant arrays/indexing/loops; retain this parity-exact version until those primitives exist upstream."})
+
 (defn bind
   "Bind a layer's field at phase u, optionally overriding named math params.
    Overrides do not change the published slot order."
@@ -335,14 +342,13 @@
          values (merge defaults overrides {'u u})]
      (apply field/bind (:form layer) (map values (get-in layer [:form :params]))))))
 
-(defn isf-layer
-  "TEMPORARY compatibility adapter for desargues 3c36c84's map-only emitter.
-   The form's ordered params, not hash-map iteration, drive its ISF inputs.
-   Remove this conversion when desargues accepts the native ordered vector."
-  [layer]
-  (update layer :params #(into {} %)))
-
 (defn emit-isf!
   "Emit ISF and plain GLSL files for every live layer into dir."
   [dir]
-  (emit/emit-all! (mapv isf-layer layers) dir))
+  (emit/emit-all! layers dir))
+
+(defn emit-trama!
+  "Emit one fosfora trama WGSL source per layer into dir. loop_rate is
+   implicitly slot 0; no local :params adapter or local dependency needed."
+  [dir]
+  (emit/emit-all! (mapv #(assoc % :target :trama) layers) dir))

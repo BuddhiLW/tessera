@@ -11,7 +11,8 @@
             [tessera.loops :as loops]
             [tessera.vj :as vj]
             [clojure.data.json :as json]
-            [clojure.string :as str])
+            [clojure.string :as str]
+            [desargues.wallpaper.wgsl :as wgsl])
   (:import (java.awt.image BufferedImage)))
 
 (def phases [0.0 0.3 0.7])
@@ -92,12 +93,12 @@
     (testing (name (:id l))
       (is (fn? (field/jvm-shader (layers/bind l 0.0))))
       (is (result/ok? (field/source :glsl (:form l) {})))
-      (is (result/ok? (emit/compiled (layers/isf-layer l)))))))
+      (is (result/ok? (emit/compiled l))))))
 
 (deftest isf-structure-and-input-order
   (doseq [l layers/layers]
     (testing (name (:id l))
-      (let [compiled (emit/compiled (layers/isf-layer l))
+      (let [compiled (emit/compiled l)
             text (when (result/ok? compiled) (emit/isf (:ok compiled)))
             header-text (when text (second (re-find #"(?s)^/\*(.*?)\*/" text)))
             header (when header-text (json/read-str header-text))]
@@ -107,6 +108,37 @@
         (is (= (name (:id l)) (get-in header ["DESARGUES" "id"])))
         (is (str/includes? text "void main()"))
         (is (str/includes? text "vec4(clamp(desargues_c, 0.0, 1.0), 1.0)"))))))
+
+(deftest trama-structure-and-slot-order
+  (doseq [l layers/layers]
+    (testing (name (:id l))
+      (let [files (emit/layer-files (assoc l :target :trama))
+            _ (is (result/ok? files))
+            text (get (:ok files) (str (name (:id l)) ".wgsl"))
+            header (json/read-str (second (re-find #"(?s)^/\*! trama\s+(.*?)\*/" text)))]
+        (is (= #{"name" "id" "kind" "inputs" "params" "rates" "integers"} (set (keys header))))
+        (is (= "source" (get header "kind")))
+        (is (= 0 (get header "inputs")))
+        (is (= (name (:id l)) (get header "id")))
+        (is (= (into ["loop_rate"] (map name (expected-param-order (:id l))))
+               (mapv #(get % "name") (get header "params"))))
+        (is (<= (count (get header "params")) 16))
+        (is (= ["loop_rate"] (get header "rates")))
+        (is (str/includes? text (str "// desargues: blend=" (name (:blend l)))))
+        (is (str/includes? text "fract(param(0u) /"))
+        (is (not (str/includes? text "u.time")))
+        (is (str/includes? text "vec4f(clamp(desargues_c, vec3f(0.0), vec3f(1.0)), 1.0)"))))))
+
+(deftest wgsl-expression-tree-agrees-with-jvm
+  ;; CPU interpretation of exactly the emitted WGSL IR; not a GPU claim.
+  (doseq [l layers/layers
+          :let [compiled (wgsl/ir (:form l))
+                tree (:ok compiled)]]
+    (is (result/ok? compiled))
+    (doseq [u phases x [-3.17 0.0 2.23] y [-1.12 0.17 1.83]
+            :let [bf (layers/bind l u) shader (field/jvm-shader bf)]]
+      (is (= (.invokePrim ^clojure.lang.IFn$DDL shader (double x) (double y))
+             (apply field/pack (wgsl/interpret tree x y (:field/args bf))))))))
 
 (deftest field-raster-parity
   (doseq [l layers/layers u phases]
@@ -121,3 +153,13 @@
       (let [{:keys [mean max]} (parity l u [192 108] 2)]
         (is (< mean 1.0))
         (is (<= max 1))))))
+
+(defn graphene-shipped-difference
+  "Separate audit of the intentional a=4pi/3 correction versus shipped 4.2."
+  []
+  (mapv (fn [u]
+          (assoc (channel-diff
+                  (raster (layers/bind layers/graphene-fermi u) [8.0 4.5] parity-size 1)
+                  (raster ((:field reciprocal/graphene-fermi) u) [8.0 4.5] parity-size 1))
+                 :u u))
+        phases))
