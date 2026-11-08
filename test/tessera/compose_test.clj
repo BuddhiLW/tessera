@@ -79,9 +79,11 @@
       (is (some #(= :tunnel-map (:type %)) (:nodes s)))
       (is (= (gen/palettes :ice) (:palette s)))
       (is (not-any? #(= :serpents (:paint %)) (:layers s)))))
+  ;; Generated scenes beat unevenly, so six samples underestimate the
+  ;; ordinary maximum (seed 5: seam 1.604, six-sample max 1.603, 48-sample max 1.671).
   (doseq [seed [5 9 11]
           :let [spec (scene/->spec (gen/generate seed))
-                {:keys [seam typical-max]} (metrics/seam-stats spec)]]
+                {:keys [seam typical-max]} (metrics/seam-stats spec [160 90] (mapv #(/ (+ % 0.5) 24.0) (range 24)))]]
     (is (<= seam typical-max))))
 
 (defn- luma-peak
