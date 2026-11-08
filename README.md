@@ -93,7 +93,7 @@ Sphere-traced from distance estimators (`tessera.raymarch`) with fixed step and 
 
 | | | |
 |---|---|---|
-| ![](docs/gallery/harmonograph.webp) **harmonograph**<br>two damped pendulums per axis near 2:3, drawn over their whole decay; each term's phase turns a whole number of cycles per loop, so the woven rose breathes through its family and returns, three pens of light retracing it | | |
+| ![](docs/gallery/harmonograph.webp) **harmonograph**<br>two damped pendulums per axis near 2:3, drawn over their whole decay; each term's phase turns a whole number of cycles per loop, so the woven rose breathes through its family and returns, three pens of light retracing it | ![](docs/gallery/spirograph.webp) **spirograph**<br>hypotrochoids with whole gear ratios R/r = p/q, each turning by its own symmetry angle 2π/p, its pen arm breathing; the comets ride the turn's shift in parameter, so they return to the same places; a wider frame gains columns of gears | |
 
 ### Band structures and reciprocal space
 

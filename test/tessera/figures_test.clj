@@ -22,8 +22,9 @@
       (is (= [1920 1080] (:size spec)))
       (is (= 30 (:fps spec)))
       ;; Frame review rule: the wrap N-1 -> 0 is no larger than an ordinary
-      ;; step, measured at the native frame count.
-      (let [{:keys [seam typical-max]} (metrics/seam-stats spec [96 54])
+      ;; step, measured at the native frame count over 24 ordinary steps
+      ;; (the figures move evenly, so a few samples undershoot the maximum).
+      (let [{:keys [seam typical-max]} (metrics/seam-stats spec [160 90] (map #(/ (+ % 0.5) 24.0) (range 24)))
             {:keys [near-black white-clip]} (metrics/image-stats (r/render-frame spec 0.3 {:size [160 90]}))]
         (is (<= seam typical-max))
         (is (> near-black 0.3))

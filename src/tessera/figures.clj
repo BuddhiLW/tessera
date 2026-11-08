@@ -23,9 +23,13 @@
 (defn glow-strokes
   "Line shapes of polyline `pts` (scene [x y]) with per-segment brightness
    (bright i) in 0..1 and colour (color i): a wide dim stroke under a thin
-   core, so the figure reads as a lit filament and the comets as hot spots."
-  [pts bright color {:keys [width core] :or {width 2.4 core 1.0}}]
-  (let [segs (map vector (range) pts (rest pts))]
+   core, so the figure reads as a lit filament and the comets as hot spots.
+   :order, a seq of segment indices, sets the drawing order (overlapping
+   translucent strokes composite in order); default along the polyline."
+  [pts bright color {:keys [width core order] :or {width 2.4 core 1.0}}]
+  (let [pts (vec pts)
+        segs (map (fn [i] [i (nth pts i) (nth pts (inc i))])
+                  (or order (range (dec (count pts)))))]
     (concat
      (for [[i a b] segs :let [k (double (bright i))]]
        {:node :line :from a :to b :opacity (+ 0.10 (* 0.30 k))
@@ -79,6 +83,110 @@
                   {:type :chroma :shift 2}
                   {:type :vignette :strength 0.55}])})
 
+;; ── Spirograph ───────────────────────────────────────────────────────────
+
+(def spiro-gears
+  "Hypotrochoids [R r d]: a wheel of radius r rolling inside a ring of
+   radius R, the pen d from the wheel's centre. With R/r = p/q in lowest
+   terms the curve closes after q turns of the wheel and has p-fold
+   symmetry. Listed in the order the grid is filled, centre column first."
+  [[7 2 1.5] [11 4 3.2] [5 3 2.2] [8 3 2.6] [9 4 2.4] [13 5 3.4]
+   [10 3 2.4] [12 5 3.0] [7 3 2.1] [11 3 2.6] [9 2 1.6] [13 4 3.0]])
+
+(defn- gcd [a b] (if (zero? b) a (recur b (mod a b))))
+
+(defn spiro-cells
+  "Grid cells for a window `half-width` wide either side: columns 5 apart
+   about the centre, two rows, each cell given a gear in order. A wider
+   window continues the lattice: it gains every column whose figure
+   reaches into it (centre within half-width + 0.9), the middle three
+   kept where they were, so 2560 x 1080 shows two more columns at the
+   edges, as a lattice loop shows more cells."
+  [half-width]
+  (let [cols (long (Math/floor (/ (+ (double half-width) 0.9) 5.0)))
+        xs (sort-by #(Math/abs (double %)) (for [c (range (- cols) (inc cols))] (* 5.0 c)))]
+    (vec (map-indexed (fn [i [x y]]
+                        {:gear (nth spiro-gears (mod i (count spiro-gears)))
+                         :centre [x y] :phase (lp/frac (* 0.61803398875 i))})
+                      (for [x xs y [1.9 -1.9]] [x y])))))
+
+(defn spiro-point
+  "Point of hypotrochoid [R r d0] with pen arm d at s in [0, 1) (one closed
+   traversal), scaled to radius about 1.6 and turned by `turn` about its
+   centre."
+  [[R r d0] d turn [cx cy] s]
+  (let [q (quot r (gcd R r))
+        t (* lp/tau q (double s))
+        k (/ (- R r) (double r))
+        x (+ (* (- R r) (Math/cos t)) (* d (Math/cos (* k t))))
+        y (- (* (- R r) (Math/sin t)) (* d (Math/sin (* k t))))
+        sc (/ 1.62 (+ (- R r) d0))
+        c (Math/cos turn) sn (Math/sin turn)]
+    [(+ cx (* sc (- (* c x) (* sn y)))) (+ cy (* sc (+ (* sn x) (* c y))))]))
+
+(def spiro-palette (pal/around (pal/scheme :yellow-magenta-cyan)))
+
+(defn spiro-shift
+  "The parameter shift tau = k/p (k in [0, p)) by which turning hypotrochoid
+   `gear` by `sign` 2 pi/p maps it onto itself: turn(c(s)) = c(s + tau).
+   Found by testing each k on a few sample points."
+  [[R r d0 :as gear] sign]
+  (let [p (quot R (gcd R r))
+        turn (* sign (/ lp/tau p))
+        err (fn [k] (reduce + (for [s [0.013 0.271 0.538 0.804]
+                                    :let [[x0 y0] (spiro-point gear d0 turn [0.0 0.0] s)
+                                          [x1 y1] (spiro-point gear d0 0.0 [0.0 0.0] (+ s (/ (double k) p)))]]
+                                (Math/hypot (- x0 x1) (- y0 y1)))))]
+    (/ (double (apply min-key err (range p))) p)))
+
+(defn spirograph-frame
+  "The cells at phase u: each figure turns by its symmetry angle 2 pi/p per
+   loop (alternate cells counter-rotating), its pen arm breathes on one
+   cycle, and two comets run its closed path. The turn maps the curve onto
+   itself shifted in parameter by tau (`spiro-shift`), so comets and colour
+   are keyed on s + tau u: at u = 1 every vertex carries the light its new
+   position had at u = 0, and frame N is frame 0."
+  [cells u]
+  (let [u (double u)]
+    {:background "#000000"
+     :shapes
+     (vec (mapcat
+           (fn [{[R r d0 :as gear] :gear :keys [centre phase]} sign]
+             (let [p (quot R (gcd R r))
+                   tau (spiro-shift gear sign)
+                   turn (* sign (/ lp/tau p) u)
+                   d (* d0 (+ 1.0 (* 0.16 (Math/sin (* lp/tau (+ u phase))))))
+                   ;; a multiple of p, so the turned vertices are the same
+                   ;; set shifted by tau
+                   n (* p (long (Math/ceil (/ 900.0 p))))
+                   pts (mapv #(spiro-point gear d turn centre (/ (double %) n)) (range (inc n)))
+                   s-of (fn [i] (+ (/ (double i) n) (* tau u)))
+                   bright (fn [i] (+ 0.12 (* 0.88 (comets (+ u phase) 2 (s-of i) 0.09))))
+                   color (fn [i] (hex (pal/at spiro-palette (+ phase (s-of i) u))))
+                   ;; draw in order of the curve's own parameter, which the
+                   ;; turn preserves, so overlaps composite the same way at
+                   ;; u = 0 and u = 1
+                   k0 (long (Math/round (* tau u n)))
+                   order (map #(mod (- % k0) n) (range n))]
+               (glow-strokes pts bright color {:width 1.2 :core 1.0 :order order})))
+           cells (cycle [1.0 -1.0])))}))
+
+(defn spirograph-at
+  "The spirograph over a window of half-width `half-width`."
+  [half-width]
+  (let [cells (spiro-cells half-width)]
+    {:id :spirograph
+     :title "Spirograph: hypotrochoids, each turning by its own symmetry"
+     :seconds 16 :fps 30 :size [1920 1080] :view view
+     :frame (fn [u] (spirograph-frame cells u))
+     :post (fn [_] [{:type :bloom :radius 12 :strength 1.1}
+                    {:type :chroma :shift 2}
+                    {:type :vignette :strength 0.5}])}))
+
+(def spirograph
+  (assoc (spirograph-at (/ (first view) 2.0))
+         :reframe (fn [[w _]] (spirograph-at (/ (double w) 2.0)))))
+
 (def loops
   "The curve and knot loops, by id."
-  (array-map :harmonograph harmonograph))
+  (array-map :harmonograph harmonograph :spirograph spirograph))
