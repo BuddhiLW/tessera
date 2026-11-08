@@ -68,6 +68,23 @@
       (is (< (Math/abs (- t t1 1.0)) 1.0e-12))
       (is (= z z1)))))
 
+(deftest dihedral-fold-is-the-d8-quotient
+  (doseq [[x y] [[0.6 1.1] [-0.8 0.31] [1.7 -0.42]]]
+    (let [[a b] (vj/dihedral-fold 8 x y)
+          theta (/ Math/PI 4.0)
+          xr (- (* x (Math/cos theta)) (* y (Math/sin theta)))
+          yr (+ (* x (Math/sin theta)) (* y (Math/cos theta)))
+          folded-turn (vj/dihedral-fold 8 xr yr)
+          folded-reflection (vj/dihedral-fold 8 x (- y))]
+      (is (< (Math/abs (- (Math/hypot a b) (Math/hypot x y))) 1.0e-12))
+      (is (<= 0.0 (Math/atan2 b a) (/ Math/PI 8.0)))
+      (doseq [[p q] [[folded-turn [a b]] [folded-reflection [a b]]]]
+        (is (< (apply max (map #(Math/abs (- %1 %2)) p q)) 1.0e-12)))))
+  (is (thrown? clojure.lang.ExceptionInfo (vj/dihedral-fold 1 0.2 0.1)))
+  (let [f (vj/kaleido-shader 0.3)]
+    (doseq [[x y] [[0.6 1.1] [-0.8 0.31] [1.7 -0.42]]]
+      (is (= (f x y) (f x (- y)))))))
+
 (deftest every-vj-loop-is-black-ground-saturated-and-seamless
   (doseq [[id spec] vj/loops]
     (testing (name id)

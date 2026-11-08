@@ -118,6 +118,78 @@
    :seconds 18 :fps 30 :size [1920 1080] :view [8.0 4.5] :ss 3
    :field tunnel-shader})
 
+(defn dihedral-fold
+  "Canonical point under D_n, reflection mirrors separated by pi/n.
+   The result has polar angle in [0,pi/n], preserving radial distance.
+   This is a stationary mirror quotient, not an animated rotation."
+  [n x y]
+  (let [n (long n) x (double x) y (double y)]
+    (when (< n 2) (throw (ex-info "D_n needs n>=2" {:n n})))
+    (let [half (/ Math/PI n) sector (* 2.0 half)
+          angle (Math/abs (- (mod (+ (Math/atan2 y x) half) sector) half))
+          radius (Math/hypot x y)]
+      [(* radius (Math/cos angle)) (* radius (Math/sin angle))])))
+
+(defn kaleido-shader
+  "D8 mirror-folded five-wave interference through a logarithmic radial lens.
+   The Jacobian of rho=3.2 log(1+2r) makes small centre cells grow at the edge.
+   Paired cyan/magenta level lines ride the real quasicrystal field, above a
+   stationary triangular double-line net. Lime meanders and gold beads fill
+   the net cells; time changes wave phases and light, never the mirror axes."
+  [u]
+  (let [u (double u) phase (* lp/tau u)
+        dirs (double-array (mapcat (fn [j]
+                                    [(Math/cos (* lp/tau (/ j 5.0)))
+                                     (Math/sin (* lp/tau (/ j 5.0)))]) (range 5)))
+        pulse (+ 0.72 (* 0.28 (lp/wave (* 2.0 u))))]
+    (fn ^long [^double x ^double y]
+      (let [radius (Math/hypot x y)
+            half (/ Math/PI 8.0)
+            angle (Math/abs (- (mod (+ (Math/atan2 y x) half) (* 2.0 half)) half))
+            rho (* 3.2 (Math/log1p (* 2.0 radius)))
+            px (* rho (Math/cos angle)) py (* rho (Math/sin angle))
+            ;; Periodic phases on actual equal-magnitude plane waves.
+            field (loop [j 0 sum 0.0]
+                    (if (< j 5)
+                      (recur (inc j)
+                             (+ sum (Math/cos (+ (* 2.6 (+ (* px (aget dirs (* 2 j)))
+                                                            (* py (aget dirs (inc (* 2 j)))))) phase))))
+                      (* 0.5 sum)))
+            contour (- (lp/frac (* 1.4 field)) 0.5)
+            cyan-line (glow (- contour 0.075) 0.030)
+            magenta-line (glow (+ contour 0.075) 0.030)
+            ;; A2 reciprocal coordinates: three 60-degree line families.
+            g1 (* 0.78 px) g2 (* 0.78 (+ (* 0.5 px) (* 0.866025403784 py)))
+            g3 (- g1 g2)
+            d1 (Math/abs (- (lp/frac g1) 0.5))
+            d2 (Math/abs (- (lp/frac g2) 0.5))
+            d3 (Math/abs (- (lp/frac g3) 0.5))
+            grid-distance (min d1 d2 d3)
+            grid-outer (glow (- grid-distance 0.038) 0.012)
+            grid-inner (glow (- grid-distance 0.075) 0.009)
+            ;; Triangle-wave hatching makes nested chevrons, not filled tiles.
+            meander (glow (- (lp/frac (+ (* 5.0 d1) (* 5.0 d2))) 0.5) 0.034)
+            hatch (* 0.28 meander (min 1.0 (* 9.0 grid-distance)))
+            bx (- (lp/frac (* 5.0 g1)) 0.5)
+            beads (* (glow (- d2 0.025) 0.016) (Math/exp (* -85.0 bx bx)))
+            fade (min 1.0 (* 3.0 radius))
+            blue (* fade 0.54 grid-outer)
+            cyan (* fade (+ (* 0.91 cyan-line) (* 0.60 grid-inner)))
+            magenta (* fade (+ (* 0.80 magenta-line) (* 0.30 grid-outer)))
+            lime (* fade pulse hatch)
+            gold (* fade beads (+ 0.55 (* 0.35 (lp/wave (- (* 0.14 rho) u)))))
+            core (glow (- radius 0.17) 0.010)
+            orange (* fade core (+ 0.6 (* 0.3 (lp/wave (* 2.0 u)))))]
+        (neon (+ (* 0.035 blue) (* 0.02 cyan) magenta (* 0.42 lime) gold orange)
+              (+ (* 0.13 blue) (* 0.88 cyan) (* 0.025 magenta) lime (* 0.60 gold) (* 0.15 orange))
+              (+ blue cyan (* 0.93 magenta) (* 0.025 lime) (* 0.02 gold) (* 0.03 orange)))))))
+
+(def kaleido-quasicrystal
+  {:id :kaleido-quasicrystal
+   :title "D8 UV kaleidoscope: five-wave contours through a logarithmic radial lens"
+   :seconds 20 :fps 30 :size [1920 1080] :view [8.0 4.5] :ss 3
+   :field kaleido-shader})
+
 (def loops
   "Specs exported for the coordinator's gallery registry."
-  (into (array-map) (map (juxt :id identity)) [textile-tunnel]))
+  (into (array-map) (map (juxt :id identity)) [textile-tunnel kaleido-quasicrystal]))
