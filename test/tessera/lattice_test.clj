@@ -87,6 +87,33 @@
       (is (every? #(<= -4.000001 % 4.000001) a))
       (is (< (apply max (map #(Math/abs (- %1 %2)) a b)) 1.0e-10)))))
 
+(defn site-stats
+  "Direct Bloch site samples: Rec.709 peak and mean HSV saturation of lit
+   dots (max RGB>0.25). These sample dots, not the deliberately dim halos."
+  [u]
+  (let [shader (lattice/bloch-shader u)
+        values (for [j (range -18 19) i (range -33 34)]
+                 (let [c (shader (* 0.12 i) (* 0.12 j))
+                       rgb (mapv #(double (bit-and 255 (bit-shift-right c %))) [16 8 0])
+                       [r g b] rgb v (apply max rgb) lo (apply min rgb)]
+                   {:luminance (/ (+ (* 0.2126 r) (* 0.7152 g) (* 0.0722 b)) 255.0)
+                    :saturation (if (pos? v) (/ (- v lo) v) 0.0)
+                    :value (/ v 255.0)}))
+        lit (filter #(> (:value %) 0.25) values)]
+    {:peak-site-luminance (apply max (map :luminance values))
+     :mean-lit-site-saturation (/ (reduce + (map :saturation lit)) (count lit))
+     :lit-sites (count lit)}))
+
+(deftest exposed-bloch-dots-remain-bright-and-saturated
+  (let [{:keys [peak-site-luminance mean-lit-site-saturation lit-sites]} (site-stats 0.3)]
+    (is (>= peak-site-luminance 0.8))
+    (is (>= mean-lit-site-saturation 0.6))
+    (is (pos? lit-sites)))
+  (let [seed (lattice/bloch-seed 2.04 1.1)
+        a (vec (lattice/bloch-field seed 0.3 2 4.3 64))
+        b (vec (lattice/bloch-field seed 1.3 2 4.3 64))]
+    (is (< (apply max (map #(Math/abs (- %1 %2)) a b)) 1.0e-12))))
+
 (deftest every-lattice-loop-wraps-without-a-visible-seam
   (doseq [[id spec] lattice/loops]
     (testing (name id)

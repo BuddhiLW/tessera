@@ -141,66 +141,67 @@
         (aset result i (+ (* re re) (* im im)))))
     result))
 
-(def ^:private packet-x (delay (bloch-seed 3.4 (/ Math/PI 2.0))))
-(def ^:private packet-y (delay (bloch-seed 3.4 (* 0.35 Math/PI))))
+(def ^:private packet-x (delay (bloch-seed 2.04 (/ Math/PI 2.0))))
+(def ^:private packet-y (delay (bloch-seed 2.04 (* 0.35 Math/PI))))
 
 (defn bloch-shader
-  "Three finite Gaussian packets, with five discrete periodic ghost copies.
-   The dot at each site is coloured by the local phase; the halo is softer.
-   A bounded density exposure keeps the dots visible even at packet peaks.
-   No tiled selection, square cutoffs, hue offsets or chromatic post."
+  "Three tight exact Gaussian packets, five discrete earlier orbit positions.
+   The trail applies 0.5^s AFTER each ghost's density exposure, not before.
+   Dot colour is the site's exact complex phase on a closed integer-frequency
+   violet/cyan/gold palette, resaturated after mixing. No chromatic post."
   [u]
   (let [radius 64 w 73 h 43 spacing 0.12
         centers [[-22 -7 0.0] [0 7 0.33] [22 -5 0.67]]
-        ;; A closed violet -> cyan -> gold -> violet palette. Phase is in turns.
-        p (pal/cosine [0.58 0.55 0.67] [0.32 0.34 0.27]
-                      [1.0 1.0 1.0] [0.10 0.32 0.62])
-        density (double-array (* w h))
-        red (double-array (* w h)) green (double-array (* w h)) blue (double-array (* w h))
-        neutral (double-array (* w h))]
+        p (pal/cosine [0.5 0.5 0.5] [0.5 0.5 0.5]
+                      [1.0 1.0 1.0] [0.0 0.16 0.42])
+        exposure (double-array (* w h)) weights (double-array (* w h))
+        red (double-array (* w h)) green (double-array (* w h)) blue (double-array (* w h))]
     (doseq [[cx cy phase] centers s (range 5)
-            :let [time (- (+ (double u) (double phase)) (* 0.070 s))
+            :let [time (- (+ (double u) (double phase)) (* 0.090 s))
                   weight (Math/pow 0.5 s)
-                  ^doubles fx (bloch-field @packet-x time 1 6.0 radius)
-                  ^doubles fy (bloch-field @packet-y time 2 3.0 radius)]]
+                  ^doubles fx (bloch-field @packet-x time 1 7.5 radius)
+                  ^doubles fy (bloch-field @packet-y time 2 4.3 radius)]]
       (dotimes [j h]
         (dotimes [i w]
           (let [n (+ radius (- i 36 (long cx))) m (+ radius (- j 21 (long cy)))
                 ax (aget fx (* 2 n)) bx (aget fx (inc (* 2 n)))
                 ay (aget fy (* 2 m)) by (aget fy (inc (* 2 m)))
                 re (- (* ax ay) (* bx by)) im (+ (* ax by) (* bx ay))
-                rho (* weight (+ (* re re) (* im im)))
+                rho (+ (* re re) (* im im))
+                e (* weight 0.98 (- 1.0 (Math/exp (* -115.0 rho))))
                 [cr cg cb] (channels (pal/at p (/ (Math/atan2 im re) lp/tau)))
                 o (+ (* j w) i)]
-            (aset density o (+ (aget density o) rho))
-            (aset red o (+ (aget red o) (* rho (double cr))))
-            (aset green o (+ (aget green o) (* rho (double cg))))
-            (aset blue o (+ (aget blue o) (* rho (double cb))))))))
+            ;; Bounded sum of exposed photons (screen blend), never a white clip.
+            (aset exposure o (- 1.0 (* (- 1.0 (aget exposure o)) (- 1.0 e))))
+            (aset weights o (+ (aget weights o) e))
+            (aset red o (+ (aget red o) (* e (double cr))))
+            (aset green o (+ (aget green o) (* e (double cg))))
+            (aset blue o (+ (aget blue o) (* e (double cb))))))))
     (dotimes [o (* w h)]
-      (let [rho (aget density o)
-            exposure (* 0.92 (Math/pow (- 1.0 (Math/exp (* -210.0 rho))) 0.64))
-            scale (/ exposure (+ rho 1.0e-30))]
-        (aset neutral o exposure)
-        (aset red o (* scale (aget red o)))
-        (aset green o (* scale (aget green o)))
-        (aset blue o (* scale (aget blue o)))))
+      (let [weight (+ 1.0e-30 (aget weights o))
+            cr (/ (aget red o) weight) cg (/ (aget green o) weight) cb (/ (aget blue o) weight)
+            lo (min cr cg cb) hi (max cr cg cb) span (max 1.0e-12 (- hi lo))
+            e (* 0.94 (- 1.0 (Math/pow (- 1.0 (aget exposure o)) 1.4)))
+            scale (/ (* e 0.97) span)]
+        ;; HSV saturation .97, value=.94*exposure; hue preserved, no grey mix.
+        (aset red o (+ (* 0.03 e) (* scale (- cr lo))))
+        (aset green o (+ (* 0.03 e) (* scale (- cg lo))))
+        (aset blue o (+ (* 0.03 e) (* scale (- cb lo))))))
     (fn ^long [^double x ^double y]
       (let [gx (+ 36.0 (/ x spacing)) gy (+ 21.0 (/ y spacing))
             i (max 0 (min (- w 2) (long (Math/floor gx))))
             j (max 0 (min (- h 2) (long (Math/floor gy))))
             tx (- gx i) ty (- gy j) o (+ (* j w) i)
             ni (max 0 (min (dec w) (long (Math/rint gx))))
-            nj (max 0 (min (dec h) (long (Math/rint gy))))
-            site (+ (* nj w) ni)
+            nj (max 0 (min (dec h) (long (Math/rint gy)))) site (+ (* nj w) ni)
             dx (- gx ni) dy (- gy nj)
-            bead (Math/exp (* -65.0 (+ (* dx dx) (* dy dy))))
+            bead (Math/exp (* -35.0 (+ (* dx dx) (* dy dy))))
             sample (fn ^double [^doubles a]
                      (+ (* (- 1.0 ty) (+ (* (- 1.0 tx) (aget a o)) (* tx (aget a (inc o)))))
                         (* ty (+ (* (- 1.0 tx) (aget a (+ o w))) (* tx (aget a (+ o w 1)))))))
-            glow (* 0.14 (sample neutral))
-            grid (* 0.012 bead)
+            grid (* 0.010 bead)
             paint (fn ^double [^doubles a]
-                    (+ grid glow (* 0.11 (sample a)) (* 0.75 bead (aget a site))))]
+                    (+ grid (* 0.13 (sample a)) (* 0.87 bead (aget a site))))]
         (r/rgb (paint red) (paint green) (paint blue))))))
 
 (def bloch-oscillation
@@ -208,8 +209,8 @@
    :title "Bloch oscillations: exact square-lattice packets, commensurate forces 1:2"
    :seconds 20 :fps 30 :size [1920 1080] :view [8.0 4.5] :ss 2
    :field bloch-shader
-   :post (fn [_] [{:type :bloom :radius 10 :strength 1.1}
-                  {:type :vignette :strength 0.40}])})
+   :post (fn [_] [{:type :bloom :radius 8 :strength 0.55}
+                  {:type :vignette :strength 0.18}])})
 
 (defn harper-edges
   "Band edges of the square-lattice Harper model at rational flux p/q.
@@ -251,7 +252,7 @@
             :when (= 1 (gcd p q))
             :let [alpha (/ (double p) q) energies (harper-edges p q)]
             e energies flux [alpha (- 1.0 alpha)] sign [-1.0 1.0]
-            :let [i (long (Math/round (* (dec w) flux)))
+            :let [i (long (Math/round (double (* (dec w) flux))))
                   j (long (Math/round (* (dec h) (+ 0.5 (/ (* sign (double e)) 8.5)))))]
             [dx dy weight] kernels
             :let [x (+ i (long dx)) y (+ j (long dy))]
