@@ -129,6 +129,42 @@
         (is (not (str/includes? text "u.time")))
         (is (str/includes? text "vec4f(clamp(desargues_c, vec3f(0.0), vec3f(1.0)), 1.0)"))))))
 
+(def expected-effect-names
+  ;; Catalog titles are fosfora preset keys: never rename.
+  {:graphene_fermi "Graphene Fermi" :kagome_fermi "Kagome Fermi" :square_fermi "Square Fermi"
+   :penrose_fermi "Penrose Fermi" :heptagonal_fermi "Heptagonal Fermi" :octagonal_fermi "Octagonal Fermi"
+   :quasicrystal "Quasicrystal" :lieb_fermi "Lieb Fermi" :brillouin_zones "Brillouin Zones"
+   :kaleido_quasicrystal "Kaleido Quasicrystal"})
+
+(deftest pfx-names-and-slot-order
+  (is (= (map :id layers/layers) (keys layers/effects)))
+  (is (= (count expected-effect-names) (count (distinct (vals expected-effect-names)))))
+  (doseq [l layers/layers]
+    (testing (name (:id l))
+      (let [id (name (:id l))
+            files (emit/layer-files (layers/pfx-layer l))
+            _ (is (result/ok? files))
+            pfx (json/read-str (get (:ok files) (str id ".pfx")))
+            wgsl-text (get (:ok files) (str id ".wgsl"))
+            n (inc (count (expected-param-order (:id l))))]
+        (is (= [(str id ".pfx") (str id ".wgsl")] (keys (:ok files))))
+        (is (= ["name" "author" "description" "shader" "category" "inputs" "rates"]
+               (vec (keys (json/read-str (get (:ok files) (str id ".pfx")) :key-fn identity)))))
+        (is (= (expected-effect-names (:id l)) (get pfx "name")))
+        (is (= ["tessera" (str id ".wgsl") "pattern" ["loop_rate"]] (mapv pfx ["author" "shader" "category" "rates"])))
+        (is (seq (get pfx "description")))
+        (is (= (into ["loop_rate"] (map name (expected-param-order (:id l))))
+               (mapv #(get % "name") (get pfx "inputs"))))
+        (testing "inputs are exactly the trama params"
+          (let [trama (get (:ok (emit/layer-files (assoc l :target :trama))) (str id ".wgsl"))]
+            (is (= (get (json/read-str (second (re-find #"(?s)^/\*! trama\s+(.*?)\*/" trama))) "params")
+                   (get pfx "inputs")))))
+        (testing "the integral of loop_rate is read from the extra slot after the params"
+          (is (str/includes? wgsl-text (str "fract(param(" n "u) /")))
+          (is (not (str/includes? wgsl-text "param(0u)")))
+          (is (<= (inc n) 16)))
+        (is (not (str/includes? wgsl-text "/*! trama")))))))
+
 (deftest wgsl-expression-tree-agrees-with-jvm
   ;; CPU interpretation of exactly the emitted WGSL IR; not a GPU claim.
   (doseq [l layers/layers
