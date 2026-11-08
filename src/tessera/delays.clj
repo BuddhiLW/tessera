@@ -452,7 +452,130 @@
    :post (fn [_] [{:type :bloom :radius 7 :strength 0.45}
                   {:type :vignette :strength 0.25}])})
 
+;; ---------------------------------------------------------------------------
+;; 3. delay-mesh: a Gerstner (trochoidal) sea, every mesh vertex a water parcel.
+
+(def gerstner-trains
+  "[direction-angle wavelength temporal-harmonic steepness]. In a Gerstner
+   train every surface parcel runs the SAME circle, delayed by k.x/2pi; m
+   periods per loop, deep-water steepness Q = kA < 1 (no self-crossing)."
+  [[0.35 2.6 2 0.42] [-0.55 1.7 3 0.30] [1.95 1.15 4 0.20]])
+
+(def ^:private ripple
+  "A radial packet from one point: the same orbit f(u - r/L) with an envelope
+   that is itself periodic in its argument, so one ring leaves per loop."
+  {:centre [-1.6 0.6] :wavelength 0.55 :reach 4.0 :amplitude 0.05
+   ;; time origin of the whole sea (u -> u + origin is still 1-periodic):
+   ;; puts the wrap on an ordinary, not a fast, moment of the motion
+   :origin 0.46})
+
+(defn gerstner
+  "[dx dy z] of the parcel at rest position (x, y), loop phase u. Horizontal
+   displacement Q/k along k cos(theta), height Q/k sin(theta), theta =
+   k.x - 2pi m u, summed over trains, plus the radial ripple packet."
+  [x y u]
+  (let [x (double x) y (double y) u (+ (double u) (double (:origin ripple 0.0)))
+        [dx dy z]
+        (reduce (fn [[dx dy z] [ang lam m q]]
+                  (let [k (/ lp/tau (double lam)) a (/ (double q) k)
+                        cx (Math/cos (double ang)) cy (Math/sin (double ang))
+                        th (- (* k (+ (* cx x) (* cy y))) (* lp/tau (long m) u))
+                        c (Math/cos th) s (Math/sin th)]
+                    [(- dx (* a cx s)) (- dy (* a cy s)) (+ z (* a c))]))
+                [0.0 0.0 0.0] gerstner-trains)
+        {[ox oy] :centre lam :wavelength reach :reach amp :amplitude} ripple
+        rx (- x (double ox)) ry (- y (double oy)) r (Math/hypot rx ry)
+        s (- u (/ r (double reach)))
+        q (- (lp/frac s) 0.5)
+        env (* (Math/exp (* -60.0 q q)) (/ 1.0 (Math/sqrt (+ 1.0 (* 2.0 r)))))
+        th (* lp/tau (/ r (double lam)))
+        ;; the packet's carrier is also an orbit in the delayed time s:
+        ;; 7 radial cycles inside one envelope period
+        ph (- th (* lp/tau 7.0 s))
+        a (* (double amp) env)
+        nx (if (> r 1.0e-9) (/ rx r) 0.0) ny (if (> r 1.0e-9) (/ ry r) 0.0)]
+    [(+ dx (* a nx (Math/sin ph))) (+ dy (* a ny (Math/sin ph))) (+ z (* a (Math/cos ph)))]))
+
+(def ^:private mesh-spacing 0.2)
+
+(def ^:private mesh
+  "Triangular lattice vertices (rest positions) and edges [i j]."
+  (delay
+    (let [s mesh-spacing h (* s (Math/sqrt 3.0) 0.5)
+          cols 48 rows 30
+          idx (fn [i j] (+ i (* j cols)))
+          verts (vec (for [j (range rows) i (range cols)]
+                       [(+ (* s (- i (/ cols 2.0))) (if (odd? j) (* 0.5 s) 0.0))
+                        (* h (- j (/ (dec rows) 2.0)))]))
+          edges (vec (concat
+                      (for [j (range rows) i (range (dec cols))] [(idx i j) (idx (inc i) j)])
+                      (for [j (range (dec rows)) i (range cols)] [(idx i j) (idx i (inc j))])
+                      (for [j (range (dec rows)) i (range cols)
+                            :let [i2 (if (odd? j) (inc i) (dec i))]
+                            :when (< -1 i2 cols)]
+                        [(idx i j) (idx i2 (inc j))])))]
+      {:verts verts :edges edges})))
+
+(def mesh-stops
+  "Trough deep blue -> teal -> crest gold, by height: not phase-cycled."
+  [[0.10 0.20 1.00] [0.00 0.85 0.85] [1.00 0.62 0.08]])
+
+(defn- height-colour
+  "OKLab blend through mesh-stops by height t in [0,1], resaturated like
+   cyclic-colour (70% of the minimum channel removed, maximum kept)."
+  [^double t]
+  (let [t (max 0.0 (min 1.0 t)) x (* 2.0 t) i (min 1 (long x)) f (- x i)
+        a (oklab (mesh-stops i)) b (oklab (mesh-stops (inc i)))
+        c (oklab->srgb (mapv #(+ (* (- 1.0 f) (double %1)) (* f (double %2))) a b))
+        hi (double (apply max c)) lo (* 0.85 (double (apply min c)))
+        k (/ hi (max 1.0e-9 (- hi lo)))]
+    (mapv #(* k (- (double %) lo)) c)))
+
+(defn mesh-splats
+  "Thin glowing edges and bead vertices of the displaced mesh. Light grows
+   with height (crests glow, troughs fade) and with local compression of
+   the edge (the trochoid bunches parcels into sharp crests)."
+  [u]
+  (let [{:keys [verts edges]} @mesh
+        moved (mapv (fn [[x y]] (let [[dx dy z] (gerstner x y u)]
+                                  [(+ (double x) dx) (+ (double y) dy) z]))
+                    verts)
+        zmax 0.30 seg 7]
+    (persistent!
+     (reduce
+      (fn [out [i j]]
+        (let [[ax ay az] (moved i) [bx by bz] (moved j)
+              ax (double ax) ay (double ay) bx (double bx) by (double by)
+              zm (* 0.5 (+ (double az) (double bz)))
+              t (+ 0.5 (* 0.5 (/ zm zmax)))
+              len (Math/hypot (- bx ax) (- by ay))
+              squeeze (/ (double mesh-spacing) (max 0.05 len))
+              light (* 0.30 (+ 0.15 (* 0.85 t t)) (Math/pow squeeze 1.5))
+              [cr cg cb] (height-colour t)
+              cr (* light (double cr)) cg (* light (double cg)) cb (* light (double cb))]
+          (reduce (fn [out k]
+                    (let [f (/ (+ 0.5 (double k)) seg)]
+                      (conj! out [(+ ax (* f (- bx ax))) (+ ay (* f (- by ay))) 0.0075 cr cg cb])))
+                  out (range seg))))
+      (reduce (fn [out [x y z]]
+                (let [t (+ 0.5 (* 0.5 (/ (double z) zmax)))
+                      l (* 0.55 (+ 0.1 (* 0.9 t t t)))
+                      [cr cg cb] (height-colour t)]
+                  (conj! out [x y 0.016 (* l (double cr)) (* l (double cg)) (* l (double cb))])))
+              (transient []) moved)
+      edges))))
+
+(def delay-mesh
+  {:id :delay-mesh
+   :title "Delay mesh: a Gerstner sea, every vertex the same water-parcel circle, delayed by k.x"
+   :seconds 20 :fps 30 :size [1920 1080] :view view
+   :frame (fn [_] {:background "#010206" :shapes []})
+   :splat mesh-splats :exposure 2.4
+   :post (fn [_] [{:type :bloom :radius 8 :strength 0.45}
+                  {:type :vignette :strength 0.25}])})
+
 (def loops
   "Loop specs for the coordinator's registry."
   (array-map :delay-pendulums delay-pendulums
-             :noise-flow-lines noise-flow-lines))
+             :noise-flow-lines noise-flow-lines
+             :delay-mesh delay-mesh))
