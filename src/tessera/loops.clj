@@ -28,7 +28,8 @@
             [tessera.flows :as flows]
             [tessera.waves :as waves]
             [tessera.lattice :as lattice]
-            [tessera.vj :as vj]))
+            [tessera.vj :as vj]
+            [tessera.chaos :as chaos]))
 
 (set! *warn-on-reflection* true)
 
@@ -191,6 +192,7 @@
           recip/square-fermi recip/penrose-fermi recip/heptagonal-fermi recip/octagonal-fermi])
    chor/loops
    mech/loops
+   chaos/loops
    flows/loops
    waves/loops
    orb/loops
