@@ -127,7 +127,11 @@
                          :let [c (g/v* zoom (g/v- [(* i cell) (* j cell)] shift))
                                ring (Math/pow (lp/wave (lp/frac (- u (/ (g/vlen c) 6.0)))) 2.0)
                                glow (* b (+ 0.7 (* 0.3 ring)))]
-                         [pts col spacing w] (pulse-outlines c (even? (+ i j)) u (+ i j))
+                         ;; Stagger by i - j. Over one loop the drift carries
+                         ;; cell (i, j) to where (i-1, j-1) began, and that keeps
+                         ;; i - j. With i + j the stagger moved by 2 (0.14 turn
+                         ;; of breathing), so the rosettes jumped at the wrap.
+                         [pts col spacing w] (pulse-outlines c (even? (+ i j)) u (- i j))
                          p (g/beads pts (* zoom spacing) u true)
                          :let [[[x y] s] (place p)]
                          :when (and (< (- xmax) x xmax) (< -2.5 y 2.5))]

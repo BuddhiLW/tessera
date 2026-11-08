@@ -88,6 +88,15 @@
       (is (<= wide (* 1.3 (max 1.0 native)))
           (str id " wraps at ultrawide: wrap/step " wide " vs 16:9 " native)))))
 
+(deftest seam-is-no-bigger-than-a-step
+  ;; Frame-review rule: a loop whose wrap step exceeds its ordinary steps
+  ;; fails. neon-pulse staggered its rosettes by i + j, which the diagonal
+  ;; drift does not preserve; breathers flashed a flooded zero level on the
+  ;; flat u = 0 frame.
+  (doseq [id [:neon-pulse :breathers]]
+    (let [ratio (wrap-ratio (loops/all id) [144 81])]
+      (is (<= ratio 1.0) (str id " wrap/step " ratio)))))
+
 (deftest uw-flag
   (is (= {:uw true :size [2560 1080] :only [:box-modes]}
          (main/parse-args ["--uw" "--only" "box-modes"]))))
