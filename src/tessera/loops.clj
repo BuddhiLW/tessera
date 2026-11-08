@@ -29,7 +29,8 @@
             [tessera.waves :as waves]
             [tessera.lattice :as lattice]
             [tessera.vj :as vj]
-            [tessera.chaos :as chaos]))
+            [tessera.chaos :as chaos]
+            [tessera.vj2 :as vj2]))
 
 (set! *warn-on-reflection* true)
 
@@ -198,6 +199,7 @@
    orb/loops
    lattice/loops
    vj/loops
+   vj2/loops
    s3d/loops
    recip/symmetry-family
    (into (array-map)
