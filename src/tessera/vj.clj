@@ -131,64 +131,79 @@
       [(* radius (Math/cos angle)) (* radius (Math/sin angle))])))
 
 (defn kaleido-shader
-  "D8 mirror-folded five-wave interference through a logarithmic radial lens.
-   The Jacobian of rho=3.2 log(1+2r) makes small centre cells grow at the edge.
-   Paired cyan/magenta level lines ride the real quasicrystal field, above a
-   stationary triangular double-line net. Lime meanders and gold beads fill
-   the net cells; time changes wave phases and light, never the mirror axes."
+  "D8 five-wave interference through rho=3.2 log(1+2r).
+   Three contour levels are bold cyan/magenta; others are thin and dim.
+   The A2 net is secondary electric blue. Priority masks keep lime hatching,
+   bright gold beads and orange-red eyes visibly distinct at intersections.
+   Stationary petalled medallion is brightest; edges gently fall off."
   [u]
   (let [u (double u) phase (* lp/tau u)
         dirs (double-array (mapcat (fn [j]
                                     [(Math/cos (* lp/tau (/ j 5.0)))
                                      (Math/sin (* lp/tau (/ j 5.0)))]) (range 5)))
-        pulse (+ 0.72 (* 0.28 (lp/wave (* 2.0 u))))]
+        pulse (+ 0.85 (* 0.15 (lp/wave (* 2.0 u))))]
     (fn ^long [^double x ^double y]
       (let [radius (Math/hypot x y)
             half (/ Math/PI 8.0)
             angle (Math/abs (- (mod (+ (Math/atan2 y x) half) (* 2.0 half)) half))
             rho (* 3.2 (Math/log1p (* 2.0 radius)))
             px (* rho (Math/cos angle)) py (* rho (Math/sin angle))
-            ;; Periodic phases on actual equal-magnitude plane waves.
             field (loop [j 0 sum 0.0]
                     (if (< j 5)
                       (recur (inc j)
                              (+ sum (Math/cos (+ (* 2.6 (+ (* px (aget dirs (* 2 j)))
                                                             (* py (aget dirs (inc (* 2 j)))))) phase))))
                       (* 0.5 sum)))
-            contour (- (lp/frac (* 1.4 field)) 0.5)
-            cyan-line (glow (- contour 0.075) 0.030)
-            magenta-line (glow (+ contour 0.075) 0.030)
-            ;; A2 reciprocal coordinates: three 60-degree line families.
+            level (* 1.4 field)
+            primary (<= -1.0 (Math/floor level) 1.0)
+            width (if primary 0.052 0.020)
+            weight (if primary 1.18 0.30)
+            contour (- (lp/frac level) 0.5)
+            cyan-line (* weight (glow (- contour 0.085) width))
+            magenta-line (* weight (glow (+ contour 0.085) width))
             g1 (* 0.78 px) g2 (* 0.78 (+ (* 0.5 px) (* 0.866025403784 py)))
             g3 (- g1 g2)
             d1 (Math/abs (- (lp/frac g1) 0.5))
             d2 (Math/abs (- (lp/frac g2) 0.5))
             d3 (Math/abs (- (lp/frac g3) 0.5))
             grid-distance (min d1 d2 d3)
-            grid-outer (glow (- grid-distance 0.038) 0.012)
-            grid-inner (glow (- grid-distance 0.075) 0.009)
-            ;; Triangle-wave hatching makes nested chevrons, not filled tiles.
-            meander (glow (- (lp/frac (+ (* 5.0 d1) (* 5.0 d2))) 0.5) 0.034)
-            hatch (* 0.28 meander (min 1.0 (* 9.0 grid-distance)))
-            bx (- (lp/frac (* 5.0 g1)) 0.5)
-            beads (* (glow (- d2 0.025) 0.016) (Math/exp (* -85.0 bx bx)))
-            fade (min 1.0 (* 3.0 radius))
-            blue (* fade 0.54 grid-outer)
-            cyan (* fade (+ (* 0.91 cyan-line) (* 0.60 grid-inner)))
-            magenta (* fade (+ (* 0.80 magenta-line) (* 0.30 grid-outer)))
-            lime (* fade pulse hatch)
-            gold (* fade beads (+ 0.55 (* 0.35 (lp/wave (- (* 0.14 rho) u)))))
-            core (glow (- radius 0.17) 0.010)
-            orange (* fade core (+ 0.6 (* 0.3 (lp/wave (* 2.0 u)))))]
-        (neon (+ (* 0.035 blue) (* 0.02 cyan) magenta (* 0.42 lime) gold orange)
-              (+ (* 0.13 blue) (* 0.88 cyan) (* 0.025 magenta) lime (* 0.60 gold) (* 0.15 orange))
-              (+ blue cyan (* 0.93 magenta) (* 0.025 lime) (* 0.02 gold) (* 0.03 orange)))))))
+            grid (+ (glow (- grid-distance 0.030) 0.010)
+                    (* 0.65 (glow (- grid-distance 0.065) 0.008)))
+            meander (glow (- (lp/frac (+ (* 3.0 d1) (* 3.0 d2))) 0.5) 0.080)
+            hatch (* meander (min 1.0 (* 7.0 grid-distance)))
+            bx (- (lp/frac (* 3.0 g1)) 0.5)
+            beads (* (glow (- d2 0.026) 0.032) (Math/exp (* -36.0 bx bx)))
+            ex (- (lp/frac g1) 0.5) ey (- (lp/frac g2) 0.5)
+            eyes (Math/exp (* -850.0 (+ (* ex ex) (* ey ey))))
+            eye-rim (* 0.5 (glow (- (+ (Math/abs ex) (* 1.7 (Math/abs ey))) 0.10) 0.016))
+            petal (glow (- radius (+ 0.235 (* 0.026 (Math/cos (* 16.0 angle))))) 0.012)
+            centre (+ (* 1.8 petal) (* 1.2 (glow (- radius 0.148) 0.013)))
+            fade (* (min 1.0 (* 5.0 radius)) (- 1.0 (* 0.065 radius)))
+            mask (* (- 1.0 (* 0.85 hatch)) (- 1.0 beads) (- 1.0 eyes))
+            blue (* fade mask 0.28 grid)
+            cyan (* fade mask cyan-line)
+            magenta (* fade mask magenta-line)
+            lime (* fade pulse 0.82 hatch (- 1.0 beads) (- 1.0 eyes))
+            gold (* fade 1.40 beads)
+            orange (* fade (+ (* 1.5 eyes) eye-rim))]
+        (neon (+ (* 0.025 blue) (* 0.02 cyan) magenta (* 0.40 lime) gold orange (* 0.10 centre))
+              (+ (* 0.10 blue) (* 0.88 cyan) (* 0.025 magenta) lime (* 0.61 gold) (* 0.10 orange) (* 0.85 centre))
+              (+ blue cyan (* 0.93 magenta) (* 0.02 lime) (* 0.015 gold) (* 0.015 orange) centre))))))
 
 (def kaleido-quasicrystal
   {:id :kaleido-quasicrystal
    :title "D8 UV kaleidoscope: five-wave contours through a logarithmic radial lens"
    :seconds 20 :fps 30 :size [1920 1080] :view [8.0 4.5] :ss 3
    :field kaleido-shader})
+
+(defn graphene-amplitude
+  "Honeycomb nearest-neighbour structure factor |1+exp(i k1)+exp(i k2)|.
+   k1,k2 are primitive reciprocal phases; the hopping is one. The exact
+   band lies in [0,3], with a Dirac zero at (2pi/3,-2pi/3)."
+  ^double [^double k1 ^double k2]
+  (let [re (+ 1.0 (Math/cos k1) (Math/cos k2))
+        im (+ (Math/sin k1) (Math/sin k2))]
+    (Math/hypot re im)))
 
 (def loops
   "Specs exported for the coordinator's gallery registry."
