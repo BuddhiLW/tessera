@@ -122,24 +122,59 @@
               (let [mag (/ (Math/hypot re im) peak)]
                 {:pivot [x y]
                  :strength mag
-                 :amplitude (* amplitude-max (Math/pow mag 1.1))
+                 ;; capped at 1.6 rad (92 deg) so long rods never sweep
+                 ;; into the row above; still well into the nonlinear regime
+                 :amplitude (* 1.6 (Math/pow mag 1.1))
                  :delay (/ (Math/atan2 im re) lp/tau)}))
             cells fields))))
 
 (def swing-stops
-  "Cyan -> violet -> gold, closed into a cycle."
-  [[0.00 0.72 1.00] [0.58 0.08 1.00] [1.00 0.58 0.00]])
+  "Cyan -> violet -> gold -> violet, closed into a cycle. The return leg goes
+   back through violet: a straight OKLab line from gold to cyan would pass
+   through grey."
+  [[0.00 0.72 1.00] [0.58 0.08 1.00] [1.00 0.58 0.00] [0.58 0.08 1.00]])
+
+(defn- srgb->linear ^double [^double c]
+  (if (<= c 0.04045) (/ c 12.92) (Math/pow (/ (+ c 0.055) 1.055) 2.4)))
+
+(defn- linear->srgb ^double [^double c]
+  (let [c (max 0.0 (min 1.0 c))]
+    (if (<= c 0.0031308) (* 12.92 c) (- (* 1.055 (Math/pow c (/ 1.0 2.4))) 0.055))))
+
+(defn oklab
+  "sRGB [r g b] in [0,1] -> OKLab [L a b] (Ottosson 2020)."
+  [[r g b]]
+  (let [r (srgb->linear (double r)) g (srgb->linear (double g)) b (srgb->linear (double b))
+        l (Math/cbrt (+ (* 0.4122214708 r) (* 0.5363325363 g) (* 0.0514459929 b)))
+        m (Math/cbrt (+ (* 0.2119034982 r) (* 0.6806995451 g) (* 0.1073969566 b)))
+        s (Math/cbrt (+ (* 0.0883024619 r) (* 0.2817188376 g) (* 0.6299787005 b)))]
+    [(+ (* 0.2104542553 l) (* 0.7936177850 m) (* -0.0040720468 s))
+     (+ (* 1.9779984951 l) (* -2.4285922050 m) (* 0.4505937099 s))
+     (+ (* 0.0259040371 l) (* 0.7827717662 m) (* -0.8086757660 s))]))
+
+(defn oklab->srgb
+  "OKLab [L a b] -> sRGB [r g b], clamped to [0,1]."
+  [[L a b]]
+  (let [L (double L) a (double a) b (double b)
+        l (Math/pow (+ L (* 0.3963377774 a) (* 0.2158037573 b)) 3.0)
+        m (Math/pow (- L (* 0.1055613458 a) (* 0.0638541728 b)) 3.0)
+        s (Math/pow (- L (* 0.0894841775 a) (* 1.2914855480 b)) 3.0)]
+    [(linear->srgb (+ (* 4.0767416621 l) (* -3.3077115913 m) (* 0.2309699292 s)))
+     (linear->srgb (+ (* -1.2684380046 l) (* 2.6097574011 m) (* -0.3413193965 s)))
+     (linear->srgb (+ (* -0.0041960863 l) (* -0.7034186147 m) (* 1.7076147010 s)))]))
 
 (defn cyclic-colour
-  "Smoothstep blend between consecutive stops, 1-periodic in t. The blend is
-   resaturated (90% of its minimum channel removed, maximum kept), so the
-   gold -> cyan leg does not pass through grey."
+  "Straight-line OKLab blend between consecutive stops (smoothstep pacing),
+   1-periodic in t. A straight line in OKLab never swings round the hue
+   wheel, so the cycle stays within its stops' family."
   [stops t]
   (let [n (count stops) x (* n (lp/frac (double t)))
         i (long (Math/floor x)) f (lp/smoothstep (- x i))
-        a (stops (mod i n)) b (stops (mod (inc i) n))
-        c (mapv #(+ (* (- 1.0 f) (double %1)) (* f (double %2))) a b)
-        hi (double (apply max c)) lo (* 0.9 (double (apply min c)))
+        a (oklab (stops (mod i n))) b (oklab (stops (mod (inc i) n)))
+        c (oklab->srgb (mapv #(+ (* (- 1.0 f) (double %1)) (* f (double %2))) a b))
+        ;; HSV-hue-preserving resaturation: drop 70% of the minimum channel
+        ;; and restore the maximum, so additive overlaps stay coloured
+        hi (double (apply max c)) lo (* 0.7 (double (apply min c)))
         k (/ hi (max 1.0e-9 (- hi lo)))]
     (mapv #(* k (- (double %) lo)) c)))
 
@@ -150,7 +185,7 @@
    Colour is the cyclic palette at u - delay, so phase fronts drift outward.
    The three sources are faint rings pulsing with the drive (5 per loop)."
   [u]
-  (let [u (double u) swings 5.0 len (* 0.43 pendulum-spacing)
+  (let [u (double u) swings 5.0 len (* 0.8 pendulum-spacing)
         arc-n 40 arc-span 0.15
         drive (+ 0.55 (* 0.45 (Math/cos (* lp/tau swings u))))]
     (persistent!
@@ -161,19 +196,19 @@
               phase (- (* swings u) d)
               [cr cg cb] (cyclic-colour swing-stops (- u d))
               cr (double cr) cg (double cg) cb (double cb)
-              glow (+ 0.06 (* 0.94 (Math/pow m 1.4)))
+              glow (+ 0.05 (* 0.95 (Math/pow m 1.15)))
               th (pendulum-angle a phase)
               bx (+ px (* len (Math/sin th))) by (- py (* len (Math/cos th)))
               ;; pivot
               out (conj! out [px py 0.010 (* 0.30 glow cr) (* 0.30 glow cg) (* 0.30 glow cb)])
               ;; rod: a line of tiny splats
               out (reduce (fn [out k]
-                            (let [t (/ (double k) 12.0) l (* 0.20 glow)]
+                            (let [t (/ (double k) 32.0) l (* 0.13 glow)]
                               (conj! out [(+ px (* t (- bx px))) (+ py (* t (- by py)))
                                           0.0055 (* l cr) (* l cg) (* l cb)])))
-                          out (range 1 12))
+                          out (range 2 30))
               ;; bob
-              out (conj! out [bx by 0.030 (* 0.80 glow cr) (* 0.80 glow cg) (* 0.80 glow cb)])
+              out (conj! out [bx by 0.030 (* 0.45 glow cr) (* 0.45 glow cg) (* 0.45 glow cb)])
               out (conj! out [bx by 0.065 (* 0.12 glow cr) (* 0.12 glow cg) (* 0.12 glow cb)])]
           ;; swept arc behind the bob, fading toward its tail
           ;; light per sample is scaled by its spacing along the arc, so the
@@ -183,9 +218,9 @@
                           ts (pendulum-angle a (- phase (* arc-span f)))
                           tn (pendulum-angle a (- phase (* arc-span (/ (+ k 1.0) arc-n))))
                           spacing (min 1.0 (/ (* len (Math/abs (- ts tn))) 0.012))
-                          l (* 0.80 glow spacing (- 1.0 f) (- 1.0 f))]
+                          l (* 0.65 glow spacing (- 1.0 f))]
                       (conj! out [(+ px (* len (Math/sin ts))) (- py (* len (Math/cos ts)))
-                                  0.011 (* l cr) (* l cg) (* l cb)])))
+                                  0.017 (* l cr) (* l cg) (* l cb)])))
                   out (range 1 (inc arc-n)))))
       (reduce (fn [out [sx sy]]
                 (reduce (fn [out k]
@@ -201,34 +236,51 @@
   (delay (double (reduce max (for [x (range -4.0 4.0 0.05) y (range -2.25 2.25 0.05)]
                                (let [[re im] (huygens x y)] (Math/hypot re im)))))))
 
+(def ^:private swing-lut
+  "cyclic-colour of swing-stops tabulated at 1024 phases, flat rgb."
+  (delay (double-array (mapcat #(cyclic-colour swing-stops (/ (double %) 1024.0)) (range 1024)))))
+
 (defn huygens-shader
-  "Dim underlay: the driving field's intensity |field|^2, shaded by the same
-   cyclic palette at u - arg(field)/2pi, so bright lanes and dark nodal lanes
-   read between the pendulums and the phase fronts drift outward."
+  "Dim underlay: four thin, crisp iso-lines of the drive amplitude |field|
+   (levels .3 .5 .7 .9 of its peak), screen-space width via the analytic-free
+   finite-difference gradient. Coloured by the cyclic palette at
+   u - arg(field)/2pi, like the pendulums above them."
   [u]
   (let [u (double u)
         {:keys [points k]} huygens-sources
         pts (double-array (apply concat points)) k (double k)
         n (quot (alength pts) 2)
-        mx (double @huygens-peak)]
+        mx (double @huygens-peak)
+        ^doubles lut @swing-lut
+        field (fn [^double x ^double y]
+                (loop [j 0 re 0.0 im 0.0]
+                  (if (< j n)
+                    (let [r (Math/hypot (- x (aget pts (* 2 j))) (- y (aget pts (inc (* 2 j)))))
+                          w (/ 1.0 (Math/sqrt (+ r 0.6)))]
+                      (recur (inc j) (+ re (* w (Math/cos (* k r)))) (+ im (* w (Math/sin (* k r))))))
+                    (double-array [re im]))))]
     (fn ^long [^double x ^double y]
-      (loop [j 0 re 0.0 im 0.0]
-        (if (< j n)
-          (let [r (Math/hypot (- x (aget pts (* 2 j))) (- y (aget pts (inc (* 2 j)))))
-                w (/ 1.0 (Math/sqrt (+ r 0.6)))]
-            (recur (inc j) (+ re (* w (Math/cos (* k r)))) (+ im (* w (Math/sin (* k r))))))
-          (let [m (min 1.0 (/ (Math/hypot re im) mx))
-                [cr cg cb] (cyclic-colour swing-stops (- u (/ (Math/atan2 im re) lp/tau)))
-                v (* 0.85 m m m)]
-            (r/rgb (* v (double cr)) (* v (double cg)) (* v (double cb)))))))))
+      (let [e 0.002
+            ^doubles f (field x y) ^doubles fx (field (+ x e) y) ^doubles fy (field x (+ y e))
+            m (/ (Math/hypot (aget f 0) (aget f 1)) mx)
+            gx (/ (- (/ (Math/hypot (aget fx 0) (aget fx 1)) mx) m) e)
+            gy (/ (- (/ (Math/hypot (aget fy 0) (aget fy 1)) mx) m) e)
+            grad (max 0.05 (Math/hypot gx gy))
+            level (* 5.0 (- m 0.1))
+            d (/ (/ (Math/abs (- level (Math/rint level))) 5.0) grad)
+            on (and (>= (Math/rint level) 1.0) (<= (Math/rint level) 4.0))
+            line (if on (Math/exp (- (Math/pow (/ d 0.0065) 2.0))) 0.0)
+            o (* 3 (bit-and 1023 (long (Math/floor (* 1024.0 (- u (/ (Math/atan2 (aget f 1) (aget f 0)) lp/tau)))))))
+            v (* 0.22 line (+ 0.4 (* 0.6 m)))]
+        (r/rgb (* v (aget lut o)) (* v (aget lut (+ o 1))) (* v (aget lut (+ o 2))))))))
 
 (def delay-pendulums
   {:id :delay-pendulums
    :title "Delay pendulums: tuned nonlinear pendulums phased by three coherent sources"
    :seconds 20 :fps 30 :size [1920 1080] :view view :ss 2
    :field huygens-shader
-   :splat pendulum-splats :exposure 2.6
-   :post (fn [_] [{:type :bloom :radius 8 :strength 0.55}
+   :splat pendulum-splats :exposure 5.0
+   :post (fn [_] [{:type :bloom :radius 8 :strength 0.40}
                   {:type :vignette :strength 0.22}])})
 
 ;; ---------------------------------------------------------------------------
@@ -328,38 +380,66 @@
         mix (fn [p q s] (mapv #(+ (* (- 1.0 s) %1) (* s %2)) p q))]
     (if (neg? t) (mix b a (- t)) (mix b c t))))
 
+(defn flow-grid
+  "The flow at phase u tabulated on a 0.025-unit grid over the enlarged view:
+   {:vx :vy :w} float planes plus geometry, sampled bilinearly by flow-at."
+  [u]
+  (let [h 0.025 [vw vh] view
+        x0 (- (* 0.6 (double vw))) y0 (- (* 0.6 (double vh)))
+        nx (long (Math/ceil (/ (* 1.2 (double vw)) h))) ny (long (Math/ceil (/ (* 1.2 (double vh)) h)))
+        vx (double-array (* nx ny)) vy (double-array (* nx ny)) w (double-array (* nx ny))]
+    (dotimes [j ny]
+      (dotimes [i nx]
+        (let [^doubles f (noise-flow (+ x0 (* i h)) (+ y0 (* j h)) (double u)) o (+ i (* j nx))]
+          (aset vx o (aget f 0)) (aset vy o (aget f 1)) (aset w o (aget f 2)))))
+    {:h h :x0 x0 :y0 y0 :nx nx :ny ny :vx vx :vy vy :w w}))
+
+(defn- sample-grid
+  [^doubles a nx ny gx gy]
+  (let [nx (long nx) ny (long ny) gx (double gx) gy (double gy)
+        i (max 0 (min (- nx 2) (long (Math/floor gx))))
+        j (max 0 (min (- ny 2) (long (Math/floor gy))))
+        tx (- gx i) ty (- gy j) o (+ i (* j nx))]
+    (+ (* (- 1.0 ty) (+ (* (- 1.0 tx) (aget a o)) (* tx (aget a (inc o)))))
+       (* ty (+ (* (- 1.0 tx) (aget a (+ o nx))) (* tx (aget a (+ o nx 1))))))))
+
 (defn flow-line-splats
   "Each stroke is the streamline of the INSTANTANEOUS flow through its
    particle, traced both ways by unit-speed midpoint steps; the particle
    itself rides the flow. Light tapers to the stroke's ends and to zero at
    birth and death (replacement), so there is no pop and no seam."
   [u]
-  (let [u (lp/frac (double u)) half 14 ds 0.022]
+  (let [u (lp/frac (double u)) half 16 ds 0.02
+        {:keys [h x0 y0 nx ny vx vy w]} (flow-grid u)
+        h (double h) x0 (double x0) y0 (double y0) nx (long nx) ny (long ny)
+        ^doubles vx vx ^doubles vy vy ^doubles w w]
     (persistent!
      (reduce
       (fn [out {:keys [offset path]}]
         (let [p (lp/frac (+ u (double offset))) vis (envelope p)]
           (if (< vis 1.0e-6)
             out
-            (let [[x0 y0] (path-at path p)
+            (let [[x0p y0p] (path-at path p)
                   walk (fn [out dir]
-                         (loop [k 0 x (double x0) y (double y0) out out]
+                         (loop [k 0 x (double x0p) y (double y0p) out out]
                            (if (> k half)
                              out
-                             (let [^doubles f (noise-flow x y u)
-                                   sp (Math/hypot (aget f 0) (aget f 1))
+                             (let [gx (/ (- x x0) h) gy (/ (- y y0) h)
+                                   fx (sample-grid vx nx ny gx gy) fy (sample-grid vy nx ny gx gy)
+                                   sp (Math/hypot fx fy)
                                    f-k (/ (double k) half)
-                                   taper (* (- 1.0 (* f-k f-k)) (- 1.0 (* 0.5 f-k)))
-                                   light (* 0.24 vis taper (Math/min 1.0 (* 1.6 sp)))
-                                   [cr cg cb] (vortex-colour (aget f 2))
+                                   taper (* (- 1.0 (* f-k f-k)) (- 1.0 (* 0.4 f-k)))
+                                   light (* 0.42 vis taper (Math/min 1.0 (* 0.9 sp)))
+                                   [cr cg cb] (vortex-colour (sample-grid w nx ny gx gy))
                                    out (if (and (zero? k) (neg? dir)) out
                                            (conj! out [x y 0.0075 (* light (double cr))
                                                        (* light (double cg)) (* light (double cb))]))
                                    step (/ (* dir ds) (max sp 1.0e-6))
-                                   mx (+ x (* 0.5 step (aget f 0))) my (+ y (* 0.5 step (aget f 1)))
-                                   ^doubles g (noise-flow mx my u)
-                                   sg (/ (* dir ds) (max 1.0e-6 (Math/hypot (aget g 0) (aget g 1))))]
-                               (recur (inc k) (+ x (* sg (aget g 0))) (+ y (* sg (aget g 1))) out)))))]
+                                   mx (+ x (* 0.5 step fx)) my (+ y (* 0.5 step fy))
+                                   mgx (/ (- mx x0) h) mgy (/ (- my y0) h)
+                                   gx2 (sample-grid vx nx ny mgx mgy) gy2 (sample-grid vy nx ny mgx mgy)
+                                   sg (/ (* dir ds) (max 1.0e-6 (Math/hypot gx2 gy2)))]
+                               (recur (inc k) (+ x (* sg gx2)) (+ y (* sg gy2)) out)))))]
               (-> out (walk 1.0) (walk -1.0))))))
       (transient []) @flow-particles))))
 
@@ -368,10 +448,11 @@
    :title "Periodic-noise flow lines: streamlines of a 4D-noise stream function, coloured by vorticity"
    :seconds 20 :fps 30 :size [1920 1080] :view view
    :frame (fn [_] {:background "#010206" :shapes []})
-   :splat flow-line-splats :exposure 1.0
+   :splat flow-line-splats :exposure 1.9
    :post (fn [_] [{:type :bloom :radius 7 :strength 0.45}
                   {:type :vignette :strength 0.25}])})
 
 (def loops
   "Loop specs for the coordinator's registry."
-  (array-map :delay-pendulums delay-pendulums))
+  (array-map :delay-pendulums delay-pendulums
+             :noise-flow-lines noise-flow-lines))
