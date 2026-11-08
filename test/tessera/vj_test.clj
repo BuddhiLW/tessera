@@ -98,6 +98,21 @@
     (doseq [[x y] [[0.73 0.29] [-2.31 1.01] [3.74 -1.88]]]
       (is (= (a x y) (b x y))))))
 
+(deftest gallery-specs-preserve-the-approved-render-contract
+  (is (= [:textile-tunnel :kaleido-quasicrystal :sprite-lattice] (vec (keys vj/loops))))
+  (doseq [[id spec] vj/loops]
+    (testing (name id)
+      (is (= [1920 1080] (:size spec)))
+      (is (= 30 (:fps spec)))
+      (is (>= (:ss spec) 3))
+      (is (not (contains? spec :scene)))
+      (doseq [u [0.0 0.17 0.3 0.71]
+              :let [a ((:field spec) u) b ((:field spec) (+ u 1.0))]
+              [x y] [[0.73 0.29] [-2.31 1.01] [3.74 -1.88]]]
+        (let [c (a x y)]
+          (is (= c (b x y)))
+          (is (< (apply max (map #(bit-and 255 (bit-shift-right c %)) [0 8 16])) 250)))))))
+
 (deftest every-vj-loop-is-black-ground-saturated-and-seamless
   (doseq [[id spec] vj/loops]
     (testing (name id)
