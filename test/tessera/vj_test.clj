@@ -85,6 +85,19 @@
     (doseq [[x y] [[0.6 1.1] [-0.8 0.31] [1.7 -0.42]]]
       (is (= (f x y) (f x (- y)))))))
 
+(deftest sprite-size-driver-is-the-honeycomb-band
+  (is (= 3.0 (vj/graphene-amplitude 0.0 0.0)))
+  (is (< (vj/graphene-amplitude (/ (* 2.0 Math/PI) 3.0) (/ (* -2.0 Math/PI) 3.0)) 1.0e-12))
+  (doseq [[a b] [[0.31 1.27] [-0.8 2.1] [2.8 -0.4]]]
+    (let [e (vj/graphene-amplitude a b)
+          squared (+ 3.0 (* 2.0 (Math/cos a)) (* 2.0 (Math/cos b)) (* 2.0 (Math/cos (- a b))))]
+      (is (<= 0.0 e 3.0))
+      (is (< (Math/abs (- (* e e) squared)) 1.0e-12))
+      (is (< (Math/abs (- e (vj/graphene-amplitude (+ a (* 2.0 Math/PI)) b))) 1.0e-12))))
+  (let [a (vj/sprite-shader 0.0) b (vj/sprite-shader 1.0)]
+    (doseq [[x y] [[0.73 0.29] [-2.31 1.01] [3.74 -1.88]]]
+      (is (= (a x y) (b x y))))))
+
 (deftest every-vj-loop-is-black-ground-saturated-and-seamless
   (doseq [[id spec] vj/loops]
     (testing (name id)
@@ -93,7 +106,8 @@
             (image-stats (r/render-frame spec 0.3 {:size [240 135]}))]
         (is (= id (:id spec)))
         (is (fn? (:field spec)))
-        (is (<= seam (+ 0.5 (* 1.5 typical-max))))
+        ;; Strict task criterion: no slack multiplier or additive tolerance.
+        (is (<= seam typical-max))
         (is (> mean 5.0))
         (is (> std 10.0))
         (is (> near-black 0.15))

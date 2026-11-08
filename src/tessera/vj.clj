@@ -205,6 +205,81 @@
         im (+ (Math/sin k1) (Math/sin k2))]
     (Math/hypot re im)))
 
+(defn sprite-shader
+  "Brightness-to-size sampling of the exact graphene band, 16 columns wide.
+   Size spans .06..1.66 cells; overlapping glyphs evaluate neighbouring sites
+   instead of being clipped at cell boundaries. Largest glyphs have a dim
+   saturated fill. Two separate waves of wavelength 12.6 cells give coherent
+   hue bands; orange-red eyes have colour priority over the glyph fill.
+   The slide is one exact cell, with C2-periodic gentle pacing, slower at the
+   wrap. Every site uses i-v, not i, so both sampled fields close on relabel."
+  [u]
+  (let [u (double u)
+        v (- u (* 0.60 (/ (Math/sin (* lp/tau u)) lp/tau)))
+        phase (* lp/tau v) spacing 0.50 w 24 h 16
+        sizes (double-array (* w h))
+        reds (double-array (* w h)) greens (double-array (* w h)) blues (double-array (* w h))]
+    (dotimes [row h]
+      (dotimes [col w]
+        (let [sx (- col 12.0 v) sy (- row 8.0)
+              energy (graphene-amplitude (+ (* 0.62 sx) (* 0.23 sy) phase)
+                                         (- (* 0.62 sx) (* 0.72 sy) phase))
+              size (+ 0.06 (* 1.60 (Math/pow (/ energy 3.0) 1.25)))
+              hue (+ 0.50 (* 0.33 (Math/sin (+ (* 0.46 sx) (* 0.20 sy) phase)))
+                     (* 0.10 (Math/cos (- (* 0.30 sx) (* 0.40 sy) phase))))
+              o (+ col (* row w))]
+          (aset sizes o size)
+          (aset reds o (+ 0.5 (* 0.5 (Math/cos (* lp/tau hue)))))
+          (aset greens o (+ 0.5 (* 0.5 (Math/cos (* lp/tau (+ hue 0.333333333333))))))
+          (aset blues o (+ 0.5 (* 0.5 (Math/cos (* lp/tau (+ hue 0.666666666667)))))))))
+    (fn ^long [^double x ^double y]
+      (let [gx (+ (/ x spacing) v) gy (/ y spacing)
+            i (long (Math/floor gx)) j (long (Math/floor gy))
+            a (- (lp/frac gx) 0.5) b (- (lp/frac gy) 0.5)]
+        (loop [k 0 red 0.0 green 0.0 blue 0.0]
+          (if (< k 9)
+            (let [di (- (rem k 3) 1) dj (- (quot k 3) 1)
+                  dx (- a di) dy (- b dj)
+                  col (+ i di 12) row (+ j dj 8)]
+              (if (or (> (Math/abs dx) 0.73) (> (Math/abs dy) 0.73)
+                      (< col 0) (>= col w) (< row 0) (>= row h))
+                (recur (inc k) red green blue)
+                (let [o (+ col (* row w)) size (aget sizes o)
+                      aa (/ dx size) bb (/ dy size)
+                      ax (Math/abs aa) by (Math/abs bb)
+                      kind (long (mod (+ j dj) 3))
+                      raw (case kind
+                            0 (stepped-cross aa bb)
+                            1 (* 0.707106781187 (- (+ ax by) 0.43))
+                            2 (max (- ax 0.39) (- (Math/abs (- by (* 0.68 ax))) 0.12)))
+                      d (* size raw)
+                      outline (glow (- d 0.009) 0.017)
+                      inline (glow (+ d 0.045) 0.012)
+                      fill (* 0.20 (Math/pow (/ size 1.66) 0.7)
+                              (max 0.0 (min 1.0 (/ (- d) 0.035))))
+                      nested (glow (* size (- (+ ax by) 0.125)) 0.012)
+                      hatch (if (< raw -0.08)
+                              (* 0.22 (glow (- (lp/frac (* 4.0 (+ ax by))) 0.5) 0.080))
+                              0.0)
+                      eye (Math/exp (* -1300.0 (+ (* aa aa) (* bb bb))))
+                      mask (- 1.0 (* 0.95 eye))
+                      r (aget reds o) g (aget greens o) b (aget blues o)
+                      main (* mask (+ (* 1.30 outline) fill))
+                      inner (* mask 0.72 inline)
+                      lime (* mask 0.43 (+ nested hatch))]
+                  (recur (inc k)
+                         (+ red (* r main) (* b inner) (* 0.38 lime) (* 0.95 eye))
+                         (+ green (* g main) (* r inner) lime (* 0.095 eye))
+                         (+ blue (* b main) (* g inner) (* 0.02 lime) (* 0.014 eye))))))
+            (neon red green blue)))))))
+
+(def sprite-lattice
+  {:id :sprite-lattice
+   :title "UV sprite lattice: glyph sizes from the exact graphene hopping band"
+   :seconds 18 :fps 30 :size [1920 1080] :view [8.0 4.5] :ss 3
+   :field sprite-shader})
+
 (def loops
   "Specs exported for the coordinator's gallery registry."
-  (into (array-map) (map (juxt :id identity)) [textile-tunnel kaleido-quasicrystal]))
+  (into (array-map) (map (juxt :id identity))
+        [textile-tunnel kaleido-quasicrystal sprite-lattice]))
