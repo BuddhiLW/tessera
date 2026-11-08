@@ -226,16 +226,30 @@
         (loop [i 0 re 0.0 im 0.0]
           (if (= i 5)
             (let [d (+ (* re re) (* im im))
-                  q (/ d 1.6)
-                  t (Math/pow (min 1.0 q) 3.0)
+                  ;; Smooth tone-mapped density: bright at the maxima, dark
+                  ;; seams along the nodal lines. No flat fills.
+                  t (Math/pow (min 1.0 (/ d 2.2)) 1.5)
+                  glow (* 0.55 t)
+                  ;; Fine iso-density contours, eight per unit density, running
+                  ;; through the lobe interiors; they fade out in the dark.
+                  lv (* d 5.0)
+                  fr (- lv (Math/floor lv))
+                  dist (min fr (- 1.0 fr))
+                  line (* (Math/exp (* -260.0 (* dist dist)))
+                          (min 1.0 (* 2.5 t)))
+                  ;; Phase colour ONLY on the contour lines: the body glow is
+                  ;; cyan-white with warm cores, so no hard hue cut crosses a
+                  ;; lobe. arg(psi) varies continuously along each line.
                   hue (+ 0.58 (* 0.36 (/ (Math/atan2 im re) tau)))
                   [cr cg cb] (hue->rgb hue)
-                  cont (fn [lv] (Math/exp (* -2600.0 (Math/pow (- q lv) 2.0))))
-                  line (* 0.9 (+ (cont 0.20) (cont 0.50) (cont 0.85)))
-                  halo (* 0.022 (Math/pow (min 1.0 q) 2.0))]
-              (r/rgb (+ 0.0004 (* 0.08 halo) (* t (double cr)) (* 0.45 line))
-                     (+ 0.0008 (* 0.12 halo) (* t (double cg)) (* 0.70 line))
-                     (+ 0.003 (* 0.20 halo) (* t (double cb)) (* 0.95 line))))
+                  hot (Math/pow (min 1.0 (/ d 3.5)) 3.0)
+                  ;; The walls of the well: a thin faint frame on the boundary.
+                  wx (min qx (- 1.0 qx)) wy (min qy (- 1.0 qy))
+                  wall (+ (Math/exp (* -4000.0 (* wx wx)))
+                          (Math/exp (* -4000.0 (* wy wy))))]
+              (r/rgb (+ 0.001 (* glow 0.25) (* hot 0.55) (* line (double cr) 0.75) (* wall 0.10))
+                     (+ 0.002 (* glow 0.55) (* hot 0.42) (* line (double cg) 0.75) (* wall 0.13))
+                     (+ 0.006 (* glow 0.80) (* hot 0.20) (* line (double cb) 0.75) (* wall 0.20))))
             (let [m (aget ^longs box-mode-numbers (* 2 i))
                   n (aget ^longs box-mode-numbers (inc (* 2 i)))
                   a (aget ^doubles box-coefficients i)
