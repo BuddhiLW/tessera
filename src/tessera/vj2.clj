@@ -299,45 +299,46 @@
      (Math/atan2 (double b) (double a))]))
 
 (defn hyperspace-shader
-  "Hex-lattice stars repeated by factors of two, mirrored through D12.
-   Radially elongated kernels are comet streaks in log polar coordinates;
-   their scale grows with radius. Three saturated colour stops are mixed
-   between stars, not time-cycled with a non-integer palette frequency."
+  "D12 hex-lattice warp with exactly three chromatic stops. Angular width
+   and log-radius tail length are constant, so screen-space streaks grow in
+   direct proportion to radius. Long tapered tails read as warp, not dots.
+   A soft violet/cyan core replaces unresolved microscopic stars."
   [u]
-  (let [u (double u) v (travel-phase u) half (/ Math/PI 12.0)
-        seeds (hyperspace-seeds) n (count seeds)
-        data (double-array (* 6 n))]
+  (let [v (travel-phase (double u)) half (/ Math/PI 12.0)
+        seeds (hyperspace-seeds) n (count seeds) data (double-array (* 6 n))
+        stops [[0.015 0.90 1.0] [0.62 0.015 1.0] [1.0 0.25 0.012]]]
     (doseq [[i {:keys [q angle]}] (map-indexed vector seeds)]
-      (let [t (* 3.0 (lp/frac (+ (* 0.37 i) (* 0.41 q))))
-            j (long (Math/floor t)) f (- t j)
-            stops [[0.015 0.90 1.0] [0.66 0.02 1.0] [1.0 0.31 0.015]]
-            a (nth stops j) b (nth stops (mod (inc j) 3)) o (* 6 i)]
+      (let [color (nth stops (mod i 3)) o (* 6 i)]
         (aset data o (double q)) (aset data (inc o) (double angle))
         (aset data (+ o 2) (+ 0.0050 (* 0.0030 (lp/frac (* i 0.61803398875)))))
-        (dotimes [k 3] (aset data (+ o 3 k) (+ (* (- 1.0 f) (double (nth a k))) (* f (double (nth b k))))))))
+        (dotimes [k 3] (aset data (+ o 3 k) (double (nth color k))))))
     (fn ^long [^double x ^double y]
       (let [radius (Math/hypot x y)
             angle (Math/abs (- (mod (+ (Math/atan2 y x) half) (* 2.0 half)) half))
             q (- (/ (Math/log (max 1.0e-12 (/ radius 0.38))) (Math/log 2.0)) v)
-            fade (* (min 1.0 (max 0.0 (/ (- radius 0.11) 0.16)))
-                    (- 1.0 (* 0.045 radius)))]
+            fade (let [t (max 0.0 (min 1.0 (/ (- radius 0.20) 0.42)))]
+                   (* t t (- 3.0 (* 2.0 t)) (- 1.0 (* 0.045 radius))))
+            core (* 0.15 (Math/exp (* -24.0 radius radius)))
+            icy (* 0.065 (Math/exp (* -90.0 radius radius)))]
         (loop [i 0 red 0.0 green 0.0 blue 0.0]
-          (if (= i n) (uv (* fade red) (* fade green) (* fade blue))
-              (let [o (* 6 i) da (- angle (aget data (inc o)))
-                    width (aget data (+ o 2))]
-                (if (> (Math/abs da) (* 4.0 width)) (recur (inc i) red green blue)
-                    (let [dq (- (lp/frac (+ (- q (aget data o)) 0.5)) 0.5)
-                          lateral (/ da width) across (Math/exp (- (* lateral lateral)))
-                          head (* 1.50 (Math/exp (* -1600.0 dq dq)))
-                          tail (if (<= -0.24 dq 0.0)
-                                 (* 0.66 (Math/exp (* 17.0 dq)) (min 1.0 (* 70.0 (+ dq 0.24)))) 0.0)
-                          spark (* 0.40 (Math/exp (* -6000.0 dq dq))
-                                   (Math/exp (* -0.10 lateral lateral)))
-                          light (+ (* across (+ head tail)) spark)]
-                      (recur (inc i)
-                             (+ red (* light (aget data (+ o 3))))
-                             (+ green (* light (aget data (+ o 4))))
-                             (+ blue (* light (aget data (+ o 5))))))))))))))
+          (if (= i n)
+            (uv (+ (* fade red) (* 0.45 core) (* 0.015 icy))
+                (+ (* fade green) (* 0.025 core) (* 0.88 icy))
+                (+ (* fade blue) core icy))
+            (let [o (* 6 i) da (- angle (aget data (inc o))) width (aget data (+ o 2))]
+              (if (> (Math/abs da) (* 4.0 width)) (recur (inc i) red green blue)
+                  (let [dq (- (lp/frac (+ (- q (aget data o)) 0.5)) 0.5)
+                        lateral (/ da width) across (Math/exp (- (* lateral lateral)))
+                        head (* 1.50 (Math/exp (* -1600.0 dq dq)))
+                        tail (if (<= -0.48 dq 0.0)
+                               (* 0.94 (Math/exp (* 4.6 dq)) (min 1.0 (* 35.0 (+ dq 0.48)))) 0.0)
+                        spark (* 0.40 (Math/exp (* -6000.0 dq dq))
+                                 (Math/exp (* -0.10 lateral lateral)))
+                        light (+ (* across (+ head tail)) spark)]
+                    (recur (inc i)
+                           (+ red (* light (aget data (+ o 3))))
+                           (+ green (* light (aget data (+ o 4))))
+                           (+ blue (* light (aget data (+ o 5))))))))))))))
 
 (def hyperspace
   {:id :hyperspace :title "Hyperspace: D12 folded A2 stars in a dyadic log-radial warp"
