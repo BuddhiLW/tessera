@@ -128,6 +128,77 @@
    :post (fn [_] [{:type :bloom :radius 14 :strength 0.55}
                   {:type :vignette :strength 0.4}])})
 
+;; ── Quaternion Julia ─────────────────────────────────────────────────────
+
+(def ^:const qj-iter 7)
+
+(defn qj-de
+  "Distance estimator of the quaternion Julia set of c = [ca cb cc cd] in
+   the slice w = 0: z <- z^2 + c, |dz| <- 2|z||dz|, d = |z| log|z| / 2|dz|."
+  [[ca cb cc cd]]
+  (let [ca (double ca) cb (double cb) cc (double cc) cd (double cd)]
+    (fn ^double [^double px ^double py ^double pz]
+      (loop [i 0 a px b py c pz d 0.0 md 1.0]
+        (let [m (+ (* a a) (* b b) (* c c) (* d d))]
+          (if (or (>= i qj-iter) (> m 16.0))
+            (let [r (Math/sqrt m)] (/ (* 0.5 r (Math/log (max r 1.0e-9))) md))
+            (recur (inc i)
+                   (+ (- (* a a) (* b b) (* c c) (* d d)) ca)
+                   (+ (* 2.0 a b) cb) (+ (* 2.0 a c) cc) (+ (* 2.0 a d) cd)
+                   (* 2.0 (Math/sqrt m) md))))))))
+
+(defn qj-trap
+  "The orbit trap of c: p -> least |z|^2 over its orbit (deep folds near 0)."
+  [[ca cb cc cd]]
+  (let [ca (double ca) cb (double cb) cc (double cc) cd (double cd)]
+    (fn ^double [^double px ^double py ^double pz]
+      (loop [i 0 a px b py c pz d 0.0 tm 1.0e9]
+        (let [m (+ (* a a) (* b b) (* c c) (* d d)) tm (min tm m)]
+          (if (or (>= i qj-iter) (> m 16.0))
+            tm
+            (recur (inc i)
+                   (+ (- (* a a) (* b b) (* c c) (* d d)) ca)
+                   (+ (* 2.0 a b) cb) (+ (* 2.0 a c) cc) (+ (* 2.0 a d) cd) tm)))))))
+
+(defn qj-c
+  "c on a closed ellipse about (-0.2, 0.6, 0.2, 0.2), once around per loop."
+  [u]
+  (let [a (* lp/tau (double u))]
+    [(+ -0.2 (* 0.11 (Math/cos a))) (+ 0.6 (* 0.07 (Math/sin a)))
+     (+ 0.2 (* 0.06 (Math/sin a))) (+ 0.2 (* 0.05 (Math/cos a)))]))
+
+(def qj-palette
+  "Ice: deep teal folds, cyan skin, a violet edge."
+  (pal/cosine [0.42 0.52 0.62] [0.38 0.36 0.32] [0.8 0.8 0.8] [0.55 0.42 0.30]))
+
+(defn qj-shader
+  "The quaternion Julia set of c(u), camera fixed, key light once around."
+  [u]
+  (let [c (qj-c u)
+        de (qj-de c)
+        ^clojure.lang.IFn$DDDD trap (qj-trap c)
+        cam (rm/camera [1.9 1.05 2.9] [-0.05 0.0 0.0] 38.0 view)
+        la (* lp/tau (double u))
+        [lx ly lz] (rm/unit [(* 1.5 (Math/cos la)) 1.4 (+ 1.6 (* 1.5 (Math/sin la)))])
+        light (double-array [lx ly lz 2.4 0.25 0.12 0.45])]
+    (rm/shader
+     {:de de :cam cam :bound 1.5 :eps 0.0016 :steps 80 :ao 0.10
+      :shade (fn ^long [^doubles h]
+               (if (neg? (aget h rm/T))
+                 (let [g (Math/exp (* -45.0 (aget h rm/HALO)))]
+                   (rm/pack (+ 0.004 (* 0.05 g)) (+ 0.010 (* 0.20 g)) (+ 0.028 (* 0.30 g))))
+                 (let [t (.invokePrim trap (aget h rm/PX) (aget h rm/PY) (aget h rm/PZ))
+                       col (pal/at qj-palette (+ 0.05 (* 0.75 (Math/sqrt (min 1.0 t)))))]
+                   (surface-light h col light))))})))
+
+(def quaternion-julia
+  {:id :quaternion-julia
+   :title "Quaternion Julia set, c once around a closed loop in (1, i, j, k)"
+   :seconds 16 :fps 30 :size [1920 1080] :view view :ss 2
+   :field qj-shader
+   :post (fn [_] [{:type :bloom :radius 14 :strength 0.6}
+                  {:type :vignette :strength 0.4}])})
+
 (def loops
   "The fractal loops, by id."
-  (array-map :mandelbulb mandelbulb))
+  (array-map :mandelbulb mandelbulb :quaternion-julia quaternion-julia))

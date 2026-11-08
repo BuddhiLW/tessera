@@ -59,6 +59,7 @@
    :flower-mandala ["Fractals" ["dyadic" "labyrinth" "tunnel" "mandala"]]
    :hyperspace ["Fractals" ["dyadic" "log-polar" "warp" "kaleidoscope"]]
    :mandelbulb ["Fractals" ["mandelbulb" "3d" "raymarching" "distance-estimator" "seven-fold"]]
+   :quaternion-julia ["Fractals" ["julia" "quaternion" "3d" "raymarching" "distance-estimator"]]
 
    ;; Lattices: band structure, Fermi surfaces, Brillouin zones
    :graphene-fermi ["Lattices" ["graphene" "fermi-surface" "dirac" "hexagonal"]]
@@ -143,6 +144,7 @@
    :flower-mandala "Flower Mandala"
    :hyperspace "Hyperspace"
    :mandelbulb "Mandelbulb"
+   :quaternion-julia "Quaternion Julia Set"
    :graphene-fermi "Graphene Fermi Contours"
    :graphene-zones "Graphene Brillouin Zones"
    :kagome-fermi "Kagome Fermi Contours"
