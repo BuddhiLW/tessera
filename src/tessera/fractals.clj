@@ -278,7 +278,69 @@
    :post (fn [_] [{:type :bloom :radius 16 :strength 0.7}
                   {:type :vignette :strength 0.5}])})
 
+;; ── Julia sets along the main cardioid ───────────────────────────────────
+
+(def ^:const cj-iter 160)
+(def ^:const cj-r 0.93)
+
+(defn cardioid-c
+  "c(u) = mu/2 - mu^2/4 with mu = 0.93 e^{2 pi i u}: the point of the main
+   cardioid of the Mandelbrot set whose attracting fixed point mu/2 has
+   multiplier mu. As u goes once around, c traces a curve just inside the
+   cardioid and the Julia set passes every rotation number in turn."
+  [u]
+  (let [a (* lp/tau (double u))
+        mr (* cj-r (Math/cos a)) mi (* cj-r (Math/sin a))]
+    [(- (* 0.5 mr) (* 0.25 (- (* mr mr) (* mi mi))))
+     (- (* 0.5 mi) (* 0.5 mr mi))]))
+
+(def cj-palette
+  "Midnight blue, violet, rose and gold, integer frequencies (cyclic)."
+  (pal/cosine [0.45 0.32 0.42] [0.45 0.32 0.36] [1.0 1.0 1.0] [0.0 0.08 0.24]))
+
+(defn cardioid-shader
+  "The filled Julia set of c(u), turned a quarter so its long axis lies
+   along the frame. Escaping points: smooth escape time through the cyclic
+   palette, shifted by u, and a thin glow from the distance estimate
+   |z| log|z| / |z'|. Points caught by the attracting fixed point mu/2 are
+   the Fatou interior, a dim tint by how long the capture took."
+  [u]
+  (let [[cr ci] (cardioid-c u)
+        cr (double cr) ci (double ci)
+        a (* lp/tau (double u))
+        fr (* 0.5 cj-r (Math/cos a)) fi (* 0.5 cj-r (Math/sin a))
+        shift (double u)
+        ln2 (Math/log 2.0)]
+    (fn ^long [^double x ^double y]
+      (loop [zr (- y) zi x i 0 dz 1.0]
+        (let [m (+ (* zr zr) (* zi zi))
+              er (- zr fr) ei (- zi fi)]
+          (cond
+            (> m 256.0)
+            (let [mu (- (+ i 1) (/ (Math/log (/ (Math/log m) 2.0)) ln2))
+                  r (Math/sqrt m)
+                  de (/ (* r (Math/log r)) dz)
+                  edge (Math/exp (* -260.0 de))
+                  c (pal/at cj-palette (+ (* 0.045 mu) shift))
+                  k (+ 0.25 (* 0.75 (- 1.0 (Math/exp (* -0.06 mu)))))
+                  ch (fn ^double [^long s] (* 1.4 (+ (* k (rm/channel c s)) (* 0.55 edge))))]
+              (rm/pack (ch 16) (ch 8) (ch 0)))
+            (or (< (+ (* er er) (* ei ei)) 2.5e-3) (>= i cj-iter))
+            (let [c (pal/at cj-palette (+ 0.55 (* 0.012 i) shift))
+                  k 0.10]
+              (rm/pack (* k (rm/channel c 16)) (* k (rm/channel c 8)) (* k (rm/channel c 0))))
+            :else (recur (+ (- (* zr zr) (* zi zi)) cr) (+ (* 2.0 zr zi) ci) (inc i)
+                         (* 2.0 (Math/sqrt m) dz))))))))
+
+(def cardioid-julia
+  {:id :cardioid-julia
+   :title "Julia sets along the main cardioid: c = mu/2 - mu^2/4, mu = 0.93 e^{2 pi i u}"
+   :seconds 16 :fps 30 :size [1920 1080] :view [3.2 1.8] :ss 2
+   :field cardioid-shader
+   :post (fn [_] [{:type :bloom :radius 10 :strength 0.6}
+                  {:type :vignette :strength 0.45}])})
+
 (def loops
   "The fractal loops, by id."
   (array-map :mandelbulb mandelbulb :quaternion-julia quaternion-julia
-             :menger-flight menger-flight))
+             :menger-flight menger-flight :cardioid-julia cardioid-julia))
