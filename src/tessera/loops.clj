@@ -30,7 +30,8 @@
             [tessera.lattice :as lattice]
             [tessera.vj :as vj]
             [tessera.chaos :as chaos]
-            [tessera.vj2 :as vj2]))
+            [tessera.vj2 :as vj2]
+            [tessera.delays :as delays]))
 
 (set! *warn-on-reflection* true)
 
@@ -194,6 +195,7 @@
    chor/loops
    mech/loops
    chaos/loops
+   delays/loops
    flows/loops
    waves/loops
    orb/loops

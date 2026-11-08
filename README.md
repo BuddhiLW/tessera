@@ -53,6 +53,14 @@ repository holds the loops.
 |---|---|---|
 | ![](docs/gallery/elliptic-billiard.webp) **elliptic-billiard**<br>Poncelet families of closed billiard orbits in an ellipse (rotation numbers 1/9, 1/5, 2/9, 1/3 and a hyperbolic family between the foci), their confocal conic caustics drawn as neon lines | ![](docs/gallery/standard-map.webp) **standard-map**<br>the Chirikov standard map at K = 0.92: rotational tori, island chains and a dim chaotic sea, light crests flowing along each invariant curve in its own angle variable | ![](docs/gallery/cat-map.webp) **cat-map**<br>Arnold's cat map on a 322 × 322 torus has period 24 and C¹² = −I, so a centrally symmetric khatam assembles twice per loop; each step is drawn as two sliding shears |
 
+### Delays and periodic noise
+
+Etienne Jacob's techniques (bleuje.com) applied to physics: every element runs the same periodic motion with a delay that depends on where it is, noise is sampled on a circle so it returns, and particles replace each other along their paths.
+
+| | | |
+|---|---|---|
+| ![](docs/gallery/delay-pendulums.webp) **delay-pendulums**<br>220 exact nonlinear pendulums; amplitude is the \|Huygens field\| of three coherent sources and the delay its phase, so the fringes show as still lanes and the phase fronts drift outward in cyan, violet and gold | ![](docs/gallery/noise-flow-lines.webp) **noise-flow-lines**<br>2304 particles carried by the curl of a periodic 4D stream function ψ(x, y, R cos 2πu, R sin 2πu), each drawing its streamline, fading in to take a neighbour's place; colour by vorticity sign | ![](docs/gallery/delay-mesh.webp) **delay-mesh**<br>a triangular mesh of Gerstner water parcels, each on the same circle delayed by k·x, three wave trains plus a ripple ring leaving once per loop; edges lit on the crests |
+
 ### Fluids
 
 | | |
