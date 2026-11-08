@@ -264,6 +264,11 @@
               [(+ h (* v env)) (+ gx (* dv env)) (+ gy (* v denv))]))
           [0.0 0.0 0.0] lattice))
 
+(def breather-line-width
+  "Widest a level line may draw, in scene units (about 7 px at 1080 rows).
+   Lines on a steep slope are thinner than this and are left as they were."
+  0.05)
+
 (defn breather-shader
   "The lattice at phase `u`; `lattice` defaults to the 16:9 one."
   [u & [lattice]]
@@ -278,8 +283,16 @@
           dist (min frac (- 1.0 frac))
           line (Math/exp (* -500.0 (* dist dist)))
           grad (Math/sqrt (+ (* gx gx) (* gy gy)))
+          ;; Cap each line at breather-line-width scene units across. A
+          ;; level line is dist/2.2/grad wide on screen, so where the field
+          ;; goes flat (h = 0 over every zero-phase breather at u = 0, 1/4,
+          ;; 1/2, 3/4) the zero level would flood whole regions for one
+          ;; frame. That flash was the u = 0 frame, so it was the seam.
+          dh (/ dist 2.2)
+          wq (* breather-line-width grad)
+          cap (Math/exp (- (/ (* dh dh) (+ (* wq wq) 1e-12))))
           aa (/ 1.0 (+ 1.0 (* 0.04 grad)))
-          line (* line aa)
+          line (* line aa cap)
           body (* 0.05 (Math/pow (min 1.0 (/ ah 4.5)) 1.8))
           spec (Math/pow (max 0.0 (/ (+ (* -0.5 gx) (* 0.866 gy)) (+ 1.0 grad))) 3.0)]
       (r/rgb (+ 0.001 (* body 0.95) (* line (+ 0.40 (* 0.55 warm))) (* 0.10 spec))

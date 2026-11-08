@@ -49,8 +49,15 @@
                                      dist (min fr (- 1.0 fr))
                                      line0 (exp (* (- line_sharpness) (* dist dist)))
                                      grad (sqrt (+ (* gx gx) (* gy gy)))
+                                     ;; Width cap, as in waves/breather-shader:
+                                     ;; no level line wider than
+                                     ;; breather-line-width, so the flat field
+                                     ;; at u = 0, 1/4, 1/2, 3/4 does not flash.
+                                     dh (/ dist level_density)
+                                     wq (* 0.05 grad)
+                                     cap (exp (- (/ (* dh dh) (+ (* wq wq) 1e-12))))
                                      aa (/ 1.0 (+ 1.0 (* 0.04 grad)))
-                                     line (* line0 aa)
+                                     line (* line0 aa cap)
                                      body (* 0.05 (pow (min 1.0 (/ ah 4.5)) 1.8))
                                      spec (pow (max 0.0 (/ (+ (* -0.5 gx) (* 0.866 gy)) (+ 1.0 grad))) 3.0)]))
                         '[(+ 0.001 (* body 0.95) (* line (+ 0.40 (* 0.55 warm))) (* 0.10 spec))
