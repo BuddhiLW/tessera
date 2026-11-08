@@ -6,8 +6,10 @@
                      density and luminous iso-density contours reveal the
                      radial rings and the angular lobes.
      :box-modes     five commensurate eigenstates of a 16 by 9 infinite well.
-                     m^2+n^2 = 5,13,20,26,32 cycles per loop. |psi|^2 glows
-                     in phase colour with soft iso-density contours.
+                     m^2+n^2 = 2,5,8,10,10 cycles per loop, a calm beat.
+                     |psi|^2 through a saturating tone map (no white cores),
+                     full-saturation phase colour, fine iso-density contours
+                     and a thin frame at the well walls.
      :drum          Pythagorean square-membrane modes, tiled by odd
                      reflection to fill the frame with continuous nodal lines.
 
@@ -181,8 +183,11 @@
 
 (def box-mode-numbers
   "Five distinct modes of a 16 by 9 infinite well, in scene units.
-  E = m^2+n^2 = 5, 13, 20, 26, 32 cycles per loop, all commensurate."
-  (long-array [1 2  3 2  2 4  5 1  4 4]))
+  E = m^2+n^2 = 2, 5, 8, 10, 10 cycles per loop: all commensurate, and the
+  fastest mode beats only ten times per loop, a calm breathing rather than
+  a flicker. The E=10 pair (1,3),(3,1) is degenerate, enriching the pattern
+  without adding a new beat frequency."
+  (long-array [1 1  2 1  2 2  1 3  3 1]))
 
 (defn- box-energy ^long [^long m ^long n]
   (+ (* m m) (* n n)))
@@ -211,6 +216,13 @@
   ^doubles [u ^double x ^double y]
   (box-pair u x y))
 
+(def ^:private box-tone-k
+  "Saturating tone map L = 1-exp(-k rho). k is chosen from the GLOBAL maximum
+  of rho = |psi|^2 over a 24-phase by 96x54 sweep of the loop (rho_max ~
+  5.097), so the brightest pixel of the whole loop maps to L = 0.85 and no
+  core ever clips to white. Because k is a constant, brightness never pumps."
+  (/ (- (Math/log (- 1.0 0.85))) 5.097170099097348))
+
 (defn- box-shader [u]
   (let [samples 2048 sx (sine-table samples 5) sy (sine-table samples 4)
         phases (double-array 10)]
@@ -226,30 +238,33 @@
         (loop [i 0 re 0.0 im 0.0]
           (if (= i 5)
             (let [d (+ (* re re) (* im im))
-                  ;; Smooth tone-mapped density: bright at the maxima, dark
-                  ;; seams along the nodal lines. No flat fills.
-                  t (Math/pow (min 1.0 (/ d 2.2)) 1.5)
-                  glow (* 0.55 t)
-                  ;; Fine iso-density contours, eight per unit density, running
-                  ;; through the lobe interiors; they fade out in the dark.
-                  lv (* d 5.0)
+                  L (- 1.0 (Math/exp (* (- box-tone-k) d)))
+                  ;; hue spans EXACTLY one full turn of the cyclic cosine
+                  ;; wheel as arg(psi) spans [-pi,pi): the +/-pi branch cut
+                  ;; maps to the SAME colour, so no hue seam can appear.
+                  hue (+ 0.58 (/ (Math/atan2 im re) tau))
+                  [hr hg hb] (hue->rgb hue)
+                  ;; In dim regions blend toward a fixed cool tint: at a nodal
+                  ;; line arg(psi) physically reverses, and desaturating there
+                  ;; keeps that invisible. Fully saturated in the lit cores.
+                  w (min 1.0 (* 2.6 L))
+                  cr (+ (* w (double hr)) (* (- 1.0 w) 0.20))
+                  cg (+ (* w (double hg)) (* (- 1.0 w) 0.45))
+                  cb (+ (* w (double hb)) (* (- 1.0 w) 0.80))
+                  ;; Fine iso-density contours, three per unit density; they
+                  ;; stay visible through the cores, fading only in the dark.
+                  lv (* d 3.0)
                   fr (- lv (Math/floor lv))
                   dist (min fr (- 1.0 fr))
                   line (* (Math/exp (* -260.0 (* dist dist)))
-                          (min 1.0 (* 2.5 t)))
-                  ;; Phase colour ONLY on the contour lines: the body glow is
-                  ;; cyan-white with warm cores, so no hard hue cut crosses a
-                  ;; lobe. arg(psi) varies continuously along each line.
-                  hue (+ 0.58 (* 0.36 (/ (Math/atan2 im re) tau)))
-                  [cr cg cb] (hue->rgb hue)
-                  hot (Math/pow (min 1.0 (/ d 3.5)) 3.0)
+                          (min 1.0 (* 3.0 L)))
                   ;; The walls of the well: a thin faint frame on the boundary.
                   wx (min qx (- 1.0 qx)) wy (min qy (- 1.0 qy))
                   wall (+ (Math/exp (* -4000.0 (* wx wx)))
                           (Math/exp (* -4000.0 (* wy wy))))]
-              (r/rgb (+ 0.001 (* glow 0.25) (* hot 0.55) (* line (double cr) 0.75) (* wall 0.10))
-                     (+ 0.002 (* glow 0.55) (* hot 0.42) (* line (double cg) 0.75) (* wall 0.13))
-                     (+ 0.006 (* glow 0.80) (* hot 0.20) (* line (double cb) 0.75) (* wall 0.20))))
+              (r/rgb (+ 0.001 (* L cr) (* line 0.45) (* wall 0.10))
+                     (+ 0.002 (* L cg) (* line 0.45) (* wall 0.13))
+                     (+ 0.006 (* L cb) (* line 0.45) (* wall 0.20))))
             (let [m (aget ^longs box-mode-numbers (* 2 i))
                   n (aget ^longs box-mode-numbers (inc (* 2 i)))
                   a (aget ^doubles box-coefficients i)
@@ -259,7 +274,7 @@
 
 (def box-modes
   {:id :box-modes
-   :title "Box modes: five commensurate well eigenstates, |psi|^2 in phase colour with iso-density contours"
+   :title "Box modes: five commensurate well eigenstates, saturating |psi|^2 glow in phase colour with fine contours and well walls"
    :seconds 12 :fps 30 :size [1920 1080] :view [16.0 9.0]
    :field box-shader
    :post (fn [_] [{:type :bloom :radius 10 :strength 0.7}
