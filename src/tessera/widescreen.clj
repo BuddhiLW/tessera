@@ -11,6 +11,7 @@
    keep the 16:9 content where it was, so the wide frame contains it."
   (:require [desargues.wallpaper.loop :as lp]
             [tessera.chaos :as chaos]
+            [tessera.compose.layout :as layout]
             [tessera.compose.scene :as scene]
             [tessera.curves :as curves]
             [tessera.delays :as delays]
@@ -178,14 +179,51 @@
 
 ;; ── Composed scenes ─────────────────────────────────────────────────────
 
+(defn- strip-darts
+  "`sites` (the authored set) plus darts thrown over [-w/2, w/2] x [-h/2, h/2]
+   outside |x| < hw0, at the same minimum distance from every site, until
+   `target` sites in all or the attempts run out."
+  [sites seed target distance [w h] hw0]
+  (let [rng (java.util.Random. (long seed)) d2 (* (double distance) (double distance))
+        w (double w) h (double h) hw0 (double hw0)]
+    (loop [pts (vec sites) attempts 0]
+      (if (or (>= (count pts) (long target)) (= attempts 40000)) pts
+          (let [x (- (* w (.nextDouble rng)) (/ w 2.0))
+                y (- (* h (.nextDouble rng)) (/ h 2.0))
+                okay? (and (>= (Math/abs x) hw0)
+                           (every? (fn [[a b]]
+                                     (let [dx (- x (double a)) dy (- y (double b))]
+                                       (>= (+ (* dx dx) (* dy dy)) d2))) pts))]
+            (recur (if okay? (conj pts [x y]) pts) (inc attempts)))))))
+
+(defmethod layout/sites ::poisson-strips
+  ;; The authored Poisson layout, its sites (and their indices) unchanged,
+  ;; continued into the side strips of the wider extent at its density.
+  [{:keys [base extent count]}]
+  (let [authored (layout/sites base)
+        hw0 (/ (double (first (:extent base))) 2.0)
+        pts (strip-darts (map (juxt :x :y) authored) (inc (long (:seed base)))
+                         count (:distance base) extent hw0)]
+    (into authored
+          (map-indexed (fn [j [x y]] {:i (+ (clojure.core/count authored) j) :x (double x) :y (double y)}))
+          (drop (clojure.core/count authored) pts))))
+
 (defn- widen-layout
   "A full-frame site layout (extent at least the 16:9 width) stretched to
    the wider window, its site count scaled with the area; a local layout
-   is left alone."
+   is left alone. A Poisson layout keeps its authored sites where they were
+   (re-throwing the darts over the wider extent would move every one, and
+   with them the moments their sprites appear) and gains sites only in the
+   side strips."
   [{:keys [extent] :as layout} k]
   (if (and extent (>= (double (first extent)) 7.2))
-    (cond-> (update layout :extent (fn [[w h]] [(* k (double w)) h]))
-      (:count layout) (update :count #(long (Math/round (* k (double %))))))
+    (let [[w h] extent
+          wide-extent [(* k (double w)) h]]
+      (if (= :poisson (:type layout))
+        {:type ::poisson-strips :base layout :extent wide-extent
+         :count (long (Math/round (* k (double (:count layout)))))}
+        (cond-> (assoc layout :extent wide-extent)
+          (:count layout) (update :count #(long (Math/round (* k (double %))))))))
     layout))
 
 (defn composed

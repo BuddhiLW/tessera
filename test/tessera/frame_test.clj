@@ -56,6 +56,38 @@
     (is (< (reduce max native) 7.3))
     (is (> (reduce max xs) 9.0) "beads reach the ultrawide edge")))
 
+(defn- mean-diff ^double [^ints a ^ints b]
+  (let [n (alength a)]
+    (loop [i 0 acc 0]
+      (if (= i n)
+        (/ (double acc) (* 3 n))
+        (let [p (aget a i) q (aget b i)
+              ch (fn ^long [^long s] (Math/abs (- (bit-and (bit-shift-right p s) 0xFF)
+                                                  (bit-and (bit-shift-right q s) 0xFF))))]
+          (recur (inc i) (+ acc (ch 0) (ch 8) (ch 16))))))))
+
+(defn- wrap-ratio
+  "Wrap step (last frame -> frame 0) over the median of the ordinary steps
+   beside it (n-3 -> n-2, n-2 -> n-1, 0 -> 1), at the native frame count."
+  [spec [w h]]
+  (let [s (frame/at-size spec [w h])
+        n (* (long (:seconds s)) (long (:fps s)))
+        f (memoize (fn [i] (pixels (r/render-frame s (/ (double (mod i n)) n) {:size [w h]}) 0 w)))
+        step (fn [i] (mean-diff (f i) (f (inc i))))
+        ordinary (nth (sort (map step [-3 -2 0])) 1)]
+    (/ (step -1) (max 0.02 ordinary))))
+
+(deftest reframed-loops-wrap-at-ultrawide
+  ;; A reframe must keep the loop seamless: at ultrawide the wrap step is
+  ;; no bigger, relative to the ordinary steps, than at the authored 16:9
+  ;; (some authored loops carry a small jump of their own; the reframe may
+  ;; not add one).
+  (doseq [[id spec] loops/all :when (:reframe spec)]
+    (let [native (wrap-ratio spec [144 81])
+          wide (wrap-ratio spec [192 81])]
+      (is (<= wide (* 1.3 (max 1.0 native)))
+          (str id " wraps at ultrawide: wrap/step " wide " vs 16:9 " native)))))
+
 (deftest uw-flag
   (is (= {:uw true :size [2560 1080] :only [:box-modes]}
          (main/parse-args ["--uw" "--only" "box-modes"]))))
