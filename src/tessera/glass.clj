@@ -20,7 +20,8 @@
    Boundary: `girih-glass-scene`, `render-scene!`."
   (:require [clojure.java.io :as io]
             [desargues.wallpaper.girih :as g]
-            [desargues.wallpaper.luxcore :as lx])
+            [desargues.wallpaper.luxcore :as lx]
+            [desargues.wallpaper.render :as render])
   (:import (java.awt.image BufferedImage)
            (java.nio.file Files)
            (java.nio.file.attribute FileAttribute)
@@ -306,6 +307,27 @@
                                            (backdrop xs width (+ 2.0 (* 2.0 half)) 0.35 ems))))
              :spp spp}))))
 
+(defn cpu-scene
+  "The scene at `u` rendered on the CPU: the GPU is shared with other
+   sessions and often has no room for a CUDA context, so this is the
+   reliable path. 6 native threads (the CPU is contended too), OIDN,
+   no OpenCL and no hybrid back/forward (which needs the GPU)."
+  ([u] (cpu-scene u {}))
+  ([u opts]
+   (-> (girih-glass-scene u opts)
+       (assoc :engine "PATHCPU")
+       (update :config dissoc "opencl.cpu.use" "opencl.gpu.use"
+               "opencl.native.threads.count" "path.hybridbackforward.enable")
+       (assoc-in [:config "native.threads.count"] 6))))
+
+(defmethod render/scene-render :glass-cpu
+  [_ ^BufferedImage img s _opts]
+  (let [frame (render-scene! s (.getWidth img) (.getHeight img))
+        g (.createGraphics img)]
+    (.drawImage g frame 0 0 nil)
+    (.dispose g)
+    img))
+
 (defn scene-props
   "Upstream lx/scene-props plus the scene's :volumes map, written as
    `scene.volumes.<id>.<key>` (LuxCore clear/heterogeneous volumes)."
@@ -340,9 +362,10 @@
 
 (def girih-glass
   {:id :girih-glass
-   :title "Khatam stars in dispersive glass, caustics crawling (LuxCore, GPU)"
+   :title "Khatam stained glass, a warm band sweeping behind it (LuxCore)"
    :seconds 10 :fps 24 :size [640 360]
-   :scene #(girih-glass-scene % {:spp 32 :exposure 4.0})})
+   :engine :glass-cpu
+   :scene #(cpu-scene % {:spp 32 :exposure 0.12})})
 
 (def loops
   "The path-traced glass ornament loops, by id."

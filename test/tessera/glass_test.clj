@@ -37,36 +37,61 @@
                     dirs)
             "and the reverse appears exactly once too")))))
 
-(deftest tiles-leave-joints
-  (let [ts (gl/tiles 4.0 0.06)
-        objs (gl/tile-objects ts 0.03 0.40 0.86)]
-    (is (pos? (count (:vertices (:stars objs)))))
-    (is (pos? (count (:vertices (:squares objs)))))
-    (testing "shrinking about the centre really shrinks the polygon"
-      (let [t (first ts)
-            shrunk (mapv (fn [v] (g/v+ (:centre t) (g/v* 0.86 (g/v- v (:centre t)))))
-                         (:points t))
-            r (fn [pts] (apply max (map #(g/vlen (g/v- % (:centre t))) pts)))]
-        (is (< (Math/abs (- (* 0.86 (r (:points t))) (r shrunk))) 1e-9))))))
+(deftest pieces-are-stars-and-crosses
+  (let [ts (gl/tiles 3.6)]
+    (is (pos? (count ts)))
+    (is (every? #{:star :accent} (map :colour ts)))
+    (testing "stars have 16 vertices (8 points), crosses are shrunk squares"
+      (doseq [p ts]
+        (is (= (if (= :star (:colour p)) 16 4) (count (:points p))))))
+    (testing "each piece is a simple polygon of distinct points"
+      (doseq [p ts]
+        (is (= (count (:points p)) (count (distinct (:points p))))
+            (str "degenerate piece " (:colour p)))))
+    (testing "the backing pane covers the whole panel, so there are no gaps"
+      (let [objs (gl/panel-objects ts 0.05 0.045)]
+        (is (= 2 (count (get-in objs [:backing :faces]))))
+        (is (pos? (count (get-in objs [:star :faces]))))
+        (is (pos? (count (get-in objs [:accent :faces]))))
+        (is (pos? (count (get-in objs [:came :faces]))))))))
 
-(deftest volumes-reach-the-scene-file
-  (let [props (gl/scene-props (gl/girih-glass-scene 0.0 {:spp 8}))
-        m (into {} props)]
-    (is (= "clear" (get m "scene.volumes.cobalt.type")))
-    (is (= "clear" (get m "scene.volumes.honey.type")))
-    (is (= [3.0 1.2 0.15] (get m "scene.volumes.cobalt.absorption")))
-    (testing "the materials point at their volumes, not at a material of the
-              same name"
-      (is (= :cobalt (get m "scene.materials.lapis.volume.interior")))
-      (is (= :honey (get m "scene.materials.amber.volume.interior"))))))
+(deftest backdrop-faces-the-camera
+  (let [sc (gl/girih-glass-scene 0.0 {:spp 8 :half 3.6 :strips 24})
+        b (get-in sc [:objects :back0])
+        [a c d] (take 3 (:vertices b))
+        n (g/cross (mapv - c a) (mapv - d a))]
+    (testing "the emissive strip's normal points at the camera (-y), or the
+              glass would transmit a dark wall"
+      (is (neg? (second n))))
+    (testing "hidden from camera rays by default, so there is no grey wash"
+      (is (true? (:camerainvisible b))))))
 
-(deftest only-the-sun-moves
+(deftest sweep-is-exactly-periodic-and-moves
+  (let [a (gl/sweep-emissions 0.0 24 1.2 3.0 3.0)
+        b (gl/sweep-emissions 1.0 24 1.2 3.0 3.0)
+        c (gl/sweep-emissions 0.5 24 1.2 3.0 3.0)]
+    (is (= a b) "the backdrop sweep closes exactly")
+    (is (not= a c) "and it actually moves")
+    (is (= 24 (count a)))))
+
+(deftest only-the-light-moves
   (let [a (gl/girih-glass-scene 0.0 {:spp 8})
         b (gl/girih-glass-scene 0.25 {:spp 8})]
-    (is (= (:objects a) (:objects b)) "the tiles are static")
+    (is (= (:stars (:objects a)) (:stars (:objects b))) "the glass is static")
     (is (= (:camera a) (:camera b)) "the camera never moves")
-    (is (= 1 (count (:lights a))) "one light only, no flat ambient fill")
-    (is (not= (get-in a [:lights :key :dir]) (get-in b [:lights :key :dir])))))
+    (is (= 1 (count (:lights a))) "one sun only, no flat ambient fill")
+    (is (not= (get-in a [:lights :key :dir]) (get-in b [:lights :key :dir])))
+    (is (not= (get-in a [:materials :backmat0 :emission])
+              (get-in b [:materials :backmat0 :emission]))
+        "the backdrop sweep moves")))
+
+(deftest panel-stands-upright
+  (let [objs (gl/panel-objects (gl/tiles 3.6) 0.05 0.045)
+        zs (map #(nth % 2) (get-in objs [:star :vertices]))]
+    (testing "the panel spans height, not depth"
+      (is (< -0.5 (apply min zs)))
+      (is (< 5.0 (apply max zs) 8.0))
+      (is (< (apply max (map second (get-in objs [:star :vertices]))) 4.5)))))
 
 (deftest loop-spec
   (is (= :girih-glass (:id gl/girih-glass)))
