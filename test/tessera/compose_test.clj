@@ -83,3 +83,25 @@
           :let [spec (scene/->spec (gen/generate seed))
                 {:keys [seam typical-max]} (metrics/seam-stats spec)]]
     (is (<= seam typical-max))))
+
+(defn- luma-peak
+  "99.9th-percentile Rec.709 luma of `spec` at u = 0.3."
+  [spec]
+  (let [ys (sort (map (fn [c] (+ (* 0.2126 (bit-and 255 (bit-shift-right c 16)))
+                                 (* 0.7152 (bit-and 255 (bit-shift-right c 8)))
+                                 (* 0.0722 (bit-and 255 c))))
+                      (metrics/pixels (r/render-frame spec 0.3 {:size [240 135]}))))]
+    (nth ys (long (* 0.999 (dec (count ys)))))))
+
+(defn- role-only [scene role]
+  (scene/->spec (update scene :layers (fn [ls] (filterv #(= role (:role %)) ls)))))
+
+(deftest generated-backgrounds-stay-dim-single-and-in-palette
+  (doseq [seed (range 1 13)
+          :let [s (gen/generate seed)]]
+    (testing (str "seed " seed)
+      (is (empty? (gen/constraint-violations s)))
+      (is (<= (count (filter #(and (= :background (:role %)) (:paint %)) (:layers s))) 1))
+      (let [bg (luma-peak (role-only s :background))
+            fg (luma-peak (role-only s :foreground))]
+        (is (<= bg (* 0.40 fg)) (str "background peak " bg " vs foreground " fg))))))

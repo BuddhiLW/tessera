@@ -95,12 +95,15 @@
             (cr/over color chain (cr/cover d))))))))
 
 (defmethod kind :glyph
-  ;; Any registry motif as a sprite: double outline (outer + inner) in a
-  ;; rainbow hue set by the site phase, scaled by the site radius, painted
-  ;; with alpha = light (so glyphs overlap cleanly instead of clipping).
-  [{:keys [motif hue-spread inner] :or {hue-spread 1.0 inner 0.045}}]
+  ;; Any registry motif as a sprite: double outline (outer + inner), scaled
+  ;; by the site radius, painted with alpha = light so glyphs overlap
+  ;; cleanly. Colour: :colors [outer inner] (palette tiers, linear rgb) or,
+  ;; without it, a rainbow hue set by the site phase. :gain (<= 1) bounds
+  ;; the peak, so a background lattice stays dim under the foreground.
+  [{:keys [motif hue-spread inner colors gain] :or {hue-spread 1.0 inner 0.045 gain 1.0}}]
   (let [sdf ^clojure.lang.IFn$DDD (:sdf (m/motif motif))
-        spread (double hue-spread) inner (double inner)]
+        spread (double hue-spread) inner (double inner) gain (double gain)
+        [[r1 g1 b1] [r2 g2 b2]] (map #(map double %) colors)]
     (fn [_]
       (reify ISprite
         (paint [_ dx dy color rec o]
@@ -109,12 +112,15 @@
             (if (> d 0.12) color
                 (let [outline (* 1.3 (c/glow (- d 0.009) 0.017))
                       inline (* 0.72 (c/glow (+ d inner) 0.012))
+                      v (* gain pulse)
+                      mix (/ inline (max 1.0e-9 (+ outline inline)))
                       hue (lp/frac (* spread (/ phase lp/tau)))
-                      a (min 1.0 (+ outline inline))
-                      ink (cr/over (cr/rainbow hue (* 0.94 pulse))
-                                   (cr/rainbow (+ hue 0.5) (* 0.90 pulse))
-                                   (/ inline (max 1.0e-9 (+ outline inline))))]
-                  (cr/over color ink a)))))))))
+                      outer-c (if colors (r/rgb (* v (double r1)) (* v (double g1)) (* v (double b1)))
+                                  (cr/rainbow hue (* 0.94 v)))
+                      inner-c (if colors (r/rgb (* v (double r2)) (* v (double g2)) (* v (double b2)))
+                                  (cr/rainbow (+ hue 0.5) (* 0.90 v)))
+                      a (min 1.0 (+ outline inline))]
+                  (cr/over color (cr/over outer-c inner-c mix) a)))))))))
 
 (defn site-records
   "Packed records [x y radius kind phase pulse] at phase u.
