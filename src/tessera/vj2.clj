@@ -279,6 +279,70 @@
   {:id :fabric :title "UV fabric: isometric relief, serpent ribbons and rainbow droplets"
    :seconds 16 :fps 30 :size [1920 1080] :view [8.0 4.5] :ss 2 :field fabric-shader})
 
+(defn hyperspace-seeds
+  "A2 (hex) lattice sites in a fundamental D12 wedge and one dyadic annulus.
+   Repetition by radius factors 2^k creates a discrete self-similar field."
+  []
+  (vec (for [i (range -20 21) j (range -20 21)
+             :let [x (* 0.14 (+ i (* 0.5 j)))
+                   y (* 0.14 0.866025403784 j)
+                   radius (Math/hypot x y) angle (Math/atan2 y x)]
+             :when (and (<= 1.0 radius) (< radius 2.0) (< 0.012 angle (/ Math/PI 12.0)))]
+         {:x x :y y :q (/ (Math/log radius) (Math/log 2.0)) :angle angle})))
+
+(defn hyperspace-coordinates
+  "Stationary D12 fold followed by log2 radius. Advecting q by one moves
+   every star outward at dr/du=log(2)*r; u+1 relabels the dyadic annuli."
+  [x y u]
+  (let [[a b] (vj/dihedral-fold 12 x y) radius (Math/hypot (double x) (double y))]
+    [(- (/ (Math/log (max 1.0e-12 (/ radius 0.38))) (Math/log 2.0)) (travel-phase (double u)))
+     (Math/atan2 (double b) (double a))]))
+
+(defn hyperspace-shader
+  "Hex-lattice stars repeated by factors of two, mirrored through D12.
+   Radially elongated kernels are comet streaks in log polar coordinates;
+   their scale grows with radius. Three saturated colour stops are mixed
+   between stars, not time-cycled with a non-integer palette frequency."
+  [u]
+  (let [u (double u) v (travel-phase u) half (/ Math/PI 12.0)
+        seeds (hyperspace-seeds) n (count seeds)
+        data (double-array (* 6 n))]
+    (doseq [[i {:keys [q angle]}] (map-indexed vector seeds)]
+      (let [t (* 3.0 (lp/frac (+ (* 0.37 i) (* 0.41 q))))
+            j (long (Math/floor t)) f (- t j)
+            stops [[0.015 0.90 1.0] [0.66 0.02 1.0] [1.0 0.31 0.015]]
+            a (nth stops j) b (nth stops (mod (inc j) 3)) o (* 6 i)]
+        (aset data o (double q)) (aset data (inc o) (double angle))
+        (aset data (+ o 2) (+ 0.0050 (* 0.0030 (lp/frac (* i 0.61803398875)))))
+        (dotimes [k 3] (aset data (+ o 3 k) (+ (* (- 1.0 f) (double (nth a k))) (* f (double (nth b k))))))))
+    (fn ^long [^double x ^double y]
+      (let [radius (Math/hypot x y)
+            angle (Math/abs (- (mod (+ (Math/atan2 y x) half) (* 2.0 half)) half))
+            q (- (/ (Math/log (max 1.0e-12 (/ radius 0.38))) (Math/log 2.0)) v)
+            fade (* (min 1.0 (max 0.0 (/ (- radius 0.11) 0.16)))
+                    (- 1.0 (* 0.045 radius)))]
+        (loop [i 0 red 0.0 green 0.0 blue 0.0]
+          (if (= i n) (uv (* fade red) (* fade green) (* fade blue))
+              (let [o (* 6 i) da (- angle (aget data (inc o)))
+                    width (aget data (+ o 2))]
+                (if (> (Math/abs da) (* 4.0 width)) (recur (inc i) red green blue)
+                    (let [dq (- (lp/frac (+ (- q (aget data o)) 0.5)) 0.5)
+                          lateral (/ da width) across (Math/exp (- (* lateral lateral)))
+                          head (* 1.50 (Math/exp (* -1600.0 dq dq)))
+                          tail (if (<= -0.24 dq 0.0)
+                                 (* 0.66 (Math/exp (* 17.0 dq)) (min 1.0 (* 70.0 (+ dq 0.24)))) 0.0)
+                          spark (* 0.40 (Math/exp (* -6000.0 dq dq))
+                                   (Math/exp (* -0.10 lateral lateral)))
+                          light (+ (* across (+ head tail)) spark)]
+                      (recur (inc i)
+                             (+ red (* light (aget data (+ o 3))))
+                             (+ green (* light (aget data (+ o 4))))
+                             (+ blue (* light (aget data (+ o 5))))))))))))))
+
+(def hyperspace
+  {:id :hyperspace :title "Hyperspace: D12 folded A2 stars in a dyadic log-radial warp"
+   :seconds 18 :fps 30 :size [1920 1080] :view [8.0 4.5] :ss 2 :field hyperspace-shader})
+
 (def loops
   "Separate export: the coordinator merges this map into the gallery."
-  (array-map :fabric fabric))
+  (array-map :fabric fabric :hyperspace hyperspace))

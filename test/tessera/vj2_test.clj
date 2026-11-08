@@ -23,6 +23,26 @@
           [x y] [[0.73 0.29] [-2.31 1.01] [3.74 -1.88] [0.2 0.1] [-1.1 -0.65]]]
     (is (= (a x y) (b x y)))))
 
+(deftest hyperspace-is-a-self-similar-hex-lattice-not-respawning-particles
+  (let [seeds (v2/hyperspace-seeds)]
+    (is (<= 15 (count seeds) 30))
+    (doseq [{:keys [x y q angle]} seeds]
+      (is (<= 0.0 q 1.0))
+      (is (< 0.0 angle (/ Math/PI 12.0)))
+      (let [j (/ y (* 0.14 0.866025403784)) i (- (/ x 0.14) (* 0.5 j))]
+        (is (< (Math/abs (- j (Math/rint j))) 1.0e-10))
+        (is (< (Math/abs (- i (Math/rint i))) 1.0e-10)))))
+  (doseq [[x y] [[0.6 1.1] [-0.8 0.31] [1.7 -0.42]] u [0.0 0.3 0.71]]
+    (let [[q a] (v2/hyperspace-coordinates x y u)
+          [q1 a1] (v2/hyperspace-coordinates (* 2.0 x) (* 2.0 y) (+ u 1.0))]
+      (is (< (Math/abs (- q q1)) 1.0e-12))
+      (is (< (Math/abs (- a a1)) 1.0e-12))))
+  (doseq [u [0.0 0.17 0.3 0.71]
+          :let [a (v2/hyperspace-shader u) b (v2/hyperspace-shader (+ u 1.0))]
+          [x y] [[0.73 0.29] [-2.31 1.01] [3.74 -1.88] [0.2 0.1]]]
+    (is (= (a x y) (b x y)))
+    (is (= (a x y) (a x (- y))))))
+
 (deftest gallery-specs-and-strict-native-frame-seams
   (doseq [[id spec] v2/loops]
     (testing (name id)
