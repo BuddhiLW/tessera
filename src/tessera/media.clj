@@ -25,14 +25,36 @@
 
 (def version 1)
 
+(def ^:private relativity-metadata
+  {:minkowski-boost {:family "Physics" :title "Minkowski Boost"
+                     :tags ["relativity" "minkowski" "lorentz" "spacetime"]}
+   :aberration {:family "Physics" :title "Relativistic Aberration"
+                :tags ["relativity" "aberration" "doppler" "starfield"]}
+   :einstein-ring {:family "Physics" :title "Einstein Ring"
+                   :tags ["gravity" "lensing" "einstein-ring"]}
+   :twin-paradox {:family "Physics" :title "Twin Paradox Clocks"
+                  :tags ["relativity" "proper-time" "worldlines" "clocks"]}})
+
+(def ^:private projective-metadata
+  {:dandelin-conics {:family "Geometry" :title "Dandelin Conic Sections"
+                     :tags ["conics" "dandelin" "cone" "neon"]}
+   :desargues {:family "Geometry" :title "Desargues' Theorem"
+               :tags ["desargues" "projective" "perspectivity" "neon"]}
+   :pascal-brianchon {:family "Geometry" :title "Pascal and Brianchon"
+                      :tags ["pascal" "brianchon" "hexagon" "duality" "neon"]}
+   :pole-polar {:family "Geometry" :title "Pole and Polar"
+                :tags ["pole" "polar" "conic" "tangent" "neon"]}
+   :conic-pencil {:family "Geometry" :title "Pencil of Conics"
+                  :tags ["conics" "pencil" "projective-line" "neon"]}})
+
 (def family-set
   "The allowed families, in the order the Catalog should show them."
-  ["Orbits" "Curves" "Knots" "Fractals" "Lattices" "Waves" "Quantum" "Tilings" "Ornament" "Flows" "Geometry" "Scenes"])
-(def base-families
+  ["Orbits" "Curves" "Knots" "Fractals" "Lattices" "Waves" "Quantum" "Tilings" "Ornament" "Flows" "Geometry" "Scenes" "Physics"])
+
+(def ^:private master-families
   "Hand-curated: loop id -> [family tags]. Must cover every loop in
    tessera.loops/catalog (the tests check it)."
-  {;; Orbits: celestial and mechanical periodic motion
-   :choreographies ["Orbits" ["three-body" "figure-eight" "n-body" "choreography"]]
+  {
    :figure-eight ["Orbits" ["three-body" "figure-eight" "n-body" "choreography"]]
    :phase-flow ["Orbits" ["pendulum" "phase-space" "action-angle" "hamiltonian"]]
    :kepler-resonance ["Orbits" ["kepler" "resonance" "ellipse" "celestial"]]
@@ -135,16 +157,7 @@
    :fourier-formula ["Curves" ["fourier" "tex" "gauss-law" "epicycles"]]
    :fourier-live ["Curves" ["fourier" "trefoil" "sdf" "live" "analytic"]]})
 
-(def families
-  "The hand-curated families above, plus the projective geometry gallery."
-  (merge base-families
-         {:dandelin-conics ["Geometry" ["conics" "dandelin" "cone" "neon"]]
-          :desargues ["Geometry" ["desargues" "projective" "perspectivity" "neon"]]
-          :pascal-brianchon ["Geometry" ["pascal" "brianchon" "hexagon" "duality" "neon"]]
-          :pole-polar ["Geometry" ["pole" "polar" "conic" "tangent" "neon"]]
-          :conic-pencil ["Geometry" ["conics" "pencil" "projective-line" "neon"]]}))
-
-(def titles
+(def ^:private master-titles
   "Short human titles for the Catalog tile. The loop's own :title (often a
    sentence) becomes the item's :description."
   {:choreographies "Three-Body Choreographies"
@@ -230,22 +243,24 @@
    :fourier-formula "Fourier Draws Gauss's Law"
    :fourier-live "Analytic Fourier Epicycles"})
 
-(def base-titles titles)
-
-(def titles
-  "Short human titles for the Catalog tile, including projective geometry."
-  (merge base-titles
-         {:dandelin-conics "Dandelin Conic Sections"
-          :desargues "Desargues' Theorem"
-          :pascal-brianchon "Pascal and Brianchon"
-          :pole-polar "Pole and Polar"
-          :conic-pencil "Pencil of Conics"}))
-
 (def clip-dirs
   "Clip kind -> render directory under the repo root."
   {:hd "out/hd" :uw "out/uw"})
 
 (defn- rel [id file] (str (name id) "/" file))
+
+(def families
+  "Master's curated families plus the relativity and projective entries."
+  (merge {:choreographies ["Orbits" ["three-body" "figure-eight" "n-body" "choreography"]]}
+         master-families
+         (into {} (map (fn [[id {:keys [family tags]}]] [id [family tags]]))
+               (merge relativity-metadata projective-metadata))))
+
+(def titles
+  "Master's short titles plus the relativity and projective entries."
+  (merge master-titles
+         (into {} (map (fn [[id {:keys [title]}]] [id title]))
+               (merge relativity-metadata projective-metadata))))
 
 (defn item
   "The manifest item of `loop`, given `present`: the set of clip kinds

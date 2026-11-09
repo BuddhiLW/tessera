@@ -35,10 +35,12 @@
     :brillouin_rect '[edge_width pulse_zones] :textile_tunnel '[depth_fade shear]
     :flower_mandala '[worm_density patch_threshold ring_radius]
     :hyperspace '[streak_decay head_sharpness core_glow]
-    :sprite_lattice '[size_span hue_swing]}
+    :sprite_lattice '[size_span hue_swing]
+    :minkowski_boost '[boost_amplitude line_width]
+    :aberration '[boost_amplitude]
+    :einstein_ring '[einstein_radius source_radius]}
    (zipmap [:dandelin_conics :desargues :pascal_brianchon :pole_polar :conic_pencil]
            (repeat []))))
-
 (def expected-effect-names
   ;; Catalog titles are fosfora preset keys: never rename.
   {:twisted_bilayer "Twisted Bilayer" :double_slit "Double Slit"
@@ -50,10 +52,11 @@
    :brillouin_rect "Brillouin Rectangular"
    :textile_tunnel "Textile Tunnel" :flower_mandala "Flower Mandala"
    :hyperspace "Hyperspace Warp" :sprite_lattice "Sprite Lattice"
+   :minkowski_boost "Minkowski Boost" :aberration "Relativistic Aberration"
+   :einstein_ring "Einstein Ring"
    :dandelin_conics "Dandelin Conics" :desargues "Desargues"
    :pascal_brianchon "Pascal and Brianchon"
    :pole_polar "Pole and Polar" :conic_pencil "Conic Pencil"})
-
 (defn- raster [shader view [w h] ss]
   (let [img (BufferedImage. w h BufferedImage/TYPE_INT_RGB)]
     (render/field-raster :jvm img shader {:view view :ss ss})

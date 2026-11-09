@@ -14,8 +14,8 @@
             [tessera.layers.ports.reciprocal :as recip]
             [tessera.layers.ports.slit :as slit]
             [tessera.layers.ports.uv :as uv]
+            [tessera.layers.relativity :as relativity]
             [tessera.projective :as projective]))
-
 (def layers
   "Ported layers in stable registry order (best visual payoff first)."
   (into [recip/twisted-bilayer slit/double-slit carpet/quantum-tapestry carpet/quantum-carpet
@@ -23,50 +23,51 @@
          recip/fold-9 recip/fold-10 recip/fold-11 recip/fold-12
          bz/brillouin-square bz/brillouin-oblique bz/brillouin-rect
          uv/textile-tunnel uv/flower-mandala uv/hyperspace uv/sprite-lattice]
-        projective/layers))
-
+        (into relativity/layers projective/layers)))
 (def source-loops
   "Layer id -> the tessera.loops/all id of the closure loop it reproduces."
-  (merge
-   {:twisted_bilayer :twisted-bilayer :double_slit :double-slit
-    :quantum_tapestry :quantum-tapestry :quantum_carpet :quantum-carpet
-    :box_modes :box-modes :drum_modes :drum :breathers :breathers
-    :fold_9 :fold-9 :fold_10 :fold-10 :fold_11 :fold-11 :fold_12 :fold-12
-    :brillouin_square :brillouin-square :brillouin_oblique :brillouin-oblique
-    :brillouin_rect :brillouin-rect
-    :textile_tunnel :textile-tunnel :flower_mandala :flower-mandala
-    :hyperspace :hyperspace :sprite_lattice :sprite-lattice}
-   (into {} (map (fn [{:keys [id]}] [id (keyword (clojure.string/replace (name id) "_" "-"))]))
-         projective/layers)))
-
+  {:twisted_bilayer :twisted-bilayer :double_slit :double-slit
+   :quantum_tapestry :quantum-tapestry :quantum_carpet :quantum-carpet
+   :box_modes :box-modes :drum_modes :drum :breathers :breathers
+   :fold_9 :fold-9 :fold_10 :fold-10 :fold_11 :fold-11 :fold_12 :fold-12
+   :brillouin_square :brillouin-square :brillouin_oblique :brillouin-oblique
+   :brillouin_rect :brillouin-rect
+   :textile_tunnel :textile-tunnel :flower_mandala :flower-mandala
+   :hyperspace :hyperspace :sprite_lattice :sprite-lattice
+   :minkowski_boost :minkowski-boost :aberration :aberration
+   :einstein_ring :einstein-ring
+   :dandelin_conics :dandelin-conics :desargues :desargues
+   :pascal_brianchon :pascal-brianchon :pole_polar :pole-polar
+   :conic_pencil :conic-pencil})
 (def effects
   "fosfora layer-effect catalog name (a preset key: STABLE) and description
    per layer id."
-  (merge
-   {:twisted_bilayer {:name "Twisted Bilayer" :description "Twisted bilayer graphene: the moire superlattice with light pulsing outward."}
-    :double_slit {:name "Double Slit" :description "A plane wave through two slits; the fringe intensity stands out of the screen."}
-    :quantum_tapestry {:name "Quantum Tapestry" :description "The Talbot carpet of a packet in a box, in phase colour, time flowing across."}
-    :quantum_carpet {:name "Quantum Carpet" :description "A packet in a box revives exactly: the Talbot carpet scrolling once per loop."}
-    :box_modes {:name "Box Modes" :description "Five commensurate eigenstates of a 16 by 9 well, phase colour and iso-density contours."}
-    :drum_modes {:name "Drum Modes" :description "Pythagorean square-membrane modes: luminous Chladni nodal lines in a 1:2:3:4 resonance."}
-    :breathers {:name "Sine-Gordon Breathers" :description "Glowing level sets of an exact sine-Gordon breather lattice."}
-    :fold_9 {:name "Nine-Fold Contours" :description "Nine-fold quasiperiodic energy contours, rising."}
-    :fold_10 {:name "Ten-Fold Contours" :description "Ten-fold quasiperiodic energy contours, rising."}
-    :fold_11 {:name "Eleven-Fold Contours" :description "Eleven-fold quasiperiodic energy contours, rising."}
-    :fold_12 {:name "Twelve-Fold Contours" :description "Twelve-fold quasiperiodic energy contours, rising."}
-    :brillouin_square {:name "Brillouin Square" :description "Brillouin zones of the square lattice as four-fold stained glass."}
-    :brillouin_oblique {:name "Brillouin Oblique" :description "Brillouin zones of an oblique lattice: only inversion survives."}
-    :brillouin_rect {:name "Brillouin Rectangular" :description "Brillouin zones of a rectangular lattice as stained glass."}
-    :textile_tunnel {:name "Textile Tunnel" :description "A UV textile tunnel: stepped crosses on an exact cylinder, travelling endlessly inward."}
-    :flower_mandala {:name "Flower Mandala" :description "A dyadic triangular labyrinth flowering outward around a ring of dashed circles."}
-    :hyperspace {:name "Hyperspace Warp" :description "D12-folded hex-lattice stars streaking outward through a dyadic log-radial warp."}
-    :sprite_lattice {:name "Sprite Lattice" :description "UV glyphs sized by the graphene hopping band, sliding one cell per loop."}}
-   {:dandelin_conics {:name "Dandelin Conics" :description "A cone cut through circle, ellipse, parabola and hyperbola, with Dandelin spheres."}
-    :desargues {:name "Desargues" :description "Perspective triangles and their invariant axis of perspectivity."}
-    :pascal_brianchon {:name "Pascal and Brianchon" :description "A hexagon on a conic and its tangent-line projective dual."}
-    :pole_polar {:name "Pole and Polar" :description "An orbiting pole, its polar and two exact tangent contacts."}
-    :conic_pencil {:name "Conic Pencil" :description "The projective pencil of conics through four invariant points."}}))
-
+  {:twisted_bilayer {:name "Twisted Bilayer" :description "Twisted bilayer graphene: the moire superlattice with light pulsing outward."}
+   :double_slit {:name "Double Slit" :description "A plane wave through two slits; the fringe intensity stands out of the screen."}
+   :quantum_tapestry {:name "Quantum Tapestry" :description "The Talbot carpet of a packet in a box, in phase colour, time flowing across."}
+   :quantum_carpet {:name "Quantum Carpet" :description "A packet in a box revives exactly: the Talbot carpet scrolling once per loop."}
+   :box_modes {:name "Box Modes" :description "Five commensurate eigenstates of a 16 by 9 well, phase colour and iso-density contours."}
+   :drum_modes {:name "Drum Modes" :description "Pythagorean square-membrane modes: luminous Chladni nodal lines in a 1:2:3:4 resonance."}
+   :breathers {:name "Sine-Gordon Breathers" :description "Glowing level sets of an exact sine-Gordon breather lattice."}
+   :fold_9 {:name "Nine-Fold Contours" :description "Nine-fold quasiperiodic energy contours, rising."}
+   :fold_10 {:name "Ten-Fold Contours" :description "Ten-fold quasiperiodic energy contours, rising."}
+   :fold_11 {:name "Eleven-Fold Contours" :description "Eleven-fold quasiperiodic energy contours, rising."}
+   :fold_12 {:name "Twelve-Fold Contours" :description "Twelve-fold quasiperiodic energy contours, rising."}
+   :brillouin_square {:name "Brillouin Square" :description "Brillouin zones of the square lattice as four-fold stained glass."}
+   :brillouin_oblique {:name "Brillouin Oblique" :description "Brillouin zones of an oblique lattice: only inversion survives."}
+   :brillouin_rect {:name "Brillouin Rectangular" :description "Brillouin zones of a rectangular lattice as stained glass."}
+   :textile_tunnel {:name "Textile Tunnel" :description "A UV textile tunnel: stepped crosses on an exact cylinder, travelling endlessly inward."}
+   :flower_mandala {:name "Flower Mandala" :description "A dyadic triangular labyrinth flowering outward around a ring of dashed circles."}
+   :hyperspace {:name "Hyperspace Warp" :description "D12-folded hex-lattice stars streaking outward through a dyadic log-radial warp."}
+   :sprite_lattice {:name "Sprite Lattice" :description "UV glyphs sized by the graphene hopping band, sliding one cell per loop."}
+   :minkowski_boost {:name "Minkowski Boost" :description "A spacetime lattice shears by a Lorentz boost; its light cones stay fixed."}
+   :aberration {:name "Relativistic Aberration" :description "A starfield sweeps toward the direction of motion, with Doppler colour and brightness."}
+   :einstein_ring {:name "Einstein Ring" :description "A point lens bends a distant star into arcs and an Einstein ring."}
+   :dandelin_conics {:name "Dandelin Conics" :description "A cone cut through circle, ellipse, parabola and hyperbola, with Dandelin spheres."}
+   :desargues {:name "Desargues" :description "Perspective triangles and their invariant axis of perspectivity."}
+   :pascal_brianchon {:name "Pascal and Brianchon" :description "A hexagon on a conic and its tangent-line projective dual."}
+   :pole_polar {:name "Pole and Polar" :description "An orbiting pole, its polar and two exact tangent contacts."}
+   :conic_pencil {:name "Conic Pencil" :description "The projective pencil of conics through four invariant points."}})
 (def skipped
   "Loops of tessera.loops/all audited for a field port and not ported, with
    the reason. A painter or raster approximation is never presented as a port."
@@ -101,6 +102,7 @@
    :lissajous_oscillators "A :frame painter."
    :neon_pulse "A :frame painter (girih beads) with post stages."
    :neon_khatam "A :frame painter (girih beads) with post stages."
+   :twin_paradox "A :frame painter (worldlines and proper-time clock ticks)."
    :girih_light "A :frame vector painter with a :light pass."
    :girih_drift "A :frame vector painter with a :light pass."
    :girih_assembly "A :frame vector painter with a :light pass."
