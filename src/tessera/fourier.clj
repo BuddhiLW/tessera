@@ -5,7 +5,11 @@
    No frame history: the pen and its fading trail are functions of tau*u."
   (:require [clojure.xml :as xml]
             [desargues.player.svg-path :as svg-path]
-            [desargues.wallpaper.loop :as lp])
+            [desargues.wallpaper.loop :as lp]
+            [clojure.java.io :as io]
+            [desargues.wallpaper.space :as sp]
+            [tessera.figures :as figures]
+            [desargues.tex.typeset :as typeset])
   (:import (java.awt.geom AffineTransform Path2D$Double PathIterator)
            (java.io ByteArrayInputStream)))
 
@@ -185,3 +189,145 @@
                          (visit (defs id) t (conj seen id)))
                   (mapcat #(visit % t seen) (filter map? content)))))]
       (vec (visit root (AffineTransform.) #{})))))
+
+(def gauss-law "\\nabla\\!\\cdot\\!\\mathbf{E}=\\frac{\\rho}{\\varepsilon_0}")
+
+(defn typeset-formula
+  "Boundary: typeset a formula through desargues.tex.typeset. Returns
+   :skipped if latex/dvisvgm are absent, :error on typesetting failure, or
+   SVG plus drawing segments. Registry loading NEVER launches a process."
+  ([] (typeset-formula (typeset/latex-typesetter) gauss-law))
+  ([typesetter formula]
+   (if-not (typeset/available? typesetter)
+     {:skipped "latex and dvisvgm must both be installed"}
+     (let [r (typeset/typeset typesetter formula "#ffffff")]
+       (if (:error r) r (assoc r :segments (svg->segments (:svg r))))))))
+
+(def view [(/ 128.0 9.0) 8.0])
+
+(def trefoil-terms
+  "Top 24 harmonics of the arc-length resampled trefoil's XY projection."
+  (top-terms (dft (resample-curve #(subvec (figures/trefoil %) 0 2) 512)) 24))
+
+(def space-terms
+  "Top 24 real-vector harmonics of the arc-length resampled space trefoil."
+  (top-terms (dft (resample-curve figures/trefoil 512)) 24))
+
+(def formula-terms
+  "The checked-in dvisvgm Gauss-law asset, fitted and resampled. Delayed so
+   numerical clients do not need an asset. No latex dependency at runtime."
+  (delay
+    (when-let [url (io/resource "tessera/fourier/gauss-law.svg")]
+      (-> (slurp url) svg->segments (resample-segments 768)
+          (fit-points 10.0 4.6 {:flip-y? true}) dft (top-terms 96)))))
+
+(defn trail
+  "Analytic Fourier pen samples from u-length to u, oldest first. Fixed
+   age-indexed opacities avoid a history buffer or a reset at the seam."
+  [terms u length samples]
+  (mapv #(point terms (- (double u) (* length (- 1.0 (/ (double %) samples)))))
+        (range (inc samples))))
+
+(defn epicycle-frame
+  "2D circle chain, rods, fading trail and the pen at the chain's head."
+  [terms guide u]
+  (let [u (lp/frac (double u)) ends (chain terms u)
+        pts (trail terms u 0.88 600)]
+    {:background "#000000"
+     :shapes
+     (vec
+      (concat
+       [{:node :path :points guide :opts {:closed? true} :opacity 0.16
+         :stroke {:color "#14768f" :width 1.4}}]
+       (mapcat (fn [term a b]
+                 (when (> (:magnitude term) 0.006)
+                   (concat
+                    (when-not (zero? (:frequency term))
+                      [{:node :circle :at a :opts {:radius (:magnitude term)} :opacity 0.26
+                        :stroke {:color "#27bed6" :width 1.2}}])
+                    [{:node :line :from a :to b :opacity 0.64
+                      :stroke {:color "#ee9659" :width 1.8}}])))
+               terms ends (rest ends))
+       (mapcat (fn [i a b]
+                 (let [k (Math/pow (/ (double (inc i)) 600.0) 2.2)]
+                   [{:node :line :from a :to b :opacity (* 0.25 k)
+                     :stroke {:color "#d62bea" :width 8.0}}
+                    {:node :line :from a :to b :opacity (+ 0.02 (* 0.96 k))
+                     :stroke {:color "#53e4f5" :width 2.6}}]))
+               (range 600) pts (rest pts))
+       [{:node :dot :at (peek ends) :opts {:radius 0.12} :opacity 0.3
+         :fill {:color "#fd36d5"} :stroke {:color nil}}
+        {:node :dot :at (peek ends) :opts {:radius 0.048}
+         :fill {:color "#ffe4bc"} :stroke {:color nil}}]))}))
+
+(defn epicycle-loop
+  "An offline epicycle spec from a precomputed 2D spectrum."
+  [id title terms]
+  (let [guide (mapv #(point terms (/ % 720.0)) (range 720))]
+    {:id id :title title :seconds 20 :fps 30 :size [1920 1080] :view view
+     :frame #(epicycle-frame terms guide %)
+     :post (fn [_] [{:type :bloom :radius 10 :strength 0.75}
+                    {:type :vignette :strength 0.25}])}))
+
+(def fourier-trefoil
+  (epicycle-loop :fourier-trefoil "Fourier trefoil: 24 rotating circles and a pen of light" trefoil-terms))
+
+(def fourier-formula
+  (when-let [terms @formula-terms]
+    (assoc (epicycle-loop :fourier-formula "Gauss's law: a TeX formula drawn by 96 integer harmonics" terms)
+           :seconds 32)))
+
+(def camera
+  (sp/camera {:eye [5.0 -14.0 8.0] :target [0.0 0.0 0.0] :fov 34.0 :view view}))
+
+(defn- sphere
+  "A projected sphere with five nested Lambert-like light bands; its world
+   radius is projected at its depth, as are the rods and tube segments."
+  [p radius]
+  (when-let [[x y d] (sp/project camera p)]
+    (let [r (* radius (sp/magnification camera d))]
+      (map-indexed
+       (fn [i [scale dx dy colour]]
+         {:node :dot :at [(+ x (* dx r)) (+ y (* dy r))]
+          :depth (- d (* i 1.0e-5)) :opts {:radius (* r scale)}
+          :fill {:color colour} :stroke {:color nil}})
+       [[1.0 0.0 0.0 "#462478"] [0.83 -0.10 0.10 "#a832b5"]
+        [0.59 -0.23 0.22 "#f35cce"] [0.31 -0.35 0.32 "#ffa4d7"]
+        [0.12 -0.42 0.38 "#ffe9ca"]]))))
+
+(defn space-frame
+  "Vector Fourier orbits carrying spheres on rods, drawing a trefoil tube.
+   Real 3D conjugate pairs describe ellipses (sometimes lines), not complex
+   circles; each is traversed at its integer harmonic frequency."
+  [u]
+  (let [u (lp/frac (double u)) ends (chain space-terms u)
+        pts (trail space-terms u 0.88 480)]
+    (sp/frame
+     (concat
+      (mapcat (fn [term a b]
+                (when (> (:magnitude term) 0.008)
+                  (let [orbit (mapv #(mapv + a (term-point (assoc term :frequency 1) (/ % 96.0))) (range 97))]
+                    (concat
+                     (sp/path-shapes camera orbit {:color "#207a9d" :width 1.0 :opacity 0.27})
+                     (sp/segment-shapes camera [a b] {:color "#eea252" :width 2.0 :opacity 0.7})
+                     (sphere b (min 0.15 (+ 0.038 (* 0.07 (Math/sqrt (:magnitude term))))))))))
+              space-terms ends (rest ends))
+      (mapcat (fn [i a b]
+                (let [k (Math/pow (/ (double (inc i)) 480.0) 1.8)]
+                  (concat
+                   (sp/segment-shapes camera [a b] {:color "#ad27e8" :width 10.0 :opacity (* 0.22 k)})
+                   (sp/segment-shapes camera [a b] {:color "#3fe3ea" :width 4.0 :opacity (+ 0.02 (* 0.94 k))}))))
+              (range 480) pts (rest pts))
+      (sphere (peek ends) 0.075))
+     {:background "#000000"})))
+
+(def fourier-space
+  {:id :fourier-space :title "Fourier in space: spheres on rods draw a trefoil tube"
+   :seconds 20 :fps 30 :size [1920 1080] :view view :frame space-frame
+   :post (fn [_] [{:type :bloom :radius 12 :strength 0.65}
+                  {:type :vignette :strength 0.25}])})
+
+(def loops
+  "Offline Fourier loops; the formula is omitted if its asset is absent."
+  (into (array-map :fourier-trefoil fourier-trefoil :fourier-space fourier-space)
+        (when fourier-formula [[:fourier-formula fourier-formula]])))

@@ -3,7 +3,10 @@
             [desargues.player.svg-path :as svg]
             [desargues.wallpaper.loop :as lp]
             [tessera.figures :as figures]
-            [tessera.fourier :as f]))
+            [tessera.fourier :as f]
+            [desargues.wallpaper.render :as render]
+            [tessera.vj-test :as metrics]
+            [desargues.tex.typeset :as typeset]))
 
 (defn error [a b] (reduce max 0.0 (map #(abs (- %1 %2)) a b)))
 
@@ -79,3 +82,29 @@
       (is (< (error (f/point top u) (f/point top (+ u 1.0))) 1.0e-12))))
   (is (thrown? clojure.lang.ExceptionInfo (f/top-terms [] -1)))
   (is (thrown? clojure.lang.ExceptionInfo (f/dft []))))
+
+(deftest formula-boundary-skips-unavailable-binaries
+  (let [adapter (typeset/latex-typesetter "absent-latex" "absent-dvisvgm")]
+    (is (:skipped (f/typeset-formula adapter f/gauss-law))))
+  (with-redefs [typeset/available? (constantly true)
+                typeset/typeset (fn [_ _ _] {:svg "<svg><path d='M0 0L1 0L0 1Z'/></svg>"})]
+    (is (= 4 (count (:segments (f/typeset-formula :fake "x"))))))
+  (is (= 96 (count @f/formula-terms)))
+  (is (= 24 (count f/trefoil-terms)))
+  (is (= 24 (count f/space-terms))))
+
+(deftest every-offline-fourier-loop-closes-its-seam
+  (is (= #{:fourier-trefoil :fourier-space :fourier-formula} (set (keys f/loops))))
+  (doseq [[id spec] f/loops]
+    (testing (name id)
+      (is (= id (:id spec)))
+      (is (= [1920 1080] (:size spec)))
+      (is (= 30 (:fps spec)))
+      ;; The seam is measured at the actual frame count, not a shortened
+      ;; preview period. Distributed ordinary steps sample its maximum.
+      (let [{:keys [seam typical-max]} (metrics/seam-stats spec [160 90] (map #(/ (+ % 0.5) 24.0) (range 24)))
+            {:keys [near-black white-clip peak-channel]} (metrics/image-stats (render/render-frame spec 0.3 {:size [160 90]}))]
+        (is (<= seam typical-max))
+        (is (> near-black 0.3))
+        (is (< white-clip 0.01))
+        (is (> peak-channel 128))))))
