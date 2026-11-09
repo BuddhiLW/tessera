@@ -66,15 +66,17 @@
          (throw (ex-info "Unknown SVG segment" {:op op}))))
      (let [it (.getPathIterator path nil (double flatness)) coords (double-array 6)
            close-run (fn [run] (if (seq run) (conj run (first run)) []))]
-       (loop [out [] run []]
+       (loop [out [] run [] current nil]
          (if (.isDone it)
            (into out (close-run run))
            (let [op (.currentSegment it coords) p [(aget coords 0) (aget coords 1)]]
              (.next it)
              (cond
-               (= op PathIterator/SEG_MOVETO) (recur (into out (close-run run)) [p])
-               (= op PathIterator/SEG_LINETO) (recur out (conj run p))
-               (= op PathIterator/SEG_CLOSE) (recur (into out (close-run run)) [])
+               (= op PathIterator/SEG_MOVETO) (recur (into out (close-run run)) [p] p)
+               ;; SVG permits a drawing command immediately after Z. Its
+               ;; current point is the just-closed contour's start.
+               (= op PathIterator/SEG_LINETO) (recur out (if (seq run) (conj run p) [current p]) p)
+               (= op PathIterator/SEG_CLOSE) (recur (into out (close-run run)) [] (or (first run) current))
                :else (throw (ex-info "Unflattened SVG segment" {:op op}))))))))))
 
 (defn resample-segments

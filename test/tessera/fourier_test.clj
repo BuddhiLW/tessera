@@ -34,6 +34,10 @@
       (is (> (count pts) 8))
       (is (= (first pts) (peek pts))))))
 
+(deftest svg-can-draw-again-after-close
+  (is (= [[0.0 0.0] [1.0 0.0] [0.0 0.0] [0.0 0.0] [2.0 1.0] [0.0 0.0]]
+         (f/segments->points (svg/segments "M0 0L1 0ZL2 1Z")))))
+
 (deftest svg-definitions-use-placement-and-transforms
   (let [doc "<svg xmlns:xlink='http://www.w3.org/1999/xlink'><defs><path id='g' d='M0 0L1 0L0 1Z'/></defs><g transform='translate(10,20) scale(2)'><use x='3' y='4' xlink:href='#g'/><rect x='0' y='0' width='2' height='1'/></g></svg>"
         segs (f/svg->segments doc)]
@@ -80,7 +84,7 @@
     (is (= (inc (count top)) (count (f/chain top 0.3))))
     (doseq [u [0.0 0.17 0.73 -0.25]]
       (is (< (error (f/point top u) (f/point top (+ u 1.0))) 1.0e-12))))
-  (is (thrown? clojure.lang.ExceptionInfo (f/top-terms [] -1)))
+  (is (thrown? clojure.lang.ExceptionInfo (f/top-terms [] (- 0 1))))
   (is (thrown? clojure.lang.ExceptionInfo (f/dft []))))
 
 (deftest formula-boundary-skips-unavailable-binaries

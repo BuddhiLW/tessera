@@ -11,7 +11,8 @@
             [tessera.layers.ports.fourier :as live]
             [tessera.loops :as loops]
             [tessera.media :as media]
-            [tessera.vj-test :as metrics]))
+            [tessera.vj-test :as metrics]
+            [desargues.wallpaper.render :as render]))
 
 (deftest bounded-analytic-spectrum-and-slot-abi
   (is (= #{2 -1} (set (map :frequency live/terms))))
@@ -104,6 +105,24 @@
         a ((:field spec) 0.0) b ((:field spec) 1.0)]
     (is (<= seam typical-max))
     (doseq [x [-2.4 -0.3 0.0 1.2 2.8] y [-2.1 0.0 1.9]] (is (= (a x y) (b x y))))))
+
+(defn native-seam-report
+  "Slow review helper: render EVERY adjacent step at each spec's native
+   frame count, plus its wrap. Streaming (two images only); no sampling of
+   time, shortened 60-frame period, or high-harmonic temporal aliasing."
+  ([] (native-seam-report [160 90]))
+  ([size]
+   (into (sorted-map)
+         (for [[id spec] (select-keys loops/all [:fourier-trefoil :fourier-space :fourier-formula :fourier-live])
+               :let [n (* (:seconds spec) (:fps spec))
+                     frame (fn [i] (metrics/pixels (render/render-frame spec (/ (double i) n) {:size size})))
+                     first-frame (frame 0)]]
+           [id (loop [i 1 previous first-frame maximum 0.0 total 0.0]
+                 (if (= i n)
+                   {:frames n :seam (metrics/mean-diff previous first-frame)
+                    :step-max maximum :step-mean (/ total (dec n))}
+                   (let [next-frame (frame i) step (metrics/mean-diff previous next-frame)]
+                     (recur (inc i) next-frame (max maximum step) (+ total step)))))]))))
 
 (deftest fourier-media-and-registry-wiring
   (doseq [id [:fourier-trefoil :fourier-space :fourier-formula :fourier-live]
