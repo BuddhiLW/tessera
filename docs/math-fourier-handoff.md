@@ -39,14 +39,16 @@ Original bootstrap commit: `b7b9fd9`.
 - clj-kondo new source/tests: 0 errors/warnings. `git diff --check` clean.
 - Host memory last >30GiB; keep checking, stop/shout blocked below 6GiB.
 
-## Remaining
+## Publication complete
 
-1. Load the latest `fourier_live_test.clj` with new `native-seam-report` helper
-   and rerun targeted suites/lint; optional small gallery renders for review.
-2. Commit docs and last SVG close-after-Z/test/lint hardening (explicit paths).
-3. Stop owned REPL 7938 and verify it is gone.
-4. Push `math-fourier` to origin BuddhiLW/tessera; open PR (do not merge).
-5. Move card to review, shout completed with PR URL, report known base failures.
+- Latest helper loaded and targeted suites rerun: 15 tests / 2399 assertions,
+  zero failures/errors. New source/tests lint clean. Review PNGs at
+  `out/fourier-validation/fourier-{trefoil,space,formula,live}.png` (ignored).
+- `f2ea068` committed docs, all-native-step helper, close-after-Z hardening.
+- Owned CIDER session killed; PID 205109 confirmed gone. No REPL left running.
+- Branch `math-fourier` pushed. PR **https://github.com/BuddhiLW/tessera/pull/24**
+  targets master, open and NOT merged. Card moved to review.
+- The eight unrelated base port-audit omissions are disclosed in the PR.
 
 Full implementation/limits/verification documentation: `docs/fourier.md`.
 No optional art/svg sample or morphing variant was added; required shapes and
