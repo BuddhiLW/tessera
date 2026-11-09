@@ -21,24 +21,23 @@
 
 (def expected-param-order
   ;; Binding ABI: loop_rate is implicit slot 0. Only append new params.
-  {:twisted_bilayer '[wave_number twist pulse_spacing]
-   :double_slit '[sharpness bar_length]
-   :quantum_tapestry '[time_span knee]
-   :quantum_carpet '[time_span knee]
-   :box_modes '[tone_k contour_density]
-   :drum_modes '[tile_scale node_sharpness]
-   :breathers '[level_density line_sharpness]
-   :fold_9 '[fermi_level contour_step sharpness lattice_scale offset_x offset_y]
-   :fold_10 '[fermi_level contour_step sharpness lattice_scale offset_x offset_y]
-   :fold_11 '[fermi_level contour_step sharpness lattice_scale offset_x offset_y]
-   :fold_12 '[fermi_level contour_step sharpness lattice_scale offset_x offset_y]
-   :brillouin_square '[edge_width pulse_zones]
-   :brillouin_oblique '[edge_width pulse_zones]
-   :brillouin_rect '[edge_width pulse_zones]
-   :textile_tunnel '[depth_fade shear]
-   :flower_mandala '[worm_density patch_threshold ring_radius]
-   :hyperspace '[streak_decay head_sharpness core_glow]
-   :sprite_lattice '[size_span hue_swing]})
+  (merge
+   {:twisted_bilayer '[wave_number twist pulse_spacing]
+    :double_slit '[sharpness bar_length]
+    :quantum_tapestry '[time_span knee] :quantum_carpet '[time_span knee]
+    :box_modes '[tone_k contour_density] :drum_modes '[tile_scale node_sharpness]
+    :breathers '[level_density line_sharpness]
+    :fold_9 '[fermi_level contour_step sharpness lattice_scale offset_x offset_y]
+    :fold_10 '[fermi_level contour_step sharpness lattice_scale offset_x offset_y]
+    :fold_11 '[fermi_level contour_step sharpness lattice_scale offset_x offset_y]
+    :fold_12 '[fermi_level contour_step sharpness lattice_scale offset_x offset_y]
+    :brillouin_square '[edge_width pulse_zones] :brillouin_oblique '[edge_width pulse_zones]
+    :brillouin_rect '[edge_width pulse_zones] :textile_tunnel '[depth_fade shear]
+    :flower_mandala '[worm_density patch_threshold ring_radius]
+    :hyperspace '[streak_decay head_sharpness core_glow]
+    :sprite_lattice '[size_span hue_swing]}
+   (zipmap [:dandelin_conics :desargues :pascal_brianchon :pole_polar :conic_pencil]
+           (repeat []))))
 
 (def expected-effect-names
   ;; Catalog titles are fosfora preset keys: never rename.
@@ -50,7 +49,10 @@
    :brillouin_square "Brillouin Square" :brillouin_oblique "Brillouin Oblique"
    :brillouin_rect "Brillouin Rectangular"
    :textile_tunnel "Textile Tunnel" :flower_mandala "Flower Mandala"
-   :hyperspace "Hyperspace Warp" :sprite_lattice "Sprite Lattice"})
+   :hyperspace "Hyperspace Warp" :sprite_lattice "Sprite Lattice"
+   :dandelin_conics "Dandelin Conics" :desargues "Desargues"
+   :pascal_brianchon "Pascal and Brianchon"
+   :pole_polar "Pole and Polar" :conic_pencil "Conic Pencil"})
 
 (defn- raster [shader view [w h] ss]
   (let [img (BufferedImage. w h BufferedImage/TYPE_INT_RGB)]

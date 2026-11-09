@@ -72,6 +72,7 @@
 
 (defn- layer [id title period bindings channels]
   {:id id :title title :period period :view view :blend :lighten
+   :params []
    :form {:params '[u]
           :body (list 'let bindings (neon/neon-form (channels 0) (channels 1) (channels 2)))}})
 

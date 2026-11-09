@@ -38,6 +38,8 @@
             [desargues.wallpaper.field :as field]
             [tessera.fractals :as fractals]
             [tessera.figures :as figures]
+            [tessera.svg-offset :as svg-offset]
+            [tessera.fourier :as fourier]
             [tessera.projective :as projective]))
 
 (set! *warn-on-reflection* true)
@@ -211,6 +213,16 @@
                     {:type :chroma :shift 2}
                     {:type :vignette :strength 0.55}])}))
 
+(def fourier-live
+  "Offline rendering of the native analytic Fourier SDF layer. This uses
+   the SAME form, not an approximate port of the arc-length painter."
+  (let [layer (layers/by-id :fourier_live)]
+    {:id :fourier-live :title (:title layer)
+     :seconds (:period layer) :fps 30 :size [1920 1080] :view (:view layer) :ss 2
+     :field (fn [u] (field/jvm-shader (layers/bind layer u)))
+     :post (fn [_] [{:type :bloom :radius 10 :strength 0.75}
+                    {:type :vignette :strength 0.25}])}))
+
 (def all
   "Every loop, by id, in gallery order. Loops laid out for the 16:9 window
    carry a :reframe for wider frames (tessera.widescreen, tessera.frame)."
@@ -221,8 +233,18 @@
           [neon/neon-pulse neon/neon-khatam
            recip/graphene-fermi graphene-zones recip/kagome-fermi recip/twisted-bilayer
            recip/square-fermi recip/penrose-fermi recip/heptagonal-fermi recip/octagonal-fermi])
-    chor/loops mech/loops chaos/loops delays/loops flows/loops waves/loops
-    orb/loops lattice/loops vj/loops vj2/loops composed/loops s3d/loops
+    chor/loops
+    mech/loops
+    chaos/loops
+    delays/loops
+    flows/loops
+    waves/loops
+    orb/loops
+    lattice/loops
+    vj/loops
+    vj2/loops
+    composed/loops
+    s3d/loops
     recip/symmetry-family
     (into (array-map)
           (map (juxt :id identity))
@@ -230,8 +252,11 @@
            quantum/quantum-tapestry quantum/quantum-carpet quantum/double-slit
            curves/moore-comets girih-light girih-drift girih-assembly
            quasicrystal julia-orbit sierpinski-zoom])
-    fractals/loops figures/loops projective/loops)))
-
+    fractals/loops
+    svg-offset/loops
+    fourier/loops
+    projective/loops
+    {:fourier-live fourier-live})))
 (def path-traced
   "Loops rendered by LuxCore (luxcoreconsole on PATH), by id."
   (merge (array-map :girih-gold girih-gold) bz3d/loops))

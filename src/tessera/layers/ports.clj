@@ -103,7 +103,15 @@
    :neon_khatam "A :frame painter (girih beads) with post stages."
    :girih_light "A :frame vector painter with a :light pass."
    :girih_drift "A :frame vector painter with a :light pass."
-   :girih_assembly "A :frame vector painter with a :light pass."})
+   :girih_assembly "A :frame vector painter with a :light pass."
+   :mandelbulb "Sphere-traced distance estimator (110 march steps, 5-step triplex iteration, both with data-dependent exits) plus normal and occlusion taps; needs loop-n (desargues PR #46)."
+   :quaternion_julia "Sphere-traced quaternion Julia DE (80 march steps over a 7-step escape iteration) plus normal and occlusion taps; needs loop-n (desargues PR #46)."
+   :menger_flight "Sphere-traced Menger sponge (90 march steps over a 4-level fold) plus normal and occlusion taps; needs loop-n (desargues PR #46)."
+   :cardioid_julia "Escape-time iteration (up to 160 steps) with two data-dependent exits (escape, capture by the attracting fixed point), as :julia_orbit; needs loop-n (desargues PR #46)."
+   :apollonian "Up to 30 data-dependent inversion folds, each choosing its dual circle by a branch and stopping on landing in a gasket circle; needs loop-n (desargues PR #46)."
+   :harmonograph "A :frame painter: a 2400-segment polyline of translucent glow strokes. A field would need the distance to every segment per pixel and the painter's stroke compositing."
+   :spirograph "A :frame painter: six hypotrochoids (more on a wider window) of about 900 glow-stroke segments each, composited in order; not a straight-line field."
+   :knot_tubes "A :frame painter (sp/frame): 3D knots projected to depth-sorted line strokes; not a per-pixel field."})
 
 (def follow-ups
   "Live-host considerations for the ported layers."

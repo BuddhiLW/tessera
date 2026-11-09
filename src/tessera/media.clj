@@ -27,8 +27,7 @@
 
 (def family-set
   "The allowed families, in the order the Catalog should show them."
-  ["Orbits" "Curves" "Knots" "Fractals" "Lattices" "Waves" "Quantum" "Tilings" "Flows" "Geometry" "Scenes"])
-
+  ["Orbits" "Curves" "Knots" "Fractals" "Lattices" "Waves" "Quantum" "Tilings" "Ornament" "Flows" "Geometry" "Scenes"])
 (def base-families
   "Hand-curated: loop id -> [family tags]. Must cover every loop in
    tessera.loops/catalog (the tests check it)."
@@ -113,6 +112,11 @@
    :fold-12 ["Tilings" ["quasiperiodic" "twelve-fold" "contours"]]
    :kaleido-quasicrystal ["Tilings" ["kaleidoscope" "quasicrystal" "uv" "eight-fold"]]
 
+   ;; Ornament: SVG art drawn as concentric offset outlines (tessera.svg-offset)
+   :offset-rosette ["Ornament" ["svg-offset" "rosette" "rings" "rainbow" "eight-fold"]]
+   :offset-keyer ["Ornament" ["svg-offset" "outline" "keyer" "greyscale"]]
+   :offset-bounce ["Ornament" ["svg-offset" "rings" "bounce" "original-colours"]]
+
    ;; Flows: fluids and vector fields
    :curl-flow ["Flows" ["curl-noise" "dye" "eddies"]]
    :vortex-street ["Flows" ["von-karman" "vortex" "dye"]]
@@ -125,7 +129,11 @@
    :serpent-garden ["Scenes" ["serpents" "glyphs" "graphene" "droplets"]]
    :mandala-tunnel ["Scenes" ["tunnel" "mandala" "beads"]]
    :generated-2 ["Scenes" ["generated" "kaleidoscope" "eight-fold" "ice"]]
-   :generated-3 ["Scenes" ["generated" "tunnel" "twelve-fold" "ember"]]})
+   :generated-3 ["Scenes" ["generated" "tunnel" "twelve-fold" "ember"]]
+   :fourier-trefoil ["Curves" ["fourier" "epicycles" "trefoil" "harmonic"]]
+   :fourier-space ["Curves" ["fourier" "trefoil" "3d" "spheres" "rods"]]
+   :fourier-formula ["Curves" ["fourier" "tex" "gauss-law" "epicycles"]]
+   :fourier-live ["Curves" ["fourier" "trefoil" "sdf" "live" "analytic"]]})
 
 (def families
   "The hand-curated families above, plus the projective geometry gallery."
@@ -204,6 +212,9 @@
    :fold-11 "Eleven-Fold Contours"
    :fold-12 "Twelve-Fold Contours"
    :kaleido-quasicrystal "Quasicrystal Kaleidoscope"
+   :offset-rosette "Offset Rosette"
+   :offset-keyer "Offset Outlines, Keyed"
+   :offset-bounce "Breathing Offset Rings"
    :curl-flow "Curl Flow"
    :vortex-street "Von Kármán Vortex Street"
    :noise-flow-lines "Noise Flow Lines"
@@ -213,7 +224,11 @@
    :serpent-garden "Serpent Garden"
    :mandala-tunnel "Mandala Tunnel"
    :generated-2 "Generated Scene: Ice Fold"
-   :generated-3 "Generated Scene: Ember Tunnel"})
+   :generated-3 "Generated Scene: Ember Tunnel"
+   :fourier-trefoil "Fourier Trefoil"
+   :fourier-space "Fourier Spheres on Rods"
+   :fourier-formula "Fourier Draws Gauss's Law"
+   :fourier-live "Analytic Fourier Epicycles"})
 
 (def base-titles titles)
 

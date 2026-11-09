@@ -1,4 +1,4 @@
-{:paths ["src"]
+{:paths ["src" "resources"]
  ;; desargues supplies the generic parts: desargues.wallpaper.loop (seamless phase),
  ;; .render (field rasteriser, scene engines, video encoders), .post (bloom, dof,
  ;; chroma ...), .girih (Hankin star patterns, beads), .curves (space-filling
@@ -7,7 +7,7 @@
  :deps {org.clojure/clojure {:mvn/version "1.12.0"}
         thi.ng/color {:mvn/version "1.5.1"}
         io.github.mentat-collective/desargues {:git/url "https://github.com/mentat-collective/desargues.git"
-                                               :git/sha "d5956a7dbf84e4e5b116097c67655a64c68fb951"}}
+                                               :git/sha "a15de09239b9d6ee4fdc0caf3b6aba53685b2b42"}}
  :aliases
  {;; clojure -M:render --list | --preview | --only id,id --format mp4|webm|gif|png --size 1920x1080
   :render {:main-opts ["-m" "tessera.main"]}
