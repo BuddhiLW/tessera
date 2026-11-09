@@ -245,3 +245,121 @@
                       :centroid (centroid rings)
                       :bbox [(reduce min xs) (reduce min ys) (reduce max xs) (reduce max ys)])))
            flat)))))
+
+;; ── The baked field ──────────────────────────────────────────────────────
+
+(defn- edge-array
+  "The edges of `rings` flat: x0 y0 x1 y1, four doubles per edge."
+  ^doubles [rings]
+  (double-array
+   (mapcat (fn [ring]
+             (let [n (count ring)]
+               (mapcat (fn [i] (let [[x0 y0] (nth ring i) [x1 y1] (nth ring (mod (inc i) n))]
+                                 [x0 y0 x1 y1]))
+                       (range n))))
+           rings)))
+
+(defn signed-distance
+  "Signed Euclidean distance from (x, y) to the boundary of the even-odd
+   region bounded by `edges` (edge-array): negative inside."
+  ^double [^doubles edges ^double x ^double y]
+  (let [n (alength edges)]
+    (loop [i 0 best Double/MAX_VALUE inside false]
+      (if (>= i n)
+        (let [d (Math/sqrt best)] (if inside (- d) d))
+        (let [ax (aget edges i) ay (aget edges (+ i 1))
+              bx (aget edges (+ i 2)) by (aget edges (+ i 3))
+              ex (- bx ax) ey (- by ay)
+              px (- x ax) py (- y ay)
+              ee (+ (* ex ex) (* ey ey))
+              h (if (> ee 0.0) (max 0.0 (min 1.0 (/ (+ (* px ex) (* py ey)) ee))) 0.0)
+              qx (- px (* h ex)) qy (- py (* h ey))
+              d2 (+ (* qx qx) (* qy qy))
+              cross (and (not= (> ay y) (> by y))
+                         (< x (+ ax (/ (* (- y ay) ex) ey))))]
+          (recur (+ i 4) (min best d2) (if cross (not inside) inside)))))))
+
+(defn- par-rows!
+  "Runs (f row) for every row in [0, n), split over the processors."
+  [^long n f]
+  (let [k (.availableProcessors (Runtime/getRuntime))
+        chunk (long (Math/ceil (/ (double n) k)))]
+    (->> (range 0 n chunk)
+         (mapv (fn [^long r0] (future (doseq [r (range r0 (min n (+ r0 chunk)))] (f r)))))
+         (run! deref))))
+
+(defn- unit-hash
+  "A fixed pseudo-random number in [0, 1) for integer `i`."
+  ^double [^long i]
+  (.nextDouble (java.util.SplittableRandom. (+ 0x5DEECE66D (* 7919 i)))))
+
+(defn order-keys
+  "Per-shape order keys in [0, 1]: :radial (centroid distance from the art
+   centre over the largest), :vertical (centroid height, bottom 0),
+   :group (top-level <g> index over the count) and :random (hash of id)."
+  [shapes]
+  (let [cs (map :centroid shapes)
+        r (map (fn [[x y]] (Math/hypot x y)) cs)
+        rmax (max 1.0e-9 (reduce max 0.0 r))
+        ys (map second cs)
+        y0 (reduce min 0.0 ys) y1 (reduce max 0.0 ys)
+        groups (distinct (map :group shapes))
+        gi (zipmap groups (range))
+        ng (max 1 (dec (count groups)))]
+    {:radial (double-array (map #(/ % rmax) r))
+     :vertical (double-array (map #(/ (- % y0) (max 1.0e-9 (- y1 y0))) ys))
+     :group (double-array (map #(/ (double (gi (:group %))) ng) shapes))
+     :random (double-array (map #(unit-hash (:id %)) shapes))}))
+
+(defn bake
+  "The baked field of `shapes`: a grid of `cell` scene units over the art's
+   bounding box grown by `margin`, holding per cell the id of the topmost
+   shape containing it and that shape's signed distance (negative inside).
+   A cell inside no shape holds the nearest shape within `margin` and its
+   (positive) distance, or id -1. Each shape's distance is to its own
+   boundary, so a shape under another keeps its rings, cut by the one on
+   top. Also each shape's inradius (deepest inside distance) and fill.
+   Returns {:x0 :y0 :cell :w :h :ids ^ints :dist ^floats :inradius ^doubles
+   :fill ^longs :keys (order-keys) :count}."
+  ([shapes] (bake shapes {}))
+  ([shapes {:keys [cell margin] :or {cell 0.012 margin 0.4}}]
+   (let [cell (double cell) margin (double margin)
+         [bx0 by0 bx1 by1] (reduce (fn [[a b c d] [e f g h]] [(min a e) (min b f) (max c g) (max d h)])
+                                   [Double/MAX_VALUE Double/MAX_VALUE (- Double/MAX_VALUE) (- Double/MAX_VALUE)]
+                                   (map :bbox shapes))
+         x0 (- (double bx0) margin) y0 (- (double by0) margin)
+         w (long (Math/ceil (/ (- (+ (double bx1) margin) x0) cell)))
+         h (long (Math/ceil (/ (- (+ (double by1) margin) y0) cell)))
+         ids (int-array (* w h) -1)
+         dist (float-array (* w h) Float/MAX_VALUE)
+         inradius (double-array (count shapes))]
+     (doseq [{:keys [id rings bbox]} shapes]
+       (let [id (long id)
+             edges (edge-array rings)
+             [sx0 sy0 sx1 sy1] bbox
+             c0 (max 0 (long (Math/floor (/ (- (- (double sx0) margin) x0) cell))))
+             c1 (min w (long (Math/ceil (/ (- (+ (double sx1) margin) x0) cell))))
+             r0 (max 0 (long (Math/floor (/ (- (- (double sy0) margin) y0) cell))))
+             r1 (min h (long (Math/ceil (/ (- (+ (double sy1) margin) y0) cell))))
+             deepest (double-array (- r1 r0))]
+         (par-rows!
+          (- r1 r0)
+          (fn [^long dr]
+            (let [r (+ r0 dr) y (+ y0 (* cell (+ r 0.5))) row (* r w)]
+              (loop [c c0 deep 0.0]
+                (if (< c c1)
+                  (let [x (+ x0 (* cell (+ c 0.5)))
+                        d (signed-distance edges x y)
+                        k (+ row c)]
+                    (cond
+                      (neg? d) (do (aset ids k (int id)) (aset dist k (float d)))
+                      (and (< d margin)
+                           (or (neg? (aget ids k)) (not (neg? (aget dist k))))
+                           (< d (aget dist k)))
+                      (do (aset ids k (int id)) (aset dist k (float d))))
+                    (recur (inc c) (max deep (- d))))
+                  (aset deepest dr deep))))))
+         (aset inradius id (max cell (double (reduce max 0.0 deepest))))))
+     {:x0 x0 :y0 y0 :cell cell :w w :h h :ids ids :dist dist
+      :inradius inradius :fill (long-array (map :fill shapes))
+      :keys (order-keys shapes) :count (count shapes)})))
