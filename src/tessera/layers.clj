@@ -408,6 +408,11 @@
     ;; quantum_carpet is ported (tessera.layers.ports.carpet): its raster is
     ;; psi at grid-cell centres, which a field evaluates per pixel.
     :girih "Frame/vector painter, not a per-pixel scalar field."
+    ;; tessera.svg-offset: the field samples a baked per-shape SDF grid; the
+    ;; live version is fosfora's native SVG Offset effect (GPU jump flood).
+    :offset_rosette "Samples a baked SDF+id grid of an SVG; live in fosfora's native SVG Offset effect."
+    :offset_keyer "Samples a baked SDF+id grid of an SVG; live in fosfora's native SVG Offset effect."
+    :offset_bounce "Samples a baked SDF+id grid of an SVG; live in fosfora's native SVG Offset effect."
     :fourier_trefoil "Arc-length-resampled vector painter, not a pixel-exact field port. fourier_live instead uses the same analytic locus with two native-parameter harmonics and an analytic tube-distance estimate."
     :fourier_space "Depth-sorted projected spheres/rods and tube painter. No 3D painter approximation is advertised as a scalar field port."
     :fourier_formula "96-harmonic bridged glyph painter, beyond the <=24 live budget. The live variant uses the analytic trefoil instead."}

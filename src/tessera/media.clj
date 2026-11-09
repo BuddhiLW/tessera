@@ -27,7 +27,7 @@
 
 (def family-set
   "The allowed families, in the order the Catalog should show them."
-  ["Orbits" "Curves" "Knots" "Fractals" "Lattices" "Waves" "Quantum" "Tilings" "Flows" "Scenes"])
+  ["Orbits" "Curves" "Knots" "Fractals" "Lattices" "Waves" "Quantum" "Tilings" "Ornament" "Flows" "Scenes"])
 
 (def families
   "Hand-curated: loop id -> [family tags]. Must cover every loop in
@@ -112,6 +112,11 @@
    :fold-11 ["Tilings" ["quasiperiodic" "eleven-fold" "contours"]]
    :fold-12 ["Tilings" ["quasiperiodic" "twelve-fold" "contours"]]
    :kaleido-quasicrystal ["Tilings" ["kaleidoscope" "quasicrystal" "uv" "eight-fold"]]
+
+   ;; Ornament: SVG art drawn as concentric offset outlines (tessera.svg-offset)
+   :offset-rosette ["Ornament" ["svg-offset" "rosette" "rings" "rainbow" "eight-fold"]]
+   :offset-keyer ["Ornament" ["svg-offset" "outline" "keyer" "greyscale"]]
+   :offset-bounce ["Ornament" ["svg-offset" "rings" "bounce" "original-colours"]]
 
    ;; Flows: fluids and vector fields
    :curl-flow ["Flows" ["curl-noise" "dye" "eddies"]]
@@ -199,6 +204,9 @@
    :fold-11 "Eleven-Fold Contours"
    :fold-12 "Twelve-Fold Contours"
    :kaleido-quasicrystal "Quasicrystal Kaleidoscope"
+   :offset-rosette "Offset Rosette"
+   :offset-keyer "Offset Outlines, Keyed"
+   :offset-bounce "Breathing Offset Rings"
    :curl-flow "Curl Flow"
    :vortex-street "Von Kármán Vortex Street"
    :noise-flow-lines "Noise Flow Lines"

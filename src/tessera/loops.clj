@@ -38,6 +38,7 @@
             [desargues.wallpaper.field :as field]
             [tessera.fractals :as fractals]
             [tessera.figures :as figures]
+            [tessera.svg-offset :as svg-offset]
             [tessera.fourier :as fourier]))
 
 (set! *warn-on-reflection* true)
@@ -252,6 +253,7 @@
            quasicrystal julia-orbit sierpinski-zoom])
     fractals/loops
     figures/loops
+    svg-offset/loops
     fourier/loops
     {:fourier-live fourier-live})))
 
