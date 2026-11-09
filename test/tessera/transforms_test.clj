@@ -25,12 +25,22 @@
 
 (defn sample-frame [effect u overrides]
   (let [f (map-fn effect u overrides)
-        mirror (fn [v] (- 1.0 (Math/abs (- 1.0 (* 2.0 (- (/ v 2.0) (Math/floor (/ v 2.0))))))))]
+        mirror (fn [v] (- 1.0 (Math/abs (- 1.0 (* 2.0 (- (/ v 2.0) (Math/floor (/ v 2.0))))))))
+        texture (fn [a b]
+                  (let [a (mirror a) b (mirror b)]
+                    [(* a b) (* a a) b 1.0]))
+        strength (get overrides 'streak_length
+                      (get-in (into {} (:params effect)) ['streak_length :default] 0.0))]
     (vec (mapcat (fn [[x y]]
-                   (let [[a b coverage] (f x y)
-                         a (mirror a) b (mirror b)]
-                     ;; Asymmetric, non-periodic RGBA test texture; no lucky symmetry.
-                     (mapv #(* coverage %) [(* a b) (* a a) b 1.0])))
+                   (let [[a b coverage] (f x y)]
+                     (if (:streak? effect)
+                       (mapv #(/ % 12.0)
+                             (reduce (partial mapv +)
+                                     (for [i (range 12)
+                                           :let [s (Math/exp (* (- strength) (/ i 11.0)))]]
+                                       (texture (+ 0.5 (* (- a 0.5) s))
+                                                (+ 0.5 (* (- b 0.5) s))))))
+                       (mapv #(* coverage %) (texture a b)))))
                  (for [y (range 9) x (range 16)]
                    [(/ (+ x 0.37) 16.0) (/ (+ y 0.61) 9.0)])))))
 

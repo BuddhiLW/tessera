@@ -31,9 +31,22 @@
                    [(- 1.0 (abs (- (* 2.0 (fract a)) 1.0)))
                     (- 1.0 (abs (- (* 2.0 (fract v)) 1.0))) 1.0])}})
 
+(def hyperspace
+  {:id :tas_hyperspace :title "Tessera Hyperspace" :period 16 :streak? true
+   :description "Travelling radial compression wave and 12-tap outward streaks of the input; unlike static Zoom Blur."
+   :params [(param 'z_speed 2.0 -4.0 4.0) (param 'warp 0.18 0.0 0.6)
+            (param 'density 4.0 0.25 12.0) (param 'streak_length 0.2 0.0 0.8)]
+   :integers '[z_speed]
+   :form {:params '[u aspect z_speed warp density streak_length]
+          :body '(let [px (- x 0.5) py (- y 0.5)
+                       r (sqrt (+ (* px px aspect aspect) (* py py) 0.00000001))
+                       wave (sin (* tau (- (* density r) (* (floor (+ z_speed 0.5)) u))))
+                       scale (exp (* (- warp) wave))]
+                   [(+ 0.5 (* px scale)) (+ 0.5 (* py scale)) 1.0])}})
+
 (def suite
   "Input effects in stable publication order; separate from source layers."
-  [torus])
+  [torus hyperspace])
 
 (defn check
   "Validate the existing trama slot/range contract plus the UV-map ABI.
@@ -58,6 +71,18 @@
   (let [e (check effect)]
     (assoc (trama/manifest e) "kind" "effect" "inputs" 1
            "integers" (mapv name (:integers e)))))
+
+(defn- sample-text [effect]
+  (if (:streak? effect)
+    (str "  let strength = clamp(param(4u), 0.0, 0.8);\n"
+         "  var acc = vec4f(0.0);\n"
+         "  for (var i = 0u; i < 12u; i++) {\n"
+         "    let t = f32(i) / 11.0;\n"
+         "    let q = vec2f(0.5) + (mapped.xy - vec2f(0.5)) * exp(-strength * t);\n"
+         "    acc += tas_sample(q);\n"
+         "  }\n"
+         "  return acc / 12.0;\n")
+    "  return tas_sample(mapped.xy) * clamp(mapped.z, 0.0, 1.0);\n"))
 
 (defn source-text
   "Pure WGSL packaging. The field returns UV and coverage, not a colour.
@@ -89,7 +114,7 @@
          (when (:height? e)
            "  let tas_height = clamp(dot(tas_sample(uv).rgb, vec3f(0.2126, 0.7152, 0.0722)), 0.0, 1.0);\n")
          "  let mapped = desargues_field(uv.x, uv.y, " (str/join ", " args) ");\n"
-         "  return tas_sample(mapped.xy) * clamp(mapped.z, 0.0, 1.0);\n}\n")))
+         (sample-text e) "}\n")))
 
 (def validation-preamble
   "Minimal host ABI fixture for naga. Sampling uses real texture/sampler
