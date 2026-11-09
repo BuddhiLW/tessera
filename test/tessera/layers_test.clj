@@ -31,7 +31,8 @@
    :brillouin_zones '[edge_width pulse_zones]
    :kaleido_quasicrystal '[fold_order wave_number lens_scale contour_density]
    :graphene_zones '[fermi_level contour_step sharpness lattice_scale
-                     edge_width kagome_flash dirac_glow zone_cycle]})
+                     edge_width kagome_flash dirac_glow zone_cycle]
+   :fourier_live '[trail_width ring_width tail_length ring_gain]})
 
 (def own-layers
   "The first ten layers, which this namespace covers; the ported second
@@ -54,9 +55,10 @@
     :lieb_fermi (lattice/lieb-shader u)
     :brillouin_zones ((:field reciprocal/brillouin-zones) u)
     :kaleido_quasicrystal (vj/kaleido-shader u)
-    ;; No closure predates this layer: the offline loop renders the layer's
-    ;; own form, so this checks the loop wiring; the math is checked below.
-    :graphene_zones ((:field (:graphene-zones loops/all)) u)))
+    ;; Native layers: shared-form wiring checks; independent math probes
+    ;; are below (graphene) and in fourier-live-test (analytic Fourier).
+    :graphene_zones ((:field (:graphene-zones loops/all)) u)
+    :fourier_live ((:field (:fourier-live loops/all)) u)))
 
 (defn raster
   [shader view size ss]
@@ -144,7 +146,7 @@
   {:graphene_fermi "Graphene Fermi" :kagome_fermi "Kagome Fermi" :square_fermi "Square Fermi"
    :penrose_fermi "Penrose Fermi" :heptagonal_fermi "Heptagonal Fermi" :octagonal_fermi "Octagonal Fermi"
    :quasicrystal "Quasicrystal" :lieb_fermi "Lieb Fermi" :brillouin_zones "Brillouin Zones"
-   :kaleido_quasicrystal "Kaleido Quasicrystal" :graphene_zones "Graphene Zones"})
+   :kaleido_quasicrystal "Kaleido Quasicrystal" :graphene_zones "Graphene Zones" :fourier_live "Fourier Epicycles"})
 
 (deftest pfx-names-and-slot-order
   (is (= (map :id own-layers) (keys layers/effects)))
