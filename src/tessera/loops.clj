@@ -37,7 +37,8 @@
             [tessera.layers :as layers]
             [desargues.wallpaper.field :as field]
             [tessera.fractals :as fractals]
-            [tessera.figures :as figures]))
+            [tessera.figures :as figures]
+            [tessera.svg-offset :as svg-offset]))
 
 (set! *warn-on-reflection* true)
 
@@ -240,7 +241,8 @@
            curves/moore-comets girih-light girih-drift girih-assembly
            quasicrystal julia-orbit sierpinski-zoom])
     fractals/loops
-    figures/loops)))
+    figures/loops
+    svg-offset/loops)))
 
 (def path-traced
   "Loops rendered by LuxCore (luxcoreconsole on PATH), by id."
