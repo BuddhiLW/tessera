@@ -89,3 +89,20 @@
       (is (= [0.27 0.63 1.0] (identity-f 0.27 0.63)))
       (is (< (:closure r) 1.0e-10))
       (is (<= (:seam r) (:step r)) (str r)))))
+
+(deftest kaleido-equirect-and-polar-folds
+  (doseq [mode [0.0 1.0]]
+    (let [r (seam-report tx/kaleido {'equirect mode})]
+      (is (< (:closure r) 1.0e-10) (str r))
+      (is (<= (:seam r) (:step r)) (str r))))
+  (let [f (map-fn tx/kaleido 0.23 {'equirect 1.0 'folds 7.0})
+        delta (fn [a b] (reduce max (map #(Math/abs (double (- %1 %2))) a b)))]
+    (doseq [y [0.0 0.13 0.5 0.87 1.0]]
+      (is (< (delta (f 0.0 y) (f 1.0 y)) 1.0e-12)))
+    (doseq [y [0.0 1.0]]
+      (is (< (delta (f 0.12 y) (f 0.78 y)) 1.0e-12)))
+    (is (< (delta (f 0.37 0.2) (f 0.37 0.8)) 1.0e-12)))
+  (let [f (map-fn tx/kaleido 0.0 {'aspect 1.0 'folds 6.0})
+        point (fn [a] [(+ 0.5 (* 0.3 (Math/cos a))) (+ 0.5 (* 0.3 (Math/sin a)))])
+        a (apply f (point 0.2)) b (apply f (point (+ 0.2 (/ (* 2.0 Math/PI) 6.0))))]
+    (is (every? true? (map #(< (Math/abs (double (- %1 %2))) 1.0e-7) a b)))))

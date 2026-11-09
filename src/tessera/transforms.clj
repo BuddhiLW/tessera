@@ -77,9 +77,32 @@
                        nx (mix (/ px r) ca mode) ny (mix (/ py r) sa mode)]
                    [(+ x (/ (* nx d) aspect)) (+ y (* ny d)) 1.0])}})
 
+(def kaleido
+  {:id :tas_kaleido :title "Tessera Loop Kaleido 360" :period 16
+   :description "Loop-locked N-fold input mirror, or longitude/equator mirror with joined longitude seam and collapsed poles. Use builtin Kaleidoscope for free spin."
+   :params [(param 'folds 6.0 2.0 24.0) (param 'zoom 1.0 0.25 4.0)
+            (param 'rotate 0.0 -0.5 0.5) (param 'rotation 1.0 -4.0 4.0)
+            (param 'equirect 0.0 0.0 1.0)]
+   :integers '[folds rotation equirect]
+   :form {:params '[u aspect folds zoom rotate rotation equirect]
+          :body '(let [n (max 2.0 (floor (+ folds 0.5)))
+                       spin (+ rotate (* (floor (+ rotation 0.5)) u))
+                       px (* (- x 0.5) aspect) py (- y 0.5)
+                       r (sqrt (+ (* px px) (* py py)))
+                       a (/ (atan2 py (+ px 0.00000001)) tau)
+                       folded (* (/ tau n) (abs (- (fract (* (+ a spin) n)) 0.5)))
+                       qx (+ 0.5 (/ (* r (cos folded)) (* zoom aspect)))
+                       qy (+ 0.5 (/ (* r (sin folded)) zoom))
+                       longitude (- 1.0 (abs (- (* 2.0 (fract (* n (+ x spin)))) 1.0)))
+                       pole_weight (sin (* pi (clamp y 0.0 1.0)))
+                       ex (+ 0.5 (* (- longitude 0.5) pole_weight))
+                       ey (- 1.0 (abs (- (* 2.0 y) 1.0)))
+                       mode (clamp (floor (+ equirect 0.5)) 0.0 1.0)]
+                   [(mix qx ex mode) (mix qy ey mode) 1.0])}})
+
 (def suite
   "Input effects in stable publication order; separate from source layers."
-  [torus hyperspace tile ripple])
+  [torus hyperspace tile ripple kaleido])
 
 (defn check
   "Validate the existing trama slot/range contract plus the UV-map ABI.
