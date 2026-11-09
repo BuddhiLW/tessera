@@ -24,15 +24,22 @@
      ((map-factory (:form effect)) argv))))
 
 (defn sample-frame [effect u overrides]
-  (let [f (map-fn effect u overrides)
-        mirror (fn [v] (- 1.0 (Math/abs (- 1.0 (* 2.0 (- (/ v 2.0) (Math/floor (/ v 2.0))))))))
+  (let [mirror (fn [v] (- 1.0 (Math/abs (- 1.0 (* 2.0 (- (/ v 2.0) (Math/floor (/ v 2.0))))))))
         texture (fn [a b]
                   (let [a (mirror a) b (mirror b)]
                     [(* a b) (* a a) b 1.0]))
-        strength (get overrides 'streak_length
-                      (get-in (into {} (:params effect)) ['streak_length :default] 0.0))]
+        raw-factory (map-factory (:form effect))
+        base (merge (into {} (map (fn [[s p]] [s (:default p)]) (:params effect)))
+                    {'u u 'aspect (/ 2560.0 1080.0) 'height 0.6} overrides)
+        base-args (mapv (comp double base) (get-in effect [:form :params]))
+        f (raw-factory base-args)
+        strength (get base 'streak_length 0.0)]
     (vec (mapcat (fn [[x y]]
-                   (let [[a b coverage] (f x y)]
+                   (let [map-point (if (:height? effect)
+                                     (raw-factory (assoc base-args (dec (count base-args))
+                                                        (reduce + (map * (take 3 (texture x y))
+                                                                       [0.2126 0.7152 0.0722])))) f)
+                         [a b coverage] (map-point x y)]
                      (if (:streak? effect)
                        (mapv #(/ % 12.0)
                              (reduce (partial mapv +)
@@ -117,3 +124,13 @@
     (is (= 0.0 (last gap)))
     (is (not= (first a) (first b)) "cell phase changes sprite scale, not upstream time")
     (is (every? #(<= 0.0 % 1.0) (map last [center gap a b])))))
+
+(deftest luminance-drives-parallax
+  (let [base {'wave_depth 0.0 'orbit 0.0 'angle 0.0 'height_bias 0.5}
+        black (map-fn tx/depth 0.0 (assoc base 'height 0.0))
+        white (map-fn tx/depth 0.0 (assoc base 'height 1.0))
+        flat (map-fn tx/depth 0.0 (assoc base 'parallax 0.0))]
+    (is (< (first (black 0.4 0.6)) 0.4 (first (white 0.4 0.6))))
+    (is (= 0.6 (second (black 0.4 0.6))))
+    (is (= [0.4 0.6 1.0] (flat 0.4 0.6)))
+    (is (str/includes? (tx/source-text tx/depth) "dot(tas_sample(uv).rgb"))))

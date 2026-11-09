@@ -124,9 +124,27 @@
                                    (- 1.0 (smoothstep 0.46 0.5 (abs (- (fract gy) 0.5)))))]
                    [(+ 0.5 sx) (+ 0.5 sy) coverage])}})
 
+(def depth
+  {:id :tas_depth :title "Tessera Luma Depth" :period 16 :height? true
+   :description "Alpha-weighted luminance-as-height parallax with a travelling sine depth wave and closed camera orbit. Single-step 2.5D, not a mesh."
+   :params [(param 'parallax 0.07 0.0 0.2) (param 'wave_depth 0.25 0.0 1.0)
+            (param 'frequency 3.0 0.25 12.0) (param 'cycles 1.0 -4.0 4.0)
+            (param 'angle 0.0 -0.5 0.5) (param 'orbit 1.0 -4.0 4.0)
+            (param 'height_bias 0.5 0.0 1.0)]
+   :integers '[cycles orbit]
+   :form {:params '[u aspect parallax wave_depth frequency cycles angle orbit height_bias height]
+          :body '(let [ca (cos (* tau angle)) sa (sin (* tau angle))
+                       pos (+ (* (- x 0.5) aspect ca) (* (- y 0.5) sa))
+                       wave (* wave_depth (sin (* tau (- (* frequency pos)
+                                                         (* (floor (+ cycles 0.5)) u)))))
+                       z (+ (- (clamp height 0.0 1.0) height_bias) wave)
+                       camera (* tau (+ angle (* (floor (+ orbit 0.5)) u)))
+                       d (* parallax z)]
+                   [(+ x (/ (* d (cos camera)) aspect)) (+ y (* d (sin camera))) 1.0])}})
+
 (def suite
   "Input effects in stable publication order; separate from source layers."
-  [torus hyperspace tile ripple kaleido sprite-grid])
+  [torus hyperspace tile ripple kaleido sprite-grid depth])
 
 (defn check
   "Validate the existing trama slot/range contract plus the UV-map ABI.
