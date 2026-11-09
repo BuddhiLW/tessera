@@ -72,3 +72,10 @@
         (is (= 0 (:exit (tx/validate-wgsl! text))))
         (is (< (:closure report) 1.0e-10) (str report))
         (is (<= (:seam report) (:step report)) (str report))))))
+
+(deftest rectangular-stagger-and-mirror
+  (let [f (map-fn tx/tile 0.0 {'columns 4.0 'rows 3.0 'sway 0.0 'row_offset 0.5})]
+    (is (= [0.4 0.30000000000000004 1.0] (f 0.1 0.1)))
+    (is (< (Math/abs (- 0.9 (first (f 0.1 0.4)))) 1.0e-12))
+    (is (= 1.0 (last (f 0.5 0.5))))
+    (is (not= (sample-frame tx/tile 0.0 {}) (sample-frame tx/tile 0.25 {})))))

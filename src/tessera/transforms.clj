@@ -44,9 +44,24 @@
                        scale (exp (* (- warp) wave))]
                    [(+ 0.5 (* px scale)) (+ 0.5 (* py scale)) 1.0])}})
 
+(def tile
+  {:id :tas_tile :title "Tessera Stagger Tile" :period 16
+   :description "Rectangular n by m mirrored repeat with row offset and loop-locked row sway; use builtin Tile for a simple square grid."
+   :params [(param 'columns 4.0 1.0 16.0) (param 'rows 3.0 1.0 16.0)
+            (param 'row_offset 0.5 -1.0 1.0) (param 'sway 0.15 0.0 1.0)
+            (param 'cycles 1.0 -4.0 4.0)]
+   :integers '[columns rows cycles]
+   :form {:params '[u aspect columns rows row_offset sway cycles]
+          :body '(let [n (max 1.0 (floor (+ columns 0.5)))
+                       m (max 1.0 (floor (+ rows 0.5)))
+                       row (floor (* y m))
+                       phase (+ (* (floor (+ cycles 0.5)) u) (* row 0.25))
+                       shift (+ (* row row_offset) (* sway (sin (* tau phase))))]
+                   [(+ (* x n) shift) (* y m) 1.0])}})
+
 (def suite
   "Input effects in stable publication order; separate from source layers."
-  [torus hyperspace])
+  [torus hyperspace tile])
 
 (defn check
   "Validate the existing trama slot/range contract plus the UV-map ABI.
