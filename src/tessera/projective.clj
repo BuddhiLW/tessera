@@ -55,8 +55,6 @@
 
 (defn join [p q] (cross p q))
 (defn meet [l m] (affine (cross l m)))
-(defn- symbolic-meet [l m] (affine (cross l m)))
-
 (defn- vjoin
   "Numeric homogeneous join for fixed construction geometry."
   [[a b c] [d e f]]
@@ -64,8 +62,6 @@
 
 (defn- vmeet [l m]
   (let [[x y w] (vjoin l m)] [(/ x w) (/ y w) 1.0]))
-(defn- meet [l m] (affine (cross l m)))
-
 (defn- triangle-bindings
   "Three finite side segments of homogeneous triangle points a b c."
   [prefix [a b c]]
@@ -220,7 +216,9 @@
                             (list '/ y (* conic-b conic-b))))))
 
 (defn- ellipse-point [a]
-  [(list '* conic-a (list 'cos a)) (list '* conic-b (list 'sin a)) 1.0])
+  (if (number? a)
+    [(* conic-a (Math/cos a)) (* conic-b (Math/sin a)) 1.0]
+    [(list '* conic-a (list 'cos a)) (list '* conic-b (list 'sin a)) 1.0]))
 
 (defn- tangent [p]
   (let [[x y _] p]
@@ -336,8 +334,10 @@
   "Six quadratic coefficients at phase u; the cosine/sine homogeneous pair
    traverses RP^1 once, with no branch cut at a point at infinity."
   [u]
-  (mapv (fn [a b] (list '+ (list '* (list 'cos (list '* 'tau 'u)) a)
-                        (list '* (list 'sin (list '* 'tau 'u)) b)))
+  (mapv (fn [a b] (if (number? u)
+                    (+ (* (Math/cos (* tau u)) a) (* (Math/sin (* tau u)) b))
+                    (list '+ (list '* (list 'cos (list '* 'tau u)) a)
+                          (list '* (list 'sin (list '* 'tau u)) b))))
         pencil-first pencil-second))
 
 (defn- quad-form [coeff p]

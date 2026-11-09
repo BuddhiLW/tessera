@@ -27,9 +27,9 @@
 
 (def family-set
   "The allowed families, in the order the Catalog should show them."
-  ["Orbits" "Curves" "Knots" "Fractals" "Lattices" "Waves" "Quantum" "Tilings" "Flows" "Scenes"])
+  ["Orbits" "Curves" "Knots" "Fractals" "Lattices" "Waves" "Quantum" "Tilings" "Flows" "Geometry" "Scenes"])
 
-(def families
+(def base-families
   "Hand-curated: loop id -> [family tags]. Must cover every loop in
    tessera.loops/catalog (the tests check it)."
   {;; Orbits: celestial and mechanical periodic motion
@@ -127,6 +127,15 @@
    :generated-2 ["Scenes" ["generated" "kaleidoscope" "eight-fold" "ice"]]
    :generated-3 ["Scenes" ["generated" "tunnel" "twelve-fold" "ember"]]})
 
+(def families
+  "The hand-curated families above, plus the projective geometry gallery."
+  (merge base-families
+         {:dandelin-conics ["Geometry" ["conics" "dandelin" "cone" "neon"]]
+          :desargues ["Geometry" ["desargues" "projective" "perspectivity" "neon"]]
+          :pascal-brianchon ["Geometry" ["pascal" "brianchon" "hexagon" "duality" "neon"]]
+          :pole-polar ["Geometry" ["pole" "polar" "conic" "tangent" "neon"]]
+          :conic-pencil ["Geometry" ["conics" "pencil" "projective-line" "neon"]]}))
+
 (def titles
   "Short human titles for the Catalog tile. The loop's own :title (often a
    sentence) becomes the item's :description."
@@ -205,6 +214,17 @@
    :mandala-tunnel "Mandala Tunnel"
    :generated-2 "Generated Scene: Ice Fold"
    :generated-3 "Generated Scene: Ember Tunnel"})
+
+(def base-titles titles)
+
+(def titles
+  "Short human titles for the Catalog tile, including projective geometry."
+  (merge base-titles
+         {:dandelin-conics "Dandelin Conic Sections"
+          :desargues "Desargues' Theorem"
+          :pascal-brianchon "Pascal and Brianchon"
+          :pole-polar "Pole and Polar"
+          :conic-pencil "Pencil of Conics"}))
 
 (def clip-dirs
   "Clip kind -> render directory under the repo root."

@@ -37,7 +37,8 @@
             [tessera.layers :as layers]
             [desargues.wallpaper.field :as field]
             [tessera.fractals :as fractals]
-            [tessera.figures :as figures]))
+            [tessera.figures :as figures]
+            [tessera.projective :as projective]))
 
 (set! *warn-on-reflection* true)
 
@@ -220,18 +221,8 @@
           [neon/neon-pulse neon/neon-khatam
            recip/graphene-fermi graphene-zones recip/kagome-fermi recip/twisted-bilayer
            recip/square-fermi recip/penrose-fermi recip/heptagonal-fermi recip/octagonal-fermi])
-    chor/loops
-    mech/loops
-    chaos/loops
-    delays/loops
-    flows/loops
-    waves/loops
-    orb/loops
-    lattice/loops
-    vj/loops
-    vj2/loops
-    composed/loops
-    s3d/loops
+    chor/loops mech/loops chaos/loops delays/loops flows/loops waves/loops
+    orb/loops lattice/loops vj/loops vj2/loops composed/loops s3d/loops
     recip/symmetry-family
     (into (array-map)
           (map (juxt :id identity))
@@ -239,8 +230,7 @@
            quantum/quantum-tapestry quantum/quantum-carpet quantum/double-slit
            curves/moore-comets girih-light girih-drift girih-assembly
            quasicrystal julia-orbit sierpinski-zoom])
-    fractals/loops
-    figures/loops)))
+    fractals/loops figures/loops projective/loops)))
 
 (def path-traced
   "Loops rendered by LuxCore (luxcoreconsole on PATH), by id."
