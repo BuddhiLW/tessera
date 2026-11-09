@@ -11,7 +11,8 @@
             [desargues.wallpaper.field :as field]
             [tessera.layers.ports :as ports]
             [thi.ng.color.gradients :as grad]
-            [tessera.layers.ports.fourier :as fourier]))
+            [tessera.layers.ports.fourier :as fourier]
+            [tessera.transforms :as transforms]))
 
 (defn- quantized-channel
   "The offline palettes quantize BEFORE shading; preserve that intermediate
@@ -437,10 +438,12 @@
   (emit/emit-all! layers dir))
 
 (defn emit-trama!
-  "Emit one fosfora trama WGSL source per layer into dir. loop_rate is
-   implicitly slot 0; no local :params adapter or local dependency needed."
+  "Emit source layers and single-input transforms into dir (out/layers).
+   Source slots and ids are unchanged; transforms have kind=effect, inputs=1.
+   Transform WGSL is naga-validated before writing."
   [dir]
-  (emit/emit-all! (mapv #(assoc % :target :trama) layers) dir))
+  (let [effects (transforms/emit-trama! dir)]
+    (merge (emit/emit-all! (mapv #(assoc % :target :trama) layers) dir) effects)))
 
 (def effects
   "fosfora layer-effect metadata per native layer id. Catalog display
