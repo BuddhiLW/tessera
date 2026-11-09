@@ -10,7 +10,8 @@
             [desargues.wallpaper.emit :as emit]
             [desargues.wallpaper.field :as field]
             [tessera.layers.ports :as ports]
-            [thi.ng.color.gradients :as grad]))
+            [thi.ng.color.gradients :as grad]
+            [tessera.layers.ports.fourier :as fourier]))
 
 (defn- quantized-channel
   "The offline palettes quantize BEFORE shading; preserve that intermediate
@@ -389,10 +390,11 @@
      :form (graphene-zones-form tail)}))
 
 (def layers
-  "Published live layers in stable registry order."
+  "Published live layers in stable registry order. Fourier is a native
+   analytic field, not a pixel-exact port of its arc-length painter."
   (into [graphene-fermi kagome-fermi square-fermi penrose-fermi heptagonal-fermi
          octagonal-fermi quasicrystal lieb-fermi brillouin-zones kaleido-quasicrystal
-         graphene-zones]
+         graphene-zones fourier/fourier-live]
         ports/layers))
 
 (def by-id (into {} (map (juxt :id identity)) layers))
@@ -405,7 +407,10 @@
     :bloch_oscillation "Precomputed site-density and phase rasters; outside the scalar field-only port."
     ;; quantum_carpet is ported (tessera.layers.ports.carpet): its raster is
     ;; psi at grid-cell centres, which a field evaluates per pixel.
-    :girih "Frame/vector painter, not a per-pixel scalar field."}
+    :girih "Frame/vector painter, not a per-pixel scalar field."
+    :fourier_trefoil "Arc-length-resampled vector painter, not a pixel-exact field port. fourier_live instead uses the same analytic locus with two native-parameter harmonics and an analytic tube-distance estimate."
+    :fourier_space "Depth-sorted projected spheres/rods and tube painter. No 3D painter approximation is advertised as a scalar field port."
+    :fourier_formula "96-harmonic bridged glyph painter, beyond the <=24 live budget. The live variant uses the analytic trefoil instead."}
    ports/skipped))
 
 (def follow-ups
@@ -438,9 +443,8 @@
   (emit/emit-all! (mapv #(assoc % :target :trama) layers) dir))
 
 (def effects
-  "fosfora layer-effect metadata per layer id: the catalog display name (a
-   preset key: STABLE, never rename) and a short description. Names are
-   checked against fosfora's built-ins by desargues.wallpaper.pfx."
+  "fosfora layer-effect metadata per native layer id. Catalog display
+   names are stable preset keys, never renamed."
   (array-map
    :graphene_fermi {:name "Graphene Fermi" :description "Graphene band energy contours rising from the Dirac points."}
    :kagome_fermi {:name "Kagome Fermi" :description "Fermi contours of the corner-sharing triangle (kagome) lattice."}
@@ -452,12 +456,12 @@
    :lieb_fermi {:name "Lieb Fermi" :description "Lieb lattice: four-fold Fermi contours and flat-band polarization."}
    :brillouin_zones {:name "Brillouin Zones" :description "Brillouin zones of the hexagonal lattice as stained glass."}
    :kaleido_quasicrystal {:name "Kaleido Quasicrystal" :description "D8 kaleidoscope of five-wave contours through a log radial lens."}
-   :graphene_zones {:name "Graphene Zones" :description "Graphene Fermi contours rising in the hexagonal Brillouin zones, a kagome flash at the van Hove level, Dirac points on the hexagram tips."}))
+   :graphene_zones {:name "Graphene Zones" :description "Graphene Fermi contours rising in the hexagonal Brillouin zones, a kagome flash at the van Hove level, Dirac points on the hexagram tips."}
+   :fourier_live (fourier/effects :fourier_live)))
 
 (defn pfx-layer
-  "Layer `l` as a fosfora layer-effect spec (:target :pfx) with its
-   `effects` display name and description, author tessera, category
-   pattern. Params and their order are the trama ones, untouched."
+  "Layer `l` as a fosfora layer-effect spec with a stable catalog name.
+   Params and their order are the trama ones, untouched."
   [l]
   (assoc l :target :pfx
          :pfx (merge {:author "tessera" :category "pattern"}
