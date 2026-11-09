@@ -106,3 +106,14 @@
         point (fn [a] [(+ 0.5 (* 0.3 (Math/cos a))) (+ 0.5 (* 0.3 (Math/sin a)))])
         a (apply f (point 0.2)) b (apply f (point (+ 0.2 (/ (* 2.0 Math/PI) 6.0))))]
     (is (every? true? (map #(< (Math/abs (double (- %1 %2))) 1.0e-7) a b)))))
+
+(deftest sprite-cell-phase-and-coverage
+  (let [overrides {'columns 4.0 'rows 3.0 'rock 0.0}
+        f (map-fn tx/sprite-grid 0.0 overrides)
+        center (f 0.125 (/ 0.5 3.0))
+        gap (f 0.25 (/ 0.5 3.0))
+        a (f 0.15 (/ 0.5 3.0)) b (f 0.4 (/ 0.5 3.0))]
+    (is (= [0.5 0.5 1.0] center))
+    (is (= 0.0 (last gap)))
+    (is (not= (first a) (first b)) "cell phase changes sprite scale, not upstream time")
+    (is (every? #(<= 0.0 % 1.0) (map last [center gap a b])))))

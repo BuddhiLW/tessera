@@ -100,9 +100,33 @@
                        mode (clamp (floor (+ equirect 0.5)) 0.0 1.0)]
                    [(mix qx ex mode) (mix qy ey mode) 1.0])}})
 
+(def sprite-grid
+  {:id :tas_sprite_grid :title "Tessera Sprite Grid" :period 16
+   :description "Repeat the live input as separated sprites with per-cell pulse and rocking phase. Spatial animation only: no input time travel."
+   :params [(param 'columns 5.0 1.0 16.0) (param 'rows 3.0 1.0 16.0)
+            (param 'fill 0.65 0.1 0.9) (param 'pulse 0.2 0.0 0.4)
+            (param 'phase_step 0.17 0.0 1.0) (param 'cycles 1.0 -4.0 4.0)
+            (param 'rock 0.08 0.0 0.5)]
+   :integers '[columns rows cycles]
+   :form {:params '[u aspect columns rows fill pulse phase_step cycles rock]
+          :body '(let [gx (* x (max 1.0 (floor (+ columns 0.5))))
+                       gy (* y (max 1.0 (floor (+ rows 0.5))))
+                       phase (+ (* (floor (+ cycles 0.5)) u)
+                                (* phase_step (+ (floor gx) (* 1.61803398875 (floor gy)))))
+                       wave (sin (* tau phase))
+                       size (clamp (* fill (+ 1.0 (* pulse wave))) 0.05 0.95)
+                       a (* tau rock wave) ca (cos a) sa (sin a)
+                       px (/ (- (fract gx) 0.5) size) py (/ (- (fract gy) 0.5) size)
+                       sx (+ (* ca px) (* sa py)) sy (- (* ca py) (* sa px))
+                       coverage (* (- 1.0 (smoothstep 0.46 0.5 (abs sx)))
+                                   (- 1.0 (smoothstep 0.46 0.5 (abs sy)))
+                                   (- 1.0 (smoothstep 0.46 0.5 (abs (- (fract gx) 0.5))))
+                                   (- 1.0 (smoothstep 0.46 0.5 (abs (- (fract gy) 0.5)))))]
+                   [(+ 0.5 sx) (+ 0.5 sy) coverage])}})
+
 (def suite
   "Input effects in stable publication order; separate from source layers."
-  [torus hyperspace tile ripple kaleido])
+  [torus hyperspace tile ripple kaleido sprite-grid])
 
 (defn check
   "Validate the existing trama slot/range contract plus the UV-map ABI.
