@@ -405,7 +405,12 @@
     :bloch_oscillation "Precomputed site-density and phase rasters; outside the scalar field-only port."
     ;; quantum_carpet is ported (tessera.layers.ports.carpet): its raster is
     ;; psi at grid-cell centres, which a field evaluates per pixel.
-    :girih "Frame/vector painter, not a per-pixel scalar field."}
+    :girih "Frame/vector painter, not a per-pixel scalar field."
+    ;; tessera.svg-offset: the field samples a baked per-shape SDF grid; the
+    ;; live version is fosfora's native SVG Offset effect (GPU jump flood).
+    :offset_rosette "Samples a baked SDF+id grid of an SVG; live in fosfora's native SVG Offset effect."
+    :offset_keyer "Samples a baked SDF+id grid of an SVG; live in fosfora's native SVG Offset effect."
+    :offset_bounce "Samples a baked SDF+id grid of an SVG; live in fosfora's native SVG Offset effect."}
    ports/skipped))
 
 (def follow-ups
