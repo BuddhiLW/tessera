@@ -448,7 +448,7 @@
         ^doubles okey (get (:keys baked) (:order p))
         key-spread (double (:key-spread p))
         ring-spread (double (:ring-spread p))
-        hue (* (double (:hue-speed p)) u)
+        hue (frac (* (double (:hue-speed p)) u))
         falloff (double (:falloff p))
         gain (+ 1.0 (double (:boost p)))
         {kw :width ks :speed kph :phase ksoft :soft klevel :level krep :repeat
@@ -460,7 +460,7 @@
         ^longs fills (:fill baked)
         scale (double (:scale p))
         [ox oy] (:offset p) ox (double ox) oy (double oy)
-        th (- (+ (double (:rotate p)) (* lp-tau (double (:spin p)) u)))
+        th (- (+ (double (:rotate p)) (* lp-tau (frac (* (double (:spin p)) u)))))
         ct (Math/cos th) st (Math/sin th)
         bg (case (:background p) :white 1.0 0.0)
         tl (ThreadLocal/withInitial (reify java.util.function.Supplier (get [_] (double-array 2))))]
@@ -517,3 +517,86 @@
             (if (== bg 1.0)
               (pack (- 1.0 (lift (- 1.0 cr))) (- 1.0 (lift (- 1.0 cg))) (- 1.0 (lift (- 1.0 cb))))
               (pack (lift cr) (lift cg) (lift cb)))))))))
+
+;; ── Art and loops ────────────────────────────────────────────────────────
+
+(def art-root
+  "Ornament SVGs: art/svg/<series>/<name>.svg (the library is
+   tessera.ornament.lib's, ART-ORNAMENT-LIB); art/svg/test/rosette.svg is
+   this namespace's own small test piece."
+  "art/svg")
+
+(def test-svg (str art-root "/test/rosette.svg"))
+
+(defn library
+  "Every ornament SVG under art/svg except the test series, sorted by path."
+  []
+  (let [root (java.io.File. ^String art-root)]
+    (if (.isDirectory root)
+      (->> (file-seq root)
+           (filter #(and (.isFile ^java.io.File %) (str/ends-with? (.getName ^java.io.File %) ".svg")))
+           (map #(.getPath ^java.io.File %))
+           (remove #(str/includes? % "/test/"))
+           sort vec)
+      [])))
+
+(defn art
+  "The SVG at `path`, else the nth library piece (n wraps), else the test
+   piece."
+  ([] (art 0))
+  ([n-or-path]
+   (if (string? n-or-path)
+     n-or-path
+     (let [lib (library)]
+       (if (seq lib) (nth lib (mod (long n-or-path) (count lib))) test-svg)))))
+
+(def ^:private baked-cache (atom {}))
+
+(defn baked
+  "The bake of the SVG file `path` (cached by path and options)."
+  ([path] (baked path {}))
+  ([path {:keys [height cell] :or {height 7.2 cell 0.012} :as opts}]
+   (let [k [path height cell]]
+     (or (get @baked-cache k)
+         (let [b (bake (shapes (slurp path) {:height height}) {:cell cell})]
+           (swap! baked-cache assoc k b)
+           b)))))
+
+(defn loop-spec
+  "A tessera loop drawing `path` as offset rings under `params`."
+  [id title path params & {:keys [seconds height post] :or {seconds 12 height 7.2}}]
+  (let [b (delay (baked path {:height height}))]
+    {:id id :title title
+     :seconds seconds :fps 30 :size [1920 1080] :view [(/ 128.0 9.0) 8.0] :ss 2
+     :svg path :params params
+     :field (fn [u] (shader @b params u))
+     :post (or post (fn [_] [{:type :bloom :radius 10 :strength 0.6}
+                             {:type :vignette :strength 0.35}]))}))
+
+(def offset-rosette
+  (loop-spec :offset-rosette
+             "Eight-fold rosette as offset rings crawling inward, rainbow by radius"
+             (art 0)
+             {:amount 7 :speed 1 :hue-speed 1 :palette :rainbow :order :radial}))
+
+(def offset-keyer
+  (loop-spec :offset-keyer
+             "Offset outlines in white, an accent band sweeping the shapes by group"
+             (art 1)
+             {:amount 5 :speed -1 :palette :greyscale :order :group :fill 0.04
+              :keyer {:width 0.25 :speed 1 :soft 0.12 :level 0.9 :repeat 1}}
+             :seconds 10))
+
+(def offset-bounce
+  (loop-spec :offset-bounce
+             "Offset rings in the art's own colours, breathing in and out, one turn per loop"
+             (art 2)
+             {:amount 6 :motion :bounce :speed 1 :palette :original :order :random
+              :hue-speed 1 :ring-spread 0.2 :spin 1 :scale 0.95 :falloff 0.2}
+             :seconds 16))
+
+(def loops
+  "The svg-offset loops, by id."
+  (array-map :offset-rosette offset-rosette
+             :offset-keyer offset-keyer
+             :offset-bounce offset-bounce))
