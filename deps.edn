@@ -1,4 +1,4 @@
-{:paths ["src"]
+{:paths ["src" "resources"]
  ;; desargues supplies the generic parts: desargues.wallpaper.loop (seamless phase),
  ;; .render (field rasteriser, scene engines, video encoders), .post (bloom, dof,
  ;; chroma ...), .girih (Hankin star patterns, beads), .curves (space-filling

@@ -38,7 +38,8 @@
             [desargues.wallpaper.field :as field]
             [tessera.fractals :as fractals]
             [tessera.figures :as figures]
-            [tessera.svg-offset :as svg-offset]))
+            [tessera.svg-offset :as svg-offset]
+            [tessera.fourier :as fourier]))
 
 (set! *warn-on-reflection* true)
 
@@ -211,6 +212,16 @@
                     {:type :chroma :shift 2}
                     {:type :vignette :strength 0.55}])}))
 
+(def fourier-live
+  "Offline rendering of the native analytic Fourier SDF layer. This uses
+   the SAME form, not an approximate port of the arc-length painter."
+  (let [layer (layers/by-id :fourier_live)]
+    {:id :fourier-live :title (:title layer)
+     :seconds (:period layer) :fps 30 :size [1920 1080] :view (:view layer) :ss 2
+     :field (fn [u] (field/jvm-shader (layers/bind layer u)))
+     :post (fn [_] [{:type :bloom :radius 10 :strength 0.75}
+                    {:type :vignette :strength 0.25}])}))
+
 (def all
   "Every loop, by id, in gallery order. Loops laid out for the 16:9 window
    carry a :reframe for wider frames (tessera.widescreen, tessera.frame)."
@@ -242,7 +253,9 @@
            quasicrystal julia-orbit sierpinski-zoom])
     fractals/loops
     figures/loops
-    svg-offset/loops)))
+    svg-offset/loops
+    fourier/loops
+    {:fourier-live fourier-live})))
 
 (def path-traced
   "Loops rendered by LuxCore (luxcoreconsole on PATH), by id."

@@ -89,6 +89,16 @@ Sphere-traced from distance estimators (`tessera.raymarch`) with fixed step and 
 |---|---|---|
 | ![](docs/gallery/mandelbulb.webp) **mandelbulb**<br>the power-8 bulb turns a seventh of a turn per loop, which is its own symmetry (z⁸ turns by 8/7 of a turn), while the key light goes once around; colour by orbit trap | ![](docs/gallery/quaternion-julia.webp) **quaternion-julia**<br>the slice w = 0 of the quaternion Julia set z ↦ z² + c, c once around a closed ellipse in (1, i, j, k); ice palette by orbit trap, the key light once around | ![](docs/gallery/menger-flight.webp) **menger-flight**<br>down a gallery of the infinite Menger sponge (period 2, four levels), one period per loop, weaving on whole harmonics; a lamp rides with the camera and a warm light burns at the far end |
 
+### Fourier epicycles
+
+Four integer-harmonic drawing loops, all in media family **Curves**:
+`fourier-trefoil` (24 chained circles), `fourier-space` (spheres on rods drawing
+a trefoil tube), `fourier-formula` (Gauss's law from TeX outlines), and
+`fourier-live` (an unrolled analytic SDF trail with ring/rod SDFs). The live
+layer uses the trefoil's two exact nonzero harmonics, within a 24-term budget;
+its stable fosfora effect name is **Fourier Epicycles**. See
+[Fourier sampling, live-layer limits and native seam checks](docs/fourier.md).
+
 ### Curves and knots
 
 | | | |

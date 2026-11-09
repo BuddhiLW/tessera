@@ -130,7 +130,11 @@
    :serpent-garden ["Scenes" ["serpents" "glyphs" "graphene" "droplets"]]
    :mandala-tunnel ["Scenes" ["tunnel" "mandala" "beads"]]
    :generated-2 ["Scenes" ["generated" "kaleidoscope" "eight-fold" "ice"]]
-   :generated-3 ["Scenes" ["generated" "tunnel" "twelve-fold" "ember"]]})
+   :generated-3 ["Scenes" ["generated" "tunnel" "twelve-fold" "ember"]]
+   :fourier-trefoil ["Curves" ["fourier" "epicycles" "trefoil" "harmonic"]]
+   :fourier-space ["Curves" ["fourier" "trefoil" "3d" "spheres" "rods"]]
+   :fourier-formula ["Curves" ["fourier" "tex" "gauss-law" "epicycles"]]
+   :fourier-live ["Curves" ["fourier" "trefoil" "sdf" "live" "analytic"]]})
 
 (def titles
   "Short human titles for the Catalog tile. The loop's own :title (often a
@@ -212,7 +216,11 @@
    :serpent-garden "Serpent Garden"
    :mandala-tunnel "Mandala Tunnel"
    :generated-2 "Generated Scene: Ice Fold"
-   :generated-3 "Generated Scene: Ember Tunnel"})
+   :generated-3 "Generated Scene: Ember Tunnel"
+   :fourier-trefoil "Fourier Trefoil"
+   :fourier-space "Fourier Spheres on Rods"
+   :fourier-formula "Fourier Draws Gauss's Law"
+   :fourier-live "Analytic Fourier Epicycles"})
 
 (def clip-dirs
   "Clip kind -> render directory under the repo root."
