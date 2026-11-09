@@ -363,3 +363,157 @@
      {:x0 x0 :y0 y0 :cell cell :w w :h h :ids ids :dist dist
       :inradius inradius :fill (long-array (map :fill shapes))
       :keys (order-keys shapes) :count (count shapes)})))
+
+;; ── The ring field ───────────────────────────────────────────────────────
+
+(def defaults
+  "The panel: every parameter of the model, at its default.
+     :amount      rings per shape, spaced by the shape's own inradius
+     :shrink      0..1, the outer fraction of the depth left empty
+     :line        ring width as a fraction of the ring spacing
+     :fill        brightness between the rings (0 = lines only)
+     :motion      :continuous (rings crawl forever) or :bounce (back and forth)
+     :speed       ring periods per loop; an integer for a seamless loop
+     :phase       ring phase offset
+     :palette     :greyscale :rainbow :white or :original (the SVG fill)
+     :order       palette order key: :radial :vertical :group or :random
+     :key-spread  how much of the palette the order key spans
+     :ring-spread how far the palette steps from one ring to the next
+     :hue-speed   palette cycles per loop; an integer
+     :falloff     0..1, fades the rings toward the centre
+     :boost       gain (soft-clipped, so it saturates instead of clipping)
+     :keyer       nil or {:width :speed :phase :soft :level :repeat}: an
+                  accent band over the order key, :speed an integer
+     :scale :offset [x y] :rotate (radians) :spin (turns per loop)
+     :background  :black :white or :alpha (offline: black)"
+  {:amount 6 :shrink 0.0 :line 0.22 :fill 0.10
+   :motion :continuous :speed 1 :phase 0.0
+   :palette :rainbow :order :radial :key-spread 0.6 :ring-spread 0.12 :hue-speed 1
+   :falloff 0.35 :boost 0.6
+   :keyer nil
+   :scale 1.0 :offset [0.0 0.0] :rotate 0.0 :spin 0
+   :background :black})
+
+(def ^:private ^:const lp-tau (* 2.0 Math/PI))
+
+(defn- frac ^double [^double x] (- x (Math/floor x)))
+
+(defn- smooth ^double [^double e0 ^double e1 ^double x]
+  (let [t (max 0.0 (min 1.0 (/ (- x e0) (- e1 e0))))]
+    (* t t (- 3.0 (* 2.0 t)))))
+
+(defn- channel ^double [^long c ^long shift]
+  (/ (double (bit-and 0xFF (bit-shift-right c shift))) 255.0))
+
+(defn- pack ^long [^double r ^double g ^double b]
+  (let [q (fn ^long [^double v] (Math/round (* 255.0 (max 0.0 (min 1.0 v)))))]
+    (bit-or (bit-shift-left (q r) 16) (bit-shift-left (q g) 8) (q b))))
+
+(defn- lookup
+  "Shape id and signed distance at (x, y) in art units, into `out`
+   [id d]: bilinear in d where the four cells share an id, else the
+   nearest cell. id -1 off the art."
+  [baked ^double x ^double y ^doubles out]
+  (let [{:keys [^double x0 ^double y0 ^double cell ^long w ^long h ^ints ids ^floats dist]} baked
+        fx (- (/ (- x x0) cell) 0.5) fy (- (/ (- y y0) cell) 0.5)
+        c (long (Math/floor fx)) r (long (Math/floor fy))]
+    (if (or (< c 0) (< r 0) (>= (inc c) w) (>= (inc r) h))
+      (do (aset out 0 -1.0) (aset out 1 1.0e9) out)
+      (let [k (+ c (* r w))
+            i00 (aget ids k) i10 (aget ids (inc k))
+            i01 (aget ids (+ k w)) i11 (aget ids (+ k w 1))
+            tx (- fx c) ty (- fy r)]
+        (if (and (== i00 i10) (== i00 i01) (== i00 i11))
+          (let [d (+ (* (- 1.0 ty) (+ (* (- 1.0 tx) (aget dist k)) (* tx (aget dist (inc k)))))
+                     (* ty (+ (* (- 1.0 tx) (aget dist (+ k w))) (* tx (aget dist (+ k w 1))))))]
+            (aset out 0 (double i00)) (aset out 1 d) out)
+          (let [kk (+ k (if (> tx 0.5) 1 0) (if (> ty 0.5) w 0))]
+            (aset out 0 (double (aget ids kk))) (aset out 1 (double (aget dist kk))) out))))))
+
+(defn shader
+  "The ring field of `baked` at phase `u` under `params` (merged over
+   `defaults`): a primitive fn x y -> 0xRRGGBB in scene units. Every time
+   term is speed*u, hue-speed*u, keyer speed*u or spin*u, so with integer
+   rates the frame at u = 1 is the frame at u = 0."
+  [baked params u]
+  (let [p (merge defaults params)
+        u (double u)
+        amount (double (:amount p))
+        shrink (double (:shrink p))
+        half-line (* 0.5 (double (:line p)))
+        fill (double (:fill p))
+        raw-t (+ (* (double (:speed p)) u) (double (:phase p)))
+        t (if (= :bounce (:motion p)) (- 1.0 (Math/abs (- (* 2.0 (frac raw-t)) 1.0))) raw-t)
+        pal (case (:palette p) :greyscale 0 :rainbow 1 :white 2 :original 3)
+        ^doubles okey (get (:keys baked) (:order p))
+        key-spread (double (:key-spread p))
+        ring-spread (double (:ring-spread p))
+        hue (* (double (:hue-speed p)) u)
+        falloff (double (:falloff p))
+        gain (+ 1.0 (double (:boost p)))
+        {kw :width ks :speed kph :phase ksoft :soft klevel :level krep :repeat
+         :or {kw 0.15 ks 1 kph 0.0 ksoft 0.08 klevel 0.8 krep 1}} (:keyer p)
+        keyer? (some? (:keyer p))
+        kc (frac (+ (* (double ks) u) (double kph)))
+        kw (* 0.5 (double kw)) ksoft (double ksoft) klevel (double klevel) krep (double krep)
+        ^doubles inr (:inradius baked)
+        ^longs fills (:fill baked)
+        scale (double (:scale p))
+        [ox oy] (:offset p) ox (double ox) oy (double oy)
+        th (- (+ (double (:rotate p)) (* lp-tau (double (:spin p)) u)))
+        ct (Math/cos th) st (Math/sin th)
+        bg (case (:background p) :white 1.0 0.0)
+        tl (ThreadLocal/withInitial (reify java.util.function.Supplier (get [_] (double-array 2))))]
+    (fn ^long [^double x ^double y]
+      (let [^doubles out (.get ^ThreadLocal tl)
+            qx (/ (- x ox) scale) qy (/ (- y oy) scale)
+            ax (- (* ct qx) (* st qy)) ay (+ (* st qx) (* ct qy))
+            _ (lookup baked ax ay out)
+            id (long (aget out 0))]
+        (if (neg? id)
+          (pack bg bg bg)
+          (let [d (* scale (aget out 1))
+                r (* scale (aget inr id))
+                spacing (/ (* r (- 1.0 shrink)) amount)
+                f (/ (- d) r)
+                fs (/ (- f shrink) (- 1.0 shrink))
+                s (- (* amount fs) t)
+                k (Math/rint s)
+                ;; distance to the nearest ring (number k), in scene units
+                dr (* spacing (Math/abs (- s k)))
+                dr (if (neg? fs) (max dr (* (- shrink f) r)) dr)
+                aa (* 0.6 (/ spacing amount))
+                line (- 1.0 (smooth (* half-line spacing) (+ (* half-line spacing) (max aa 0.004)) dr))
+                inside (smooth 0.0 0.006 (- d))
+                body (* inside (if (neg? fs) 0.0 fill))
+                v (max line body)
+                v (* v (- 1.0 (* falloff (max 0.0 (min 1.0 f)))))
+                key (aget okey id)
+                arg (+ (* key-spread key) hue (* ring-spread (+ k t)))
+                fc (aget fills id)
+                cr (case pal
+                     0 (+ 0.55 (* 0.45 (Math/cos (* lp-tau arg))))
+                     1 (+ 0.5 (* 0.5 (Math/cos (* lp-tau arg))))
+                     2 1.0
+                     (* (channel fc 16) (+ 0.7 (* 0.3 (Math/cos (* lp-tau arg))))))
+                cg (case pal
+                     0 cr
+                     1 (+ 0.5 (* 0.5 (Math/cos (* lp-tau (+ arg (/ 1.0 3.0))))))
+                     2 1.0
+                     (* (channel fc 8) (+ 0.7 (* 0.3 (Math/cos (* lp-tau arg))))))
+                cb (case pal
+                     0 cr
+                     1 (+ 0.5 (* 0.5 (Math/cos (* lp-tau (+ arg (/ 2.0 3.0))))))
+                     2 1.0
+                     (* (channel fc 0) (+ 0.7 (* 0.3 (Math/cos (* lp-tau arg))))))
+                accent (if keyer?
+                         (let [dk (Math/abs (- (frac (+ (- (* krep key) kc) 0.5)) 0.5))]
+                           (* klevel (- 1.0 (smooth kw (+ kw ksoft) dk))))
+                         0.0)
+                lift (fn ^double [^double c]
+                       (let [c (+ (* (- 1.0 accent) c) accent)
+                             e (* gain v c)]
+                         (- 1.0 (Math/exp (* -1.6 e)))))]
+            (if (== bg 1.0)
+              (pack (- 1.0 (lift (- 1.0 cr))) (- 1.0 (lift (- 1.0 cg))) (- 1.0 (lift (- 1.0 cb))))
+              (pack (lift cr) (lift cg) (lift cb)))))))))
