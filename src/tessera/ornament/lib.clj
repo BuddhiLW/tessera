@@ -338,3 +338,100 @@
                           m (motif "_" {:segs base :fill (colour p (+ 0.15 (* 0.3 ring)))})]]
                 (orbit m (point-group [kind n]) c (str prefix "-" ring)))]
     {:group [kind n] :motifs (into [focal] cat rings)}))
+
+(defn frieze-cell
+  "The seven frieze groups, along the x axis (the strip's centre line) with
+   translation period `T`: the coset representatives of one period, as
+   maps. The whole group is these composed with translations by kT.
+
+     :p1    hop             translations only
+     :p11g  step            glide reflection (half period along, mirrored across)
+     :p1m1  sidle           vertical mirrors
+     :p2    spinning hop    half turns
+     :p2mg  spinning sidle  vertical mirrors and glides (so half turns)
+     :p11m  jump            the horizontal mirror
+     :p2mm  spinning jump   both mirrors (so half turns)"
+  [group T]
+  (let [I identity-xf
+        Rh (mirror 0.0)
+        Rv (mirror (/ Math/PI 2.0))
+        H (rotation Math/PI)
+        G (xf* (translation (/ T 2.0) 0.0) Rh)]
+    (case group
+      :p1 [I]
+      :p11g [I G]
+      :p1m1 [I Rv]
+      :p2 [I H]
+      :p2mg [I Rv G (xf* G Rv)]
+      :p11m [I Rh]
+      :p2mm [I Rh Rv H])))
+
+(def frieze-groups
+  "The seven frieze groups, in order."
+  [:p1 :p11g :p1m1 :p2 :p2mg :p11m :p2mm])
+
+(defn frieze
+  "A seeded frieze of group `group` (see frieze-cell) on the strip whose
+   centre line is y = `cy`, from x = `x0` over `periods` periods of `T`.
+   The motif is ONE primitive placed in the fundamental domain, off every
+   mirror and rotation centre and leaning, so it has no symmetry of its own
+   and the strip's symmetry is exactly the group's. Returns motifs, ids
+   <prefix>-<period>-<coset>; under :background? it also sets an offset sine
+   band under the motifs as its own motif."
+  [seed group {:keys [T periods x0 cy palette prefix band?]
+               :or {T 120.0 periods 8 x0 0.0 cy 0.0 prefix "f"}}]
+  (let [r (rng seed)
+        p (get palettes (or palette (pick r (sort (keys palettes)))))
+        prim (pick r [:droplet :pin :bead])
+        size (* T (uniform r 0.26 0.36))
+        lean (uniform r 0.35 1.1)
+        shape (case prim
+                :droplet (droplet size (* 0.3 size))
+                :pin (pin size (* 0.17 size))
+                :bead (bead [(* 0.5 size) 0.0] (* 0.5 size) (* 0.2 size)))
+        local (segs-xf (xf* (translation (* T 0.13) (* T 0.08)) (rotation lean)) shape)
+        tint (uniform r 0.1 0.9)
+        m (motif "_" {:segs local :fill (colour p tint)})
+        cell (frieze-cell group T)
+        placed (for [k (range periods) [j h] (map-indexed vector cell)]
+                 (place m (xf* (translation (+ x0 (* k T) (/ T 4.0)) cy) h)
+                        (str prefix "-" k "-" j)))
+        strip (motif (str prefix "-band")
+                     {:segs (segs-xf (translation x0 cy)
+                                     (band (* periods T) (* 0.08 T) (* 0.36 T) (* 2 periods)))
+                      :fill (colour p (+ tint 0.5)) :opacity 0.55})]
+    (vec (if band? (cons strip placed) placed))))
+
+(defn primitives-sheet
+  "Every primitive once, each its own <g id=prim-..>, on a 1200 x 400 sheet:
+   droplet, pin, bead, a bead chain, an offset sine band and a sun disc."
+  [seed]
+  (let [r (rng seed)
+        p (get palettes (pick r (sort (keys palettes))))
+        at (fn [x y segs] (segs-xf (translation x y) segs))
+        fill (fn [t] (colour p t))]
+    (into
+     [(motif "prim-droplet" {:segs (at 40.0 130.0 (droplet 150.0 42.0)) :fill (fill 0.2)})
+      (motif "prim-pin" {:segs (at 240.0 130.0 (pin 170.0 24.0)) :fill (fill 0.4)})
+      (motif "prim-bead" {:segs (bead [520.0 130.0] 60.0 28.0) :fill (fill 0.6)})
+      (motif "prim-sun" {:segs (at 980.0 200.0 (sun 12 70.0 150.0 (uniform r 0.4 0.7)))
+                         :fill (fill 0.9)})
+      (motif "prim-band" {:segs (at 40.0 330.0 (band 760.0 22.0 26.0 5)) :fill (fill 0.75)})]
+     (map-indexed (fn [i segs] (motif (str "prim-bead-chain-" i) {:segs segs :fill (fill 0.5)}))
+                  (bead-chain [[60.0 240.0] [380.0 210.0] [760.0 250.0]] 34.0 13.0 6.0 0.0 false)))))
+
+(defn rosette-doc
+  "SVG of the seeded rosette `seed` (1024 x 1024)."
+  [seed opts]
+  (let [{:keys [group motifs]} (rosette seed [512.0 512.0] 470.0 opts)]
+    (svg {:w 1024 :h 1024 :background pal/ink
+          :meta {:series "rosette" :seed seed :group group}}
+         motifs)))
+
+(defn frieze-doc
+  "SVG of one frieze of `group`, seed `seed` (1200 x 240, 8 periods)."
+  [seed group]
+  (svg {:w 1200 :h 240 :background pal/ink
+        :meta {:series "frieze" :seed seed :group group}}
+       (frieze seed group {:T 150.0 :periods 8 :x0 0.0 :cy 120.0 :band? true
+                           :prefix (name group)})))
