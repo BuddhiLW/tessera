@@ -61,3 +61,20 @@
                 (o/band 40.0 2.0 3.0 2) (o/sun 9 2.0 5.0 0.5)]]
     (is (= [:close] (peek segs)))
     (is (str/starts-with? (o/segs->d segs) "M "))))
+
+(deftest heroes-are-deterministic-and-grouped
+  (doseq [f [#(o/hero-mandala 5) #(o/hero-desargues 3) #(o/hero-khatam 8)]]
+    (let [d (f) ids (map second (re-seq #"<g id=\"([^\"]+)\"" d))]
+      (is (= d (f)))
+      (is (> (count ids) 100))
+      (is (apply distinct? ids) "every <g> id is unique, so an id mask splits motifs"))))
+
+(deftest generate-reproduces-the-committed-svgs
+  (let [tmp (str (java.nio.file.Files/createTempDirectory "orn" (make-array java.nio.file.attribute.FileAttribute 0)))
+        files (o/generate! {:root tmp})]
+    (is (= 18 (count files)))
+    (doseq [f files
+            :let [rel (subs (str f) (inc (count tmp)))
+                  committed (java.io.File. rel)]
+            :when (.exists committed)]
+      (is (= (slurp committed) (slurp f)) rel))))

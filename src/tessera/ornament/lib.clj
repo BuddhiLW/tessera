@@ -435,3 +435,111 @@
         :meta {:series "frieze" :seed seed :group group}}
        (frieze seed group {:T 150.0 :periods 8 :x0 0.0 :cy 120.0 :band? true
                            :prefix (name group)})))
+
+(defn hero-mandala
+  "Hero 1 (1600 x 1600): a Dn rosette as the focal disc, framed by four
+   frieze borders (p2mm top and bottom, p11g at the sides, turned)."
+  [seed]
+  (let [W 1600.0
+        {:keys [group motifs]} (rosette seed [(/ W 2) (/ W 2)] 560.0 {:group [:d 12]})
+        border (fn [grp side xf]
+                 (map #(place % xf (str side "-" (:id %)))
+                      (frieze (+ seed 7) grp {:T 160.0 :periods 10 :cy 0.0 :band? true
+                                              :prefix (name grp)})))]
+    (svg {:w 1600 :h 1600 :background pal/ink
+          :meta {:series "hero" :seed seed :piece "mandala" :group group}}
+         (concat motifs
+                 (border :p2mm "top" (translation 0.0 80.0))
+                 (border :p2mm "bottom" (translation 0.0 1520.0))
+                 (border :p11g "left" (xf* (translation 80.0 0.0) (rotation (/ Math/PI 2))))
+                 (border :p11g "right" (xf* (translation 1520.0 0.0) (rotation (/ Math/PI 2))))))))
+
+(defn hero-desargues
+  "Hero 2 (1600 x 1600): the Desargues configuration (desargues.geometry.
+   projective): two triangles in perspective from O, each side line as a
+   bead chain, the axis through P, Q, R as an offset band, each of the ten
+   points a sun or a droplet turned towards O."
+  [seed]
+  (let [r (rng seed)
+        proj (requiring-resolve 'desargues.geometry.projective/desargues-configuration)
+        cfg (proj {:O [0.0 0.0] :P [3.2 -1.4] :Q [-2.6 -1.6]
+                   :angs [(uniform r 0.2 0.5) (uniform r 1.3 1.6) (uniform r 2.4 2.8)]
+                   :ra 1.0 :ra' (uniform r 1.9 2.3)})
+        pts (into {} (map (fn [[k [x y]]] [k [(double x) (double y)]])) (:points cfg))
+        ;; fit O, A..C', P, Q into the canvas (R may lie far away: excluded)
+        ks [:O :A :B :C :A' :B' :C' :P :Q]
+        xs (map (comp first pts) ks) ys (map (comp second pts) ks)
+        k (/ 1300.0 (max (- (apply max xs) (apply min xs)) (- (apply max ys) (apply min ys))))
+        to (fn [[x y]] [(+ 800.0 (* k (- x (/ (+ (apply max xs) (apply min xs)) 2))))
+                        (- 800.0 (* k (- y (/ (+ (apply max ys) (apply min ys)) 2))))])
+        p (get palettes (pick r (sort (keys palettes))))
+        chain (fn [id a b t]
+                (map-indexed (fn [i s] (motif (str id "-" i) {:segs s :fill (colour p t)}))
+                             (bead-chain [(to (pts a)) (to (pts b))] 26.0 10.0 4.5 0.0 false)))
+        O (to (pts :O))]
+    (svg {:w 1600 :h 1600 :background pal/ink
+          :meta {:series "hero" :seed seed :piece "desargues"}}
+         (concat
+          (mapcat (fn [[a b t]] (chain (str "line-" (name a) "-" (name b)) a b t))
+                  [[:O :A' 0.1] [:O :B' 0.1] [:O :C' 0.1]
+                   [:A :B 0.35] [:B :C 0.35] [:C :A 0.35]
+                   [:A' :B' 0.6] [:B' :C' 0.6] [:C' :A' 0.6] [:P :Q 0.85]])
+          (for [kk ks
+                :let [[x y] (to (pts kk)) [ox oy] O
+                      ang (Math/atan2 (- y oy) (- x ox))]]
+            (motif (str "point-" (name kk))
+                   {:segs (if (#{:O :P :Q} kk)
+                            (segs-xf (translation x y) (sun 9 22.0 46.0 0.5))
+                            (segs-xf (xf* (translation x y) (rotation (+ ang Math/PI))
+                                          (translation -60.0 0.0))
+                                     (droplet 60.0 17.0)))
+                    :fill (colour p (if (#{:O :P :Q} kk) 0.95 0.5))}))))))
+
+(defn hero-khatam
+  "Hero 3 (1600 x 1600): khatam stars, Hankin's construction on the 4.8.8
+   tiling (desargues.wallpaper.girih) at the classic 3π/8 contact angle.
+   Every rosette is its own motif; every strand a bead chain; a C8 rosette of
+   droplets sits in the central star as the focal disc."
+  [seed]
+  (let [r (rng seed)
+        p (get palettes (pick r (sort (keys palettes))))
+        scale 260.0
+        polys (g/pattern :4.8.8 [-3.2 3.2 -3.2 3.2] (g/khatam-angle) (uniform r 0.0 0.08))
+        to (fn [[x y]] [(+ 800.0 (* scale x)) (+ 800.0 (* scale y))])
+        inside? (fn [pts] (every? (fn [[x y]] (and (< 20 x 1580) (< 20 y 1580))) pts))
+        polys (filter #(inside? (map to (:vertices %))) polys)
+        stars (for [[i poly] (map-indexed vector polys)]
+                (motif (str "star-" i)
+                       {:segs (polygon (map to (:rosette poly)))
+                        :fill (colour p (if (= :octagon (:kind poly)) 0.25 0.6))}))
+        strands (for [[i poly] (map-indexed vector polys)
+                      [j s] (map-indexed vector (:strands poly))
+                      [l b] (map-indexed vector (bead-chain (map to s) 22.0 8.0 3.2 0.5 false))]
+                  (motif (str "strand-" i "-" j "-" l) {:segs b :fill (colour p 0.9)}))
+        centre (:motifs (rosette seed [800.0 800.0] 150.0 {:group [:c 8] :prefix "focal"}))]
+    (svg {:w 1600 :h 1600 :background pal/ink
+          :meta {:series "hero" :seed seed :piece "khatam" :tiling :4.8.8}}
+         (concat stars strands centre))))
+
+(defn generate!
+  "Regenerate every committed SVG under `root`/art/svg: the primitives sheet,
+   the rosette series (seeded Cn/Dn), one frieze per frieze group and the
+   three hero pieces. Deterministic: rerunning leaves git clean. Returns the
+   files written.
+
+     clojure -X tessera.ornament.lib/generate!"
+  ([] (generate! {}))
+  ([{:keys [root] :or {root "."}}]
+   (doall
+    (concat
+     [(write-svg! root "primitives" "1"
+                  (svg {:w 1200 :h 400 :background pal/ink :meta {:series "primitives" :seed 1}}
+                       (primitives-sheet 1)))]
+     (for [s [3 7 11 19 23]] (write-svg! root "rosette" s (rosette-doc s {})))
+     (for [[grp s] [[[:c 7] 31] [[:d 12] 37]]] (write-svg! root "rosette" s (rosette-doc s {:group grp})))
+     (for [[i grp] (map-indexed vector frieze-groups)
+           :let [s (+ 100 i)]]
+       (write-svg! root "frieze" (str (name grp) "-" s) (frieze-doc s grp)))
+     [(write-svg! root "hero" "mandala-5" (hero-mandala 5))
+      (write-svg! root "hero" "desargues-3" (hero-desargues 3))
+      (write-svg! root "hero" "khatam-8" (hero-khatam 8))]))))
