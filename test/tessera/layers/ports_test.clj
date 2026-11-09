@@ -21,28 +21,26 @@
 
 (def expected-param-order
   ;; Binding ABI: loop_rate is implicit slot 0. Only append new params.
-  {:twisted_bilayer '[wave_number twist pulse_spacing]
-   :double_slit '[sharpness bar_length]
-   :quantum_tapestry '[time_span knee]
-   :quantum_carpet '[time_span knee]
-   :box_modes '[tone_k contour_density]
-   :drum_modes '[tile_scale node_sharpness]
-   :breathers '[level_density line_sharpness]
-   :fold_9 '[fermi_level contour_step sharpness lattice_scale offset_x offset_y]
-   :fold_10 '[fermi_level contour_step sharpness lattice_scale offset_x offset_y]
-   :fold_11 '[fermi_level contour_step sharpness lattice_scale offset_x offset_y]
-   :fold_12 '[fermi_level contour_step sharpness lattice_scale offset_x offset_y]
-   :brillouin_square '[edge_width pulse_zones]
-   :brillouin_oblique '[edge_width pulse_zones]
-   :brillouin_rect '[edge_width pulse_zones]
-   :textile_tunnel '[depth_fade shear]
-   :flower_mandala '[worm_density patch_threshold ring_radius]
-   :hyperspace '[streak_decay head_sharpness core_glow]
-   :sprite_lattice '[size_span hue_swing]
-   :minkowski_boost '[boost_amplitude line_width]
-   :aberration '[boost_amplitude]
-   :einstein_ring '[einstein_radius source_radius]})
-
+  (merge
+   {:twisted_bilayer '[wave_number twist pulse_spacing]
+    :double_slit '[sharpness bar_length]
+    :quantum_tapestry '[time_span knee] :quantum_carpet '[time_span knee]
+    :box_modes '[tone_k contour_density] :drum_modes '[tile_scale node_sharpness]
+    :breathers '[level_density line_sharpness]
+    :fold_9 '[fermi_level contour_step sharpness lattice_scale offset_x offset_y]
+    :fold_10 '[fermi_level contour_step sharpness lattice_scale offset_x offset_y]
+    :fold_11 '[fermi_level contour_step sharpness lattice_scale offset_x offset_y]
+    :fold_12 '[fermi_level contour_step sharpness lattice_scale offset_x offset_y]
+    :brillouin_square '[edge_width pulse_zones] :brillouin_oblique '[edge_width pulse_zones]
+    :brillouin_rect '[edge_width pulse_zones] :textile_tunnel '[depth_fade shear]
+    :flower_mandala '[worm_density patch_threshold ring_radius]
+    :hyperspace '[streak_decay head_sharpness core_glow]
+    :sprite_lattice '[size_span hue_swing]
+    :minkowski_boost '[boost_amplitude line_width]
+    :aberration '[boost_amplitude]
+    :einstein_ring '[einstein_radius source_radius]}
+   (zipmap [:dandelin_conics :desargues :pascal_brianchon :pole_polar :conic_pencil]
+           (repeat []))))
 (def expected-effect-names
   ;; Catalog titles are fosfora preset keys: never rename.
   {:twisted_bilayer "Twisted Bilayer" :double_slit "Double Slit"
@@ -55,8 +53,10 @@
    :textile_tunnel "Textile Tunnel" :flower_mandala "Flower Mandala"
    :hyperspace "Hyperspace Warp" :sprite_lattice "Sprite Lattice"
    :minkowski_boost "Minkowski Boost" :aberration "Relativistic Aberration"
-   :einstein_ring "Einstein Ring"})
-
+   :einstein_ring "Einstein Ring"
+   :dandelin_conics "Dandelin Conics" :desargues "Desargues"
+   :pascal_brianchon "Pascal and Brianchon"
+   :pole_polar "Pole and Polar" :conic_pencil "Conic Pencil"})
 (defn- raster [shader view [w h] ss]
   (let [img (BufferedImage. w h BufferedImage/TYPE_INT_RGB)]
     (render/field-raster :jvm img shader {:view view :ss ss})

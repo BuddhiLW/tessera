@@ -35,15 +35,26 @@
    :twin-paradox {:family "Physics" :title "Twin Paradox Clocks"
                   :tags ["relativity" "proper-time" "worldlines" "clocks"]}})
 
+(def ^:private projective-metadata
+  {:dandelin-conics {:family "Geometry" :title "Dandelin Conic Sections"
+                     :tags ["conics" "dandelin" "cone" "neon"]}
+   :desargues {:family "Geometry" :title "Desargues' Theorem"
+               :tags ["desargues" "projective" "perspectivity" "neon"]}
+   :pascal-brianchon {:family "Geometry" :title "Pascal and Brianchon"
+                      :tags ["pascal" "brianchon" "hexagon" "duality" "neon"]}
+   :pole-polar {:family "Geometry" :title "Pole and Polar"
+                :tags ["pole" "polar" "conic" "tangent" "neon"]}
+   :conic-pencil {:family "Geometry" :title "Pencil of Conics"
+                  :tags ["conics" "pencil" "projective-line" "neon"]}})
+
 (def family-set
   "The allowed families, in the order the Catalog should show them."
-  ["Orbits" "Curves" "Knots" "Fractals" "Lattices" "Waves" "Quantum" "Tilings" "Ornament" "Flows" "Scenes" "Physics"])
+  ["Orbits" "Curves" "Knots" "Fractals" "Lattices" "Waves" "Quantum" "Tilings" "Ornament" "Flows" "Geometry" "Scenes" "Physics"])
 
 (def ^:private master-families
   "Hand-curated: loop id -> [family tags]. Must cover every loop in
    tessera.loops/catalog (the tests check it)."
-  {;; Orbits: celestial and mechanical periodic motion
-   :choreographies ["Orbits" ["three-body" "figure-eight" "n-body" "choreography"]]
+  {
    :figure-eight ["Orbits" ["three-body" "figure-eight" "n-body" "choreography"]]
    :phase-flow ["Orbits" ["pendulum" "phase-space" "action-angle" "hamiltonian"]]
    :kepler-resonance ["Orbits" ["kepler" "resonance" "ellipse" "celestial"]]
@@ -239,16 +250,17 @@
 (defn- rel [id file] (str (name id) "/" file))
 
 (def families
-  "Master's curated families plus the relativity entries."
-  (merge master-families
+  "Master's curated families plus the relativity and projective entries."
+  (merge {:choreographies ["Orbits" ["three-body" "figure-eight" "n-body" "choreography"]]}
+         master-families
          (into {} (map (fn [[id {:keys [family tags]}]] [id [family tags]]))
-               relativity-metadata)))
+               (merge relativity-metadata projective-metadata))))
 
 (def titles
-  "Master's short titles plus the relativity entries."
+  "Master's short titles plus the relativity and projective entries."
   (merge master-titles
          (into {} (map (fn [[id {:keys [title]}]] [id title]))
-               relativity-metadata)))
+               (merge relativity-metadata projective-metadata))))
 
 (defn item
   "The manifest item of `loop`, given `present`: the set of clip kinds

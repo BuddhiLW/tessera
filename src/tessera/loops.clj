@@ -40,7 +40,8 @@
             [tessera.figures :as figures]
             [tessera.relativity :as relativity]
             [tessera.svg-offset :as svg-offset]
-            [tessera.fourier :as fourier]))
+            [tessera.fourier :as fourier]
+            [tessera.projective :as projective]))
 
 (set! *warn-on-reflection* true)
 
@@ -254,11 +255,10 @@
            curves/moore-comets girih-light girih-drift girih-assembly
            quasicrystal julia-orbit sierpinski-zoom])
     fractals/loops
-    figures/loops
     svg-offset/loops
     fourier/loops
+    projective/loops
     {:fourier-live fourier-live})))
-
 (def path-traced
   "Loops rendered by LuxCore (luxcoreconsole on PATH), by id."
   (merge (array-map :girih-gold girih-gold) bz3d/loops))

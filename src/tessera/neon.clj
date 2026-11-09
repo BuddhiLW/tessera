@@ -14,6 +14,31 @@
 
 (def colors {:blue "#3b63ff" :red "#ff2b45" :ice "#8ab8ff"})
 
+(defn glow-form
+  "Field form of a neon filament at signed distance `distance`: a tight
+   Gaussian core and a finite-support halo, in the style of the bead strokes."
+  [distance width]
+  (list 'let ['q (list '/ distance width)
+              'q2 '(* q q)
+              'inside '(clamp (+ 1.0 (floor (- 36.0 q2))) 0.0 1.0)]
+        '(* inside (+ (* 0.88 (exp (- q2))) (* 0.12 (exp (* -0.16 q2)))))))
+
+(defn neon-form
+  "Saturating, hue-preserving field exposure for channels `red green blue`.
+   Bright cores retain their saturated hue rather than flattening to white."
+  [red green blue]
+  (list 'let ['red red 'green green 'blue blue
+              'hi '(max red (max green blue)) 'lo '(min red (min green blue))
+              'span '(- hi lo)
+              'visible '(* (clamp (+ 1.0 (floor (- hi 0.003))) 0.0 1.0)
+                           (clamp (+ 1.0 (floor (- span 1.0e-12))) 0.0 1.0))
+              'v '(* 0.95 (- 1.0 (exp (* -1.65 hi))))
+              'scale '(/ (* 0.98 v) (max span 1.0e-12))
+              'base '(* 0.02 v)]
+        '[(* visible (+ base (* scale (- red lo))))
+          (* visible (+ base (* scale (- green lo))))
+          (* visible (+ base (* scale (- blue lo))))]))
+
 (defn star
   "The 2n vertices of an n-pointed star about `c`, points at radius `rout`,
    notches at `rin`, the first point at angle `turn`."
