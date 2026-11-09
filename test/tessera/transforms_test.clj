@@ -79,3 +79,13 @@
     (is (< (Math/abs (- 0.9 (first (f 0.1 0.4)))) 1.0e-12))
     (is (= 1.0 (last (f 0.5 0.5))))
     (is (not= (sample-frame tx/tile 0.0 {}) (sample-frame tx/tile 0.25 {})))))
+
+(deftest ripple-modes-and-origin
+  (doseq [mode [0.0 1.0]]
+    (let [f (map-fn tx/ripple 0.3 {'planar mode})
+          identity-f (map-fn tx/ripple 0.3 {'planar mode 'amplitude 0.0})
+          r (seam-report tx/ripple {'planar mode})]
+      (is (every? #(Double/isFinite (double %)) (f 0.5 0.5)))
+      (is (= [0.27 0.63 1.0] (identity-f 0.27 0.63)))
+      (is (< (:closure r) 1.0e-10))
+      (is (<= (:seam r) (:step r)) (str r)))))

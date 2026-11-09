@@ -59,9 +59,27 @@
                        shift (+ (* row row_offset) (* sway (sin (* tau phase))))]
                    [(+ (* x n) shift) (* y m) 1.0])}})
 
+(def ripple
+  {:id :tas_ripple :title "Tessera Ripple" :period 16
+   :description "Radial or planar sine displacement of the input; finite at the origin and periodic without feedback."
+   :params [(param 'amplitude 0.035 0.0 0.2) (param 'frequency 6.0 0.25 24.0)
+            (param 'cycles 1.0 -4.0 4.0) (param 'planar 0.0 0.0 1.0)
+            (param 'angle 0.0 -0.5 0.5)]
+   :integers '[cycles planar]
+   :form {:params '[u aspect amplitude frequency cycles planar angle]
+          :body '(let [px (* (- x 0.5) aspect) py (- y 0.5)
+                       r (sqrt (+ (* px px) (* py py) 0.000001))
+                       ca (cos (* tau angle)) sa (sin (* tau angle))
+                       mode (clamp (floor (+ planar 0.5)) 0.0 1.0)
+                       pos (mix r (+ (* px ca) (* py sa)) mode)
+                       d (* amplitude (sin (* tau (- (* frequency pos)
+                                                       (* (floor (+ cycles 0.5)) u)))))
+                       nx (mix (/ px r) ca mode) ny (mix (/ py r) sa mode)]
+                   [(+ x (/ (* nx d) aspect)) (+ y (* ny d)) 1.0])}})
+
 (def suite
   "Input effects in stable publication order; separate from source layers."
-  [torus hyperspace tile])
+  [torus hyperspace tile ripple])
 
 (defn check
   "Validate the existing trama slot/range contract plus the UV-map ABI.
