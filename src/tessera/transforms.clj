@@ -154,7 +154,7 @@
         expected (into '[u aspect] (cond-> public (:height? effect) (conj 'height)))
         candidate (assoc effect :form (assoc (:form effect) :params (into '[u] public)))
         checked (trama/check candidate)]
-    (when (:err checked)
+    (when-not (:ok checked)
       (throw (ex-info "Invalid input effect" checked)))
     (when-not (and (= expected (get-in effect [:form :params]))
                    (every? (set public) (:integers effect))
@@ -169,6 +169,13 @@
   (let [e (check effect)]
     (assoc (trama/manifest e) "kind" "effect" "inputs" 1
            "integers" (mapv name (:integers e)))))
+
+(defn- slot-text
+  "Clamp modulated public values too: UI slider ranges are not enforcement."
+  [effect p]
+  (let [{:keys [min max]} (get (into {} (:params effect)) p)]
+    (str "clamp(param(" ((trama/slots effect) p) "u), "
+         (wgsl/literal min) ", " (wgsl/literal max) ")")))
 
 (defn- sample-text [effect]
   (if (:streak? effect)
@@ -191,11 +198,10 @@
         compiled (field/source :wgsl (:form e) {})
         _ (when-not (:ok compiled) (throw (ex-info "WGSL compilation failed" compiled)))
         src (:ok compiled)
-        slot (trama/slots e)
         args (map (fn [p]
                     (case p
                       u "tas_phase" aspect "tas_aspect" height "tas_height"
-                      (str "param(" (slot p) "u)")))
+                      (slot-text e p)))
                   (get-in e [:form :params]))]
     (str "/*! trama\n" (json/write-str (manifest e) :indent true) "\n*/\n"
          "// " (:description e) "\n"

@@ -3,7 +3,10 @@
             [clojure.data.json :as json]
             [clojure.string :as str]
             [desargues.wallpaper.field :as field]
-            [tessera.transforms :as tx]))
+            [tessera.transforms :as tx]
+            [desargues.wallpaper.wgsl :as wgsl]
+            [tessera.layers :as layers]
+            [desargues.wallpaper.emit :as emit]))
 
 (def map-factory
   (memoize
@@ -134,3 +137,81 @@
     (is (= 0.6 (second (black 0.4 0.6))))
     (is (= [0.4 0.6 1.0] (flat 0.4 0.6)))
     (is (str/includes? (tx/source-text tx/depth) "dot(tas_sample(uv).rgb"))))
+
+(def expected-abi
+  {:tas_torus '[twist speed depth_scale rotation core]
+   :tas_hyperspace '[z_speed warp density streak_length]
+   :tas_tile '[columns rows row_offset sway cycles]
+   :tas_ripple '[amplitude frequency cycles planar angle]
+   :tas_kaleido '[folds zoom rotate rotation equirect]
+   :tas_sprite_grid '[columns rows fill pulse phase_step cycles rock]
+   :tas_depth '[parallax wave_depth frequency cycles angle orbit height_bias]})
+
+(deftest published-effect-abi
+  (is (= (set (keys expected-abi)) (set (map :id tx/suite))))
+  (is (= (count tx/suite) (count (distinct (map :title tx/suite)))))
+  (doseq [e tx/suite :let [m (tx/manifest e) text (tx/source-text e)]]
+    (is (= (expected-abi (:id e)) (mapv first (:params e))))
+    (is (= #{"name" "id" "kind" "inputs" "params" "rates" "integers"} (set (keys m))))
+    (is (= (mapv name (:integers e)) (m "integers")))
+    (is (<= (count (m "params")) 16))
+    (doseq [i (range 1 (inc (count (:params e))))]
+      (is (str/includes? text (str "clamp(param(" i "u),")))))
+  (is (thrown? clojure.lang.ExceptionInfo
+               (tx/check (assoc tx/torus :params (vec (reverse (:params tx/torus)))))))
+  (is (thrown? clojure.lang.ExceptionInfo
+               (tx/check (assoc-in tx/torus [:params 0 1 :default] 99.0)))))
+
+(deftest wgsl-ir-parity-and-finite-extremes
+  (doseq [e tx/suite
+          overrides [{} (into {} (map (fn [[s p]] [s (:min p)]) (:params e)))
+                     (into {} (map (fn [[s p]] [s (:max p)]) (:params e)))]
+          u [0.0 0.31 0.99]
+          :let [f (map-fn e u overrides)
+                values (merge (into {} (map (fn [[s p]] [s (:default p)]) (:params e)))
+                              {'u u 'aspect (/ 2560.0 1080.0) 'height 0.6} overrides)
+                args (mapv values (get-in e [:form :params]))
+                tree (:ok (wgsl/ir (:form e)))]
+          [x y] [[0.0 0.0] [0.17 0.83] [0.5 0.5] [1.0 1.0]]]
+    (let [expected (f x y)
+          actual (wgsl/interpret tree x y args)
+          f32 (wgsl/interpret tree x y args (comp double float))]
+      (is (every? #(Double/isFinite (double %)) f32) (str (:id e) overrides u))
+      (is (every? true? (map #(< (Math/abs (double (- %1 %2))) 1.0e-9) expected actual))))))
+
+(deftest rounded-cycles-remain-periodic
+  (doseq [e tx/suite
+          :let [overrides (into {} (map (fn [p] [p 1.7]) (:integers e)))
+                a (sample-frame e 0.0 overrides) b (sample-frame e 1.0 overrides)]]
+    (is (every? true? (map #(< (Math/abs (double (- %1 %2))) 1.0e-10) a b))
+        (str (:id e) " a modulated fractional cycle count must still close"))))
+
+(deftest layer-emitter-integration
+  ;; Verify orchestration without writing all expensive lattice fields.
+  (let [calls (atom [])]
+    (with-redefs [emit/emit-all! (fn [xs dir]
+                                  (swap! calls conj [xs dir]) {:source {:ok []}})
+                  tx/emit-trama! (fn [dir]
+                                   (swap! calls conj [:transforms dir]) {:effect {:ok []}})]
+      (is (= #{:source :effect} (set (keys (layers/emit-trama! "out/layers"))))))
+    (is (= [:transforms "out/layers"] (first @calls)))
+    (is (every? #(= :trama (:target %)) (first (second @calls))))
+    (reset! calls [])
+    (with-redefs [emit/emit-all! (fn [xs dir] (swap! calls conj [xs dir]) {})]
+      (layers/emit-pfx! "out/effects"))
+    (is (every? #(= :pfx (:target %)) (ffirst @calls)))
+    (is (not-any? (set (map :id tx/suite)) (map :id (ffirst @calls))))))
+
+(deftest emission-fails-before-any-file-write
+  (let [dir (.toFile (java.nio.file.Files/createTempDirectory
+                     "tas-refused-" (make-array java.nio.file.attribute.FileAttribute 0)))
+        calls (atom 0)]
+    (try
+      (with-redefs [tx/validate-wgsl! (fn [_]
+                                      (when (= 2 (swap! calls inc))
+                                        (throw (ex-info "Rejected validator fixture" {}))))]
+        (is (thrown? clojure.lang.ExceptionInfo (tx/emit-trama! tx/suite (str dir))))
+        (is (empty? (.listFiles dir))))
+      (finally (.delete dir))))
+  (is (thrown? clojure.lang.ExceptionInfo
+               (tx/validate-wgsl! "@fragment fn broken( -> vec4f {}"))))

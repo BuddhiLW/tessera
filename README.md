@@ -38,6 +38,13 @@ The generic machinery lives in
 bloom, motion blur, LuxCore, GPU field shaders and video encoders. This
 repository holds the loops.
 
+## Live input transforms
+
+See [TAS-style transform suite](docs/tas-suite.md) for seven loop-locked,
+single-input fosfora trama effects, the built-in overlap audit, emitter
+commands and SVG Offset/lattice recipe chains. Artwork stays original;
+saved fosfora presets are a separate step.
+
 ## Gallery
 
 ### Mechanics: Lagrangians and Hamiltonians
