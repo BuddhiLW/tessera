@@ -38,7 +38,10 @@
    :textile_tunnel '[depth_fade shear]
    :flower_mandala '[worm_density patch_threshold ring_radius]
    :hyperspace '[streak_decay head_sharpness core_glow]
-   :sprite_lattice '[size_span hue_swing]})
+   :sprite_lattice '[size_span hue_swing]
+   :minkowski_boost '[boost_amplitude line_width]
+   :aberration '[boost_amplitude]
+   :einstein_ring '[einstein_radius source_radius]})
 
 (def expected-effect-names
   ;; Catalog titles are fosfora preset keys: never rename.
@@ -50,7 +53,9 @@
    :brillouin_square "Brillouin Square" :brillouin_oblique "Brillouin Oblique"
    :brillouin_rect "Brillouin Rectangular"
    :textile_tunnel "Textile Tunnel" :flower_mandala "Flower Mandala"
-   :hyperspace "Hyperspace Warp" :sprite_lattice "Sprite Lattice"})
+   :hyperspace "Hyperspace Warp" :sprite_lattice "Sprite Lattice"
+   :minkowski_boost "Minkowski Boost" :aberration "Relativistic Aberration"
+   :einstein_ring "Einstein Ring"})
 
 (defn- raster [shader view [w h] ss]
   (let [img (BufferedImage. w h BufferedImage/TYPE_INT_RGB)]

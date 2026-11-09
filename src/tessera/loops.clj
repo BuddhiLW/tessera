@@ -38,6 +38,7 @@
             [desargues.wallpaper.field :as field]
             [tessera.fractals :as fractals]
             [tessera.figures :as figures]
+            [tessera.relativity :as relativity]
             [tessera.svg-offset :as svg-offset]
             [tessera.fourier :as fourier]))
 
@@ -234,6 +235,7 @@
            recip/square-fermi recip/penrose-fermi recip/heptagonal-fermi recip/octagonal-fermi])
     chor/loops
     mech/loops
+    relativity/loops
     chaos/loops
     delays/loops
     flows/loops

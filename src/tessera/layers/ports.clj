@@ -13,15 +13,17 @@
             [tessera.layers.ports.modes :as modes]
             [tessera.layers.ports.reciprocal :as recip]
             [tessera.layers.ports.slit :as slit]
-            [tessera.layers.ports.uv :as uv]))
+            [tessera.layers.ports.uv :as uv]
+            [tessera.layers.relativity :as relativity]))
 
 (def layers
   "Ported layers in stable registry order (best visual payoff first)."
-  [recip/twisted-bilayer slit/double-slit carpet/quantum-tapestry carpet/quantum-carpet
-   modes/box-modes modes/drum breathers/breathers
-   recip/fold-9 recip/fold-10 recip/fold-11 recip/fold-12
-   bz/brillouin-square bz/brillouin-oblique bz/brillouin-rect
-   uv/textile-tunnel uv/flower-mandala uv/hyperspace uv/sprite-lattice])
+  (into [recip/twisted-bilayer slit/double-slit carpet/quantum-tapestry carpet/quantum-carpet
+         modes/box-modes modes/drum breathers/breathers
+         recip/fold-9 recip/fold-10 recip/fold-11 recip/fold-12
+         bz/brillouin-square bz/brillouin-oblique bz/brillouin-rect
+         uv/textile-tunnel uv/flower-mandala uv/hyperspace uv/sprite-lattice]
+        relativity/layers))
 
 (def source-loops
   "Layer id -> the tessera.loops/all id of the closure loop it reproduces."
@@ -32,7 +34,9 @@
    :brillouin_square :brillouin-square :brillouin_oblique :brillouin-oblique
    :brillouin_rect :brillouin-rect
    :textile_tunnel :textile-tunnel :flower_mandala :flower-mandala
-   :hyperspace :hyperspace :sprite_lattice :sprite-lattice})
+   :hyperspace :hyperspace :sprite_lattice :sprite-lattice
+   :minkowski_boost :minkowski-boost :aberration :aberration
+   :einstein_ring :einstein-ring})
 
 (def effects
   "fosfora layer-effect catalog name (a preset key: STABLE) and description
@@ -54,7 +58,10 @@
    :textile_tunnel {:name "Textile Tunnel" :description "A UV textile tunnel: stepped crosses on an exact cylinder, travelling endlessly inward."}
    :flower_mandala {:name "Flower Mandala" :description "A dyadic triangular labyrinth flowering outward around a ring of dashed circles."}
    :hyperspace {:name "Hyperspace Warp" :description "D12-folded hex-lattice stars streaking outward through a dyadic log-radial warp."}
-   :sprite_lattice {:name "Sprite Lattice" :description "UV glyphs sized by the graphene hopping band, sliding one cell per loop."}})
+   :sprite_lattice {:name "Sprite Lattice" :description "UV glyphs sized by the graphene hopping band, sliding one cell per loop."}
+   :minkowski_boost {:name "Minkowski Boost" :description "A spacetime lattice shears by a Lorentz boost; its light cones stay fixed."}
+   :aberration {:name "Relativistic Aberration" :description "A starfield sweeps toward the direction of motion, with Doppler colour and brightness."}
+   :einstein_ring {:name "Einstein Ring" :description "A point lens bends a distant star into arcs and an Einstein ring."}})
 
 (def skipped
   "Loops of tessera.loops/all audited for a field port and not ported, with
@@ -90,6 +97,7 @@
    :lissajous_oscillators "A :frame painter."
    :neon_pulse "A :frame painter (girih beads) with post stages."
    :neon_khatam "A :frame painter (girih beads) with post stages."
+   :twin_paradox "A :frame painter (worldlines and proper-time clock ticks)."
    :girih_light "A :frame vector painter with a :light pass."
    :girih_drift "A :frame vector painter with a :light pass."
    :girih_assembly "A :frame vector painter with a :light pass."

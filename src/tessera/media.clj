@@ -25,11 +25,21 @@
 
 (def version 1)
 
+(def ^:private relativity-metadata
+  {:minkowski-boost {:family "Physics" :title "Minkowski Boost"
+                     :tags ["relativity" "minkowski" "lorentz" "spacetime"]}
+   :aberration {:family "Physics" :title "Relativistic Aberration"
+                :tags ["relativity" "aberration" "doppler" "starfield"]}
+   :einstein-ring {:family "Physics" :title "Einstein Ring"
+                   :tags ["gravity" "lensing" "einstein-ring"]}
+   :twin-paradox {:family "Physics" :title "Twin Paradox Clocks"
+                  :tags ["relativity" "proper-time" "worldlines" "clocks"]}})
+
 (def family-set
   "The allowed families, in the order the Catalog should show them."
-  ["Orbits" "Curves" "Knots" "Fractals" "Lattices" "Waves" "Quantum" "Tilings" "Ornament" "Flows" "Scenes"])
+  ["Orbits" "Curves" "Knots" "Fractals" "Lattices" "Waves" "Quantum" "Tilings" "Ornament" "Flows" "Scenes" "Physics"])
 
-(def families
+(def ^:private master-families
   "Hand-curated: loop id -> [family tags]. Must cover every loop in
    tessera.loops/catalog (the tests check it)."
   {;; Orbits: celestial and mechanical periodic motion
@@ -136,7 +146,7 @@
    :fourier-formula ["Curves" ["fourier" "tex" "gauss-law" "epicycles"]]
    :fourier-live ["Curves" ["fourier" "trefoil" "sdf" "live" "analytic"]]})
 
-(def titles
+(def ^:private master-titles
   "Short human titles for the Catalog tile. The loop's own :title (often a
    sentence) becomes the item's :description."
   {:choreographies "Three-Body Choreographies"
@@ -227,6 +237,18 @@
   {:hd "out/hd" :uw "out/uw"})
 
 (defn- rel [id file] (str (name id) "/" file))
+
+(def families
+  "Master's curated families plus the relativity entries."
+  (merge master-families
+         (into {} (map (fn [[id {:keys [family tags]}]] [id [family tags]]))
+               relativity-metadata)))
+
+(def titles
+  "Master's short titles plus the relativity entries."
+  (merge master-titles
+         (into {} (map (fn [[id {:keys [title]}]] [id title]))
+               relativity-metadata)))
 
 (defn item
   "The manifest item of `loop`, given `present`: the set of clip kinds
